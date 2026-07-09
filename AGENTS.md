@@ -19,7 +19,8 @@ Decided 2026-07-08 (session 1). Roadmap lives in GitHub milestones/issues on `ze
 - **Deployment:** headless Jetson (ARM Linux), 24/7, served over Tailscale to tailnet devices only. **No auth** — the tailnet is the trust boundary.
 - **Chat/agent:** the app makes no LLM API calls. The chat UI is a thin bridge that drives the user's **Hermes** agent non-interactively on the Jetson. The finance skills are also installable into Hermes directly so it can query Delta from its own interfaces.
 - **Agent hardening:** Hermes gets least-privilege access — read-only DB access by default (Plaid tokens never exposed), writes only through validated app API routes, automated SQLite backups.
-- Build/test/lint commands: record here once the app is scaffolded (M1).
+- Build/test/lint commands: `npm run dev` (dev server), `npm run build` (production build), `npm run lint` (ESLint). DB smoke test: `npx tsx db/check.ts`.
+- **DB conventions (M1):** money as integer cents (Plaid sign convention: positive = money out), timestamps as `timestamp_ms`, snake_case SQL columns / camelCase TS keys. Schema in `db/schema.ts`; after editing it run `npx drizzle-kit generate` and commit the `drizzle/` output — migrations auto-apply when `db/index.ts` is first imported (no separate migrate step on the Jetson). DB path: `DATABASE_PATH` env, default `./delta.db`.
 
 ## Environment
 
