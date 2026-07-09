@@ -25,6 +25,8 @@ Decided 2026-07-08 (session 1). Roadmap lives in GitHub milestones/issues on `ze
 - **Plaid conventions (M2):** client singleton in `lib/plaid.ts` (`server-only`, sandbox hardcoded until M6); sync engine in `lib/sync.ts`. Gotcha: `/transactions/sync` returns `accounts: []` when nothing changed, so balance snapshots come from `accountsBalanceGet` (which also returns non-transaction accounts — loans/IRA etc.). No in-app scheduler by decision: M6's systemd timer will `POST /api/plaid/sync`.
 - **Headless Plaid E2E test:** bypass the Link browser flow with `POST https://sandbox.plaid.com/sandbox/public_token/create` (`institution_id: ins_109508`, `initial_products: ["transactions"]`), then POST the token to `/api/plaid/exchange`. In-browser sandbox creds: `user_good` / `pass_good`. First sync after linking may return 0 added for ~a minute — retry.
 
+- **Dashboard conventions (M3):** pages are async server components (`force-dynamic`) querying Drizzle directly; shared money/category formatting in `lib/format.ts`; charts are hand-rolled (div bars, inline SVG line) — no chart library. Net worth negates `credit`/`loan` account balances (stored as positive amounts owed); snapshots are bucketed by day (timestamps are per-item, not per-run). Spending/recurring views exclude `TRANSFER%` and `INCOME` categories — moving money between own accounts isn't spend. Recurring detection is a pure heuristic in `lib/recurring.ts` (self-check: `npx tsx lib/recurring-check.ts`); upgrade path is Plaid's recurring-transactions product. Budgets writes go through `/api/budgets` only (validated — it's the agent trust boundary).
+
 ## Environment
 
 `.env` (gitignored, already present) contains:
