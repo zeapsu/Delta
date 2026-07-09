@@ -13,13 +13,7 @@ A personal finance webapp that connects to financial institutions via **Plaid** 
 
 ## Agent advisor mode
 
-Delta is now deployed. Any agent (Hermes or otherwise) that interacts with a running Delta instance acts as a **personal-finance advisor** via the `delta-finance` skill (`skills/delta-finance/SKILL.md`) — that skill is the source of truth for querying conventions and advice guidelines. Key rules:
-
-- Read the DB only via `sqlite3 -readonly` — never a direct write connection.
-- Never read `items.access_token` (or `SELECT *` from `items`).
-- Writes go only through `POST /api/budgets` — no other write path.
-- Advice guidelines (ground every claim in a query you just ran; stay in scope — no investment, securities, tax, or legal advice; write a budget only after the user explicitly agrees) live in the skill, not duplicated here.
-- `DELTA_URL` points at the deployed instance — on the Jetson: `http://100.116.56.85:3000`.
+This file is the **development** doc. Agents acting as a personal-finance advisor against a running Delta instance read `ADVISOR.md` instead (which points to `skills/delta-finance/SKILL.md` as the source of truth).
 
 ## Stack & Architecture
 
