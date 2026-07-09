@@ -82,3 +82,29 @@ export const budgets = sqliteTable("budgets", {
     .notNull()
     .default(sql`(unixepoch('now', 'subsec') * 1000)`),
 });
+
+// Chat conversations: the Hermes --continue key is derived (`delta-chat-<id>`),
+// not stored.
+export const conversations = sqliteTable("conversations", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
+    .notNull()
+    .default(sql`(unixepoch('now', 'subsec') * 1000)`),
+});
+
+export const messages = sqliteTable(
+  "messages",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    conversationId: integer("conversation_id")
+      .notNull()
+      .references(() => conversations.id, { onDelete: "cascade" }),
+    role: text("role").notNull(), // "user" | "assistant"
+    text: text("text").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch('now', 'subsec') * 1000)`),
+  },
+  (table) => [index("messages_conversation_id_idx").on(table.conversationId)],
+);

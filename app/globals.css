@@ -3,6 +3,16 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --chart-1: #2a78d6;
+  --chart-2: #1baf7a;
+  --chart-3: #eda100;
+  --chart-4: #008300;
+  --chart-5: #4a3aa7;
+  --chart-6: #e34948;
+  --chart-7: #e87ba4;
+  --chart-8: #eb6834;
+  --chart-grid: #e1e0d9;
+  --chart-muted: #6b6b66;
 }
 
 @theme inline {
@@ -16,6 +26,16 @@
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
+    --chart-1: #3987e5;
+    --chart-2: #199e70;
+    --chart-3: #c98500;
+    --chart-4: #008300;
+    --chart-5: #9085e9;
+    --chart-6: #e66767;
+    --chart-7: #d55181;
+    --chart-8: #d95926;
+    --chart-grid: #2c2c2a;
+    --chart-muted: #8a8a85;
   }
 }
 
@@ -24,3 +44,30 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* recharts sets fill/stroke as SVG presentation attributes, where var() is
+   invalid and silently falls back to black. Presentation attributes lose to
+   any CSS rule, so these attribute selectors re-assert the same value as CSS,
+   where var() resolves — keeping light/dark switching in CSS alone. */
+[fill="var(--chart-1)"] { fill: var(--chart-1); }
+[fill="var(--chart-2)"] { fill: var(--chart-2); }
+[fill="var(--chart-3)"] { fill: var(--chart-3); }
+[fill="var(--chart-4)"] { fill: var(--chart-4); }
+[fill="var(--chart-5)"] { fill: var(--chart-5); }
+[fill="var(--chart-6)"] { fill: var(--chart-6); }
+[fill="var(--chart-7)"] { fill: var(--chart-7); }
+[fill="var(--chart-8)"] { fill: var(--chart-8); }
+[fill="var(--chart-muted)"] { fill: var(--chart-muted); }
+[fill="var(--chart-grid)"] { fill: var(--chart-grid); }
+[fill="var(--background)"] { fill: var(--background); }
+[stroke="var(--chart-1)"] { stroke: var(--chart-1); }
+[stroke="var(--chart-2)"] { stroke: var(--chart-2); }
+[stroke="var(--chart-3)"] { stroke: var(--chart-3); }
+[stroke="var(--chart-4)"] { stroke: var(--chart-4); }
+[stroke="var(--chart-5)"] { stroke: var(--chart-5); }
+[stroke="var(--chart-6)"] { stroke: var(--chart-6); }
+[stroke="var(--chart-7)"] { stroke: var(--chart-7); }
+[stroke="var(--chart-8)"] { stroke: var(--chart-8); }
+[stroke="var(--chart-grid)"] { stroke: var(--chart-grid); }
+[stroke="var(--chart-muted)"] { stroke: var(--chart-muted); }
+[stroke="var(--background)"] { stroke: var(--background); }

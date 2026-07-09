@@ -1,14 +1,17 @@
 import { db } from "@/db";
 import { accounts, items } from "@/db/schema";
 import { DEBT_TYPES, formatCents } from "@/lib/format";
+import { getNetWorthData } from "@/lib/networth-data";
+import type { NetWorthRow } from "@/lib/networth";
 import PlaidButtons from "./plaid-buttons";
 
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const [allItems, allAccounts] = await Promise.all([
+  const [allItems, allAccounts, netWorthHistory] = await Promise.all([
     db.select().from(items),
     db.select().from(accounts),
+    getNetWorthData().then((d) => d.total),
   ]);
 
   const institutions = allItems.map((item) => ({
@@ -27,9 +30,14 @@ export default async function Home() {
       <main className="flex w-full max-w-3xl flex-col gap-8 px-4 py-8 sm:px-6 sm:py-16">
         <h1 className="text-3xl font-semibold">Delta</h1>
 
-        <div>
-          <span className="text-sm opacity-60">Net worth</span>
-          <p className="text-2xl font-semibold">{formatCents(netWorth)}</p>
+        <div className="flex items-end justify-between gap-6">
+          <div>
+            <span className="text-sm opacity-60">Net worth</span>
+            <p className="text-2xl font-semibold">{formatCents(netWorth)}</p>
+          </div>
+          {netWorthHistory.length > 1 ? (
+            <Sparkline rows={netWorthHistory} />
+          ) : null}
         </div>
 
         <PlaidButtons />
@@ -83,5 +91,41 @@ export default async function Home() {
         )}
       </main>
     </div>
+  );
+}
+
+// ponytail: static polyline; swap to NetWorthLine if hover is ever wanted.
+function Sparkline({ rows }: { rows: NetWorthRow[] }) {
+  const width = 120;
+  const height = 36;
+  const values = rows.map((r) => r.net_worth);
+  let min = Math.min(...values);
+  let max = Math.max(...values);
+  if (min === max) {
+    min -= 1;
+    max += 1;
+  }
+  const points = rows
+    .map((r, i) => {
+      const x = 2 + (i / (rows.length - 1)) * (width - 4);
+      const y = 2 + (height - 4) - ((r.net_worth - min) / (max - min)) * (height - 4);
+      return `${x},${y}`;
+    })
+    .join(" ");
+  return (
+    <svg
+      viewBox={`0 0 ${width} ${height}`}
+      className="h-9 w-30 shrink-0 opacity-60"
+      aria-label="Net worth trend"
+    >
+      <polyline
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={2}
+        strokeLinejoin="round"
+        strokeLinecap="round"
+        points={points}
+      />
+    </svg>
   );
 }

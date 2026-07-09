@@ -3,18 +3,36 @@ import { db } from "@/db";
 import { budgets, transactions } from "@/db/schema";
 import { formatCategory, formatCents } from "@/lib/format";
 import { BudgetForm, DeleteBudgetButton } from "./budget-form";
+import { BudgetTrendChart, type BudgetTrendPoint } from "@/app/charts";
 
 export const dynamic = "force-dynamic";
+
+const TREND_MONTHS = 6;
 
 function currentMonth(): string {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 }
 
+// Last N months as yyyy-mm, oldest first, ending at the current month.
+function recentMonths(n: number): string[] {
+  const now = new Date();
+  return Array.from({ length: n }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - (n - 1 - i), 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  });
+}
+
+function shortMonthLabel(month: string): string {
+  const [year, mon] = month.split("-").map(Number);
+  return new Date(year, mon - 1, 1).toLocaleString("default", { month: "short" });
+}
+
 export default async function BudgetsPage() {
   const month = currentMonth();
+  const months = recentMonths(TREND_MONTHS);
 
-  const [budgetRows, spendRows, categoryRows] = await Promise.all([
+  const [budgetRows, spendRows, categoryRows, trendRows] = await Promise.all([
     db
       .select({ category: budgets.category, monthlyAmount: budgets.monthlyAmount })
       .from(budgets),
@@ -35,7 +53,32 @@ export default async function BudgetsPage() {
           ne(transactions.category, "INCOME"),
         ),
       ),
+    // Month-bucketed spend for the trend charts (same sum convention as the
+    // progress bars above: all transactions, pending included).
+    db
+      .select({
+        category: transactions.category,
+        month: sql<string>`substr(${transactions.date}, 1, 7)`,
+        total: sql<number>`sum(${transactions.amount})`,
+      })
+      .from(transactions)
+      .where(sql`substr(${transactions.date}, 1, 7) >= ${months[0]}`)
+      .groupBy(transactions.category, sql`substr(${transactions.date}, 1, 7)`),
   ]);
+
+  // category -> month -> spent
+  const trendByCategory = new Map<string, Map<string, number>>();
+  for (const r of trendRows) {
+    if (r.category === null) continue;
+    const m = trendByCategory.get(r.category) ?? new Map<string, number>();
+    m.set(r.month, r.total);
+    trendByCategory.set(r.category, m);
+  }
+  const trendFor = (category: string): BudgetTrendPoint[] =>
+    months.map((m) => ({
+      month: shortMonthLabel(m),
+      spent: Math.max(trendByCategory.get(category)?.get(m) ?? 0, 0),
+    }));
 
   const spentByCategory = new Map(
     spendRows
@@ -90,6 +133,7 @@ export default async function BudgetsPage() {
                       style={{ width: `${Math.min(100, pct)}%` }}
                     />
                   </div>
+                  <BudgetTrendChart data={trendFor(b.category)} budget={b.monthlyAmount} />
                 </div>
               );
             })}
