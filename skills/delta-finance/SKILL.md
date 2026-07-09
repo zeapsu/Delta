@@ -71,4 +71,4 @@ ln -s /path/to/Delta/skills/delta-finance ~/.claude/skills/delta-finance
 
 **Any other agent:** this file and `references/` are plain markdown — put SKILL.md in the agent's context and let it read the reference files on demand.
 
-**Environment:** set `DATABASE_PATH` to the absolute path of `delta.db` (defaults to `./delta.db`) and `DELTA_URL` to the app's URL (defaults to `http://localhost:3000`).
+**Environment:** set `DATABASE_PATH` to the absolute path of `delta.db` (defaults to `./delta.db`) and `DELTA_URL` to the app's URL (defaults to `http://localhost:3000`; on the deployed Jetson the server binds to the tailscale IP only, so `DELTA_URL` must be `http://<tailscale-ip>:3000` — localhost won't answer).

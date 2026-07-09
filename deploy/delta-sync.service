@@ -1,6 +1,7 @@
 [Unit]
 Description=Delta Plaid sync
 After=delta.service
+# Requisite: skip (as a failed job) if the app isn't running — shows up in `systemctl --failed`, that's expected noise
 Requisite=delta.service
 
 [Service]
