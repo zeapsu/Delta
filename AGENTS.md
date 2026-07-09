@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-> This file is `AGENTS.md`; `CLAUDE.md` is a symlink to it. After MVP, this file will be reworked to instruct agents on using the finance skills and how to provide advice/recommendations to the user.
+> This file is `AGENTS.md`; `CLAUDE.md` is a symlink to it. Finance analysis skills for agents live in `skills/delta-finance/` — see its `SKILL.md` for querying conventions, advice guidelines, and install into Hermes or any agent.
 
 ## Project: Delta — Personal Finance Webapp
 
@@ -26,6 +26,8 @@ Decided 2026-07-08 (session 1). Roadmap lives in GitHub milestones/issues on `ze
 - **Headless Plaid E2E test:** bypass the Link browser flow with `POST https://sandbox.plaid.com/sandbox/public_token/create` (`institution_id: ins_109508`, `initial_products: ["transactions"]`), then POST the token to `/api/plaid/exchange`. In-browser sandbox creds: `user_good` / `pass_good`. First sync after linking may return 0 added for ~a minute — retry.
 
 - **Dashboard conventions (M3):** pages are async server components (`force-dynamic`) querying Drizzle directly; shared money/category formatting in `lib/format.ts`; charts are hand-rolled (div bars, inline SVG line) — no chart library. Net worth negates `credit`/`loan` account balances (stored as positive amounts owed); snapshots are bucketed by day (timestamps are per-item, not per-run). Spending/recurring views exclude `TRANSFER%` and `INCOME` categories — moving money between own accounts isn't spend. Recurring detection is a pure heuristic in `lib/recurring.ts` (self-check: `npx tsx lib/recurring-check.ts`); upgrade path is Plaid's recurring-transactions product. Budgets writes go through `/api/budgets` only (validated — it's the agent trust boundary).
+
+- **Skill conventions (M4):** `skills/delta-finance/` is provider-agnostic markdown (SKILL.md + `references/`); canonical SQL lives in `references/queries.md`; agents read the DB via `sqlite3 -readonly` (never `items.access_token`) and write only through `/api/budgets`. Verify docs + SQL with `bash scripts/skill-check.sh`.
 
 ## Environment
 

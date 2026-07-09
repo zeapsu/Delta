@@ -1,5 +1,9 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Agent skills
+
+Finance analysis skills for LLM agents live in [`skills/delta-finance/`](skills/delta-finance/SKILL.md) — see its SKILL.md for querying conventions and install instructions.
+
 ## Getting Started
 
 First, run the development server:
