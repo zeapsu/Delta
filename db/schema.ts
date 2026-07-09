@@ -14,6 +14,8 @@ export const items = sqliteTable("items", {
   plaidItemId: text("plaid_item_id").notNull().unique(),
   accessToken: text("access_token").notNull(),
   institutionName: text("institution_name"),
+  // /transactions/sync cursor; null = never synced.
+  syncCursor: text("sync_cursor"),
   createdAt: integer("created_at", { mode: "timestamp_ms" })
     .notNull()
     .default(sql`(unixepoch('now', 'subsec') * 1000)`),

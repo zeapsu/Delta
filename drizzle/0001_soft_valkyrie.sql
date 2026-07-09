@@ -1,0 +1,1 @@
+ALTER TABLE `items` ADD `sync_cursor` text;

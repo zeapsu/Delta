@@ -22,6 +22,9 @@ Decided 2026-07-08 (session 1). Roadmap lives in GitHub milestones/issues on `ze
 - Build/test/lint commands: `npm run dev` (dev server), `npm run build` (production build), `npm run lint` (ESLint). DB smoke test: `npx tsx db/check.ts`.
 - **DB conventions (M1):** money as integer cents (Plaid sign convention: positive = money out), timestamps as `timestamp_ms`, snake_case SQL columns / camelCase TS keys. Schema in `db/schema.ts`; after editing it run `npx drizzle-kit generate` and commit the `drizzle/` output — migrations auto-apply when `db/index.ts` is first imported (no separate migrate step on the Jetson). DB path: `DATABASE_PATH` env, default `./delta.db`.
 
+- **Plaid conventions (M2):** client singleton in `lib/plaid.ts` (`server-only`, sandbox hardcoded until M6); sync engine in `lib/sync.ts`. Gotcha: `/transactions/sync` returns `accounts: []` when nothing changed, so balance snapshots come from `accountsBalanceGet` (which also returns non-transaction accounts — loans/IRA etc.). No in-app scheduler by decision: M6's systemd timer will `POST /api/plaid/sync`.
+- **Headless Plaid E2E test:** bypass the Link browser flow with `POST https://sandbox.plaid.com/sandbox/public_token/create` (`institution_id: ins_109508`, `initial_products: ["transactions"]`), then POST the token to `/api/plaid/exchange`. In-browser sandbox creds: `user_good` / `pass_good`. First sync after linking may return 0 added for ~a minute — retry.
+
 ## Environment
 
 `.env` (gitignored, already present) contains:
