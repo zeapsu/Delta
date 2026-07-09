@@ -35,7 +35,9 @@ export default async function SpendingPage({
   searchParams: Promise<SearchParams>;
 }) {
   const params = await searchParams;
-  const month = params.month ?? currentMonth();
+  // Guard covers the heading, the SQL LIKE, and the prev/next links.
+  const month =
+    params.month && /^\d{4}-\d{2}$/.test(params.month) ? params.month : currentMonth();
 
   const rows = await db
     .select({
@@ -87,7 +89,14 @@ export default async function SpendingPage({
                 <span className="w-32 shrink-0 truncate text-sm">
                   {formatCategory(r.category)}
                 </span>
-                <div className="h-4 flex-1 rounded bg-zinc-200 dark:bg-zinc-800">
+                <div
+                  className="h-4 flex-1 rounded bg-zinc-200 dark:bg-zinc-800"
+                  role="progressbar"
+                  aria-label={`${formatCategory(r.category)} spending`}
+                  aria-valuenow={r.total}
+                  aria-valuemin={0}
+                  aria-valuemax={max}
+                >
                   <div
                     className="h-4 rounded bg-zinc-900 dark:bg-white"
                     style={{ width: `${(r.total / max) * 100}%` }}

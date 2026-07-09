@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { and, count, desc, eq, gte, like, lte, or, SQL } from "drizzle-orm";
+import { and, count, desc, eq, gte, lte, or, sql, SQL } from "drizzle-orm";
 import { db } from "@/db";
 import { accounts, transactions } from "@/db/schema";
 import { formatCategory, formatCents } from "@/lib/format";
@@ -31,9 +31,13 @@ export default async function TransactionsPage({
   if (params.from) conditions.push(gte(transactions.date, params.from));
   if (params.to) conditions.push(lte(transactions.date, params.to));
   if (params.q) {
-    const like_ = `%${params.q}%`;
+    // Escape LIKE wildcards so searching for "%"/"_" matches literally.
+    const like_ = `%${params.q.replace(/[\\%_]/g, "\\$&")}%`;
     conditions.push(
-      or(like(transactions.name, like_), like(transactions.merchantName, like_))!,
+      or(
+        sql`${transactions.name} LIKE ${like_} ESCAPE '\\'`,
+        sql`${transactions.merchantName} LIKE ${like_} ESCAPE '\\'`,
+      )!,
     );
   }
   const where = conditions.length > 0 ? and(...conditions) : undefined;

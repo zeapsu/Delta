@@ -39,6 +39,7 @@ const results = detectRecurring(all, today);
 const netflixResult = results.find((r) => r.merchant === "Netflix");
 assert(netflixResult, "Netflix should be detected");
 assert.strictEqual(netflixResult.cadence, "monthly", "Netflix should be monthly");
+assert.strictEqual(netflixResult.gapDays, 30, "Netflix median gap should be 30 days");
 assert.strictEqual(netflixResult.lastDate, "2026-07-08", "Netflix lastDate should match");
 assert.strictEqual(netflixResult.nextDate, "2026-08-07", "Netflix nextDate should be ~30d after last");
 

@@ -6,20 +6,8 @@ import { detectRecurring, type RecurringSeries } from "@/lib/recurring";
 
 export const dynamic = "force-dynamic";
 
-const MONTHLY_MULTIPLIER: Record<string, (amount: number) => number> = {
-  weekly: (a) => (a * 30) / 7,
-  biweekly: (a) => (a * 30) / 14,
-  monthly: (a) => a,
-  quarterly: (a) => a / 3,
-  yearly: (a) => a / 12,
-};
-
 function monthlyEquivalent(series: RecurringSeries): number {
-  const fixed = MONTHLY_MULTIPLIER[series.cadence];
-  if (fixed) return fixed(series.amount);
-  const match = series.cadence.match(/^every ~(\d+) days$/);
-  const n = match ? Number(match[1]) : 30;
-  return (series.amount * 30) / n;
+  return (series.amount * 30) / series.gapDays;
 }
 
 export default async function RecurringPage() {

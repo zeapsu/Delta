@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import { db } from "@/db";
-import { formatCents } from "@/lib/format";
+import { DEBT_TYPES, formatCents } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -13,11 +13,15 @@ export default async function NetWorthPage() {
   // ponytail: no carry-forward for accounts missing a day's snapshot (a
   // failed item sync causes a dip); upgrade = forward-fill per account in JS
   // if it ever matters.
+  const debtTypes = sql.join(
+    [...DEBT_TYPES].map((t) => sql`${t}`),
+    sql`, `,
+  );
   const rows = await db.all<NetWorthRow>(sql`
     SELECT day, SUM(adj) AS net_worth FROM (
       SELECT bs.account_id,
              date(bs.snapshot_at / 1000, 'unixepoch') AS day,
-             CASE WHEN a.type IN ('credit','loan') THEN -bs.current_balance
+             CASE WHEN a.type IN (${debtTypes}) THEN -bs.current_balance
                   ELSE bs.current_balance END AS adj,
              ROW_NUMBER() OVER (PARTITION BY bs.account_id, date(bs.snapshot_at/1000,'unixepoch')
                                 ORDER BY bs.snapshot_at DESC) AS rn
@@ -81,13 +85,13 @@ function NetWorthChart({ rows }: { rows: NetWorthRow[] }) {
         points={points.map((p) => `${p.x},${p.y}`).join(" ")}
       />
       <circle cx={lastPoint.x} cy={lastPoint.y} r={4} fill="currentColor" />
-      <text x={0} y={padY + 4} fontSize={11} opacity={0.6}>
+      <text x={4} y={padY + 4} fontSize={11} opacity={0.6}>
         {formatCents(max)}
       </text>
-      <text x={0} y={height / 2 + 4} fontSize={11} opacity={0.6}>
+      <text x={4} y={height / 2 + 4} fontSize={11} opacity={0.6}>
         {formatCents(mid)}
       </text>
-      <text x={0} y={height - padY + 4} fontSize={11} opacity={0.6}>
+      <text x={4} y={height - padY + 4} fontSize={11} opacity={0.6}>
         {formatCents(min)}
       </text>
       <text x={padX} y={height - 4} fontSize={11} opacity={0.6}>

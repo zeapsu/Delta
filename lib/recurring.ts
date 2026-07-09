@@ -1,9 +1,10 @@
 // Pure detection logic, no DB imports — see lib/recurring-check.ts for the self-check.
 
 export type RecurringSeries = {
-  merchant: string; // display name (most common original merchantName ?? name in group)
+  merchant: string; // display name (most common original merchantName ?? cleaned name in group)
   amount: number; // median amount, cents
-  cadence: string; // "weekly" | "biweekly" | "monthly" | "quarterly" | "yearly" | "every ~N days"
+  cadence: string; // display only: "weekly" | "biweekly" | ... | "every ~N days"
+  gapDays: number; // median gap between charges, days
   lastDate: string; // ISO yyyy-mm-dd
   nextDate: string; // ISO yyyy-mm-dd
   count: number;
@@ -17,6 +18,12 @@ function groupKey(t: Txn): string {
     .replace(/\d+/g, "")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+// Fallback display name when merchantName is null: strip the digit noise
+// ("Uber 072515" → "Uber") but keep the original casing.
+function cleanName(raw: string): string {
+  return raw.replace(/\d+/g, "").replace(/\s+/g, " ").trim() || raw;
 }
 
 function median(nums: number[]): number {
@@ -91,13 +98,13 @@ export function detectRecurring(txns: Txn[], today?: string): RecurringSeries[] 
 
     if (daysBetween(lastDate, todayDate) > 2 * m) continue;
 
-    // Display name: most common merchantName ?? name in group.
+    // Display name: most common merchantName ?? cleaned name in group.
     const nameCounts = new Map<string, number>();
     for (const t of sorted) {
-      const display = t.merchantName ?? t.name;
+      const display = t.merchantName ?? cleanName(t.name);
       nameCounts.set(display, (nameCounts.get(display) ?? 0) + 1);
     }
-    let merchant = sorted[0].merchantName ?? sorted[0].name;
+    let merchant = sorted[0].merchantName ?? cleanName(sorted[0].name);
     let bestCount = 0;
     for (const [name, count] of nameCounts) {
       if (count > bestCount) {
@@ -110,6 +117,7 @@ export function detectRecurring(txns: Txn[], today?: string): RecurringSeries[] 
       merchant,
       amount: medAmount,
       cadence: cadenceFromGap(m),
+      gapDays: m,
       lastDate,
       nextDate,
       count: sorted.length,

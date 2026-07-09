@@ -1,11 +1,9 @@
 import { db } from "@/db";
 import { accounts, items } from "@/db/schema";
-import { formatCents } from "@/lib/format";
+import { DEBT_TYPES, formatCents } from "@/lib/format";
 import PlaidButtons from "./plaid-buttons";
 
 export const dynamic = "force-dynamic";
-
-const DEBT_TYPES = new Set(["credit", "loan"]);
 
 export default async function Home() {
   const [allItems, allAccounts] = await Promise.all([
