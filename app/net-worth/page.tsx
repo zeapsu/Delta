@@ -1,38 +1,11 @@
-import { sql } from "drizzle-orm";
-import { db } from "@/db";
-import { DEBT_TYPES, formatCents } from "@/lib/format";
-import { forwardFillNetWorth, type NetWorthRow } from "@/lib/networth";
+import { formatCents } from "@/lib/format";
+import { getNetWorthData } from "@/lib/networth-data";
+import type { NetWorthRow } from "@/lib/networth";
 
 export const dynamic = "force-dynamic";
 
-type AccountDayRow = {
-  account_id: string;
-  day: string;
-  adj: number;
-};
-
 export default async function NetWorthPage() {
-  // Per-account per-day snapshots; forward-fill across missing days happens
-  // in JS (lib/networth.ts) so an account's day is carried forward, not dropped.
-  const debtTypes = sql.join(
-    [...DEBT_TYPES].map((t) => sql`${t}`),
-    sql`, `,
-  );
-  const accountDays = await db.all<AccountDayRow>(sql`
-    SELECT account_id, day, adj FROM (
-      SELECT bs.account_id,
-             date(bs.snapshot_at / 1000, 'unixepoch') AS day,
-             CASE WHEN a.type IN (${debtTypes}) THEN -bs.current_balance
-                  ELSE bs.current_balance END AS adj,
-             ROW_NUMBER() OVER (PARTITION BY bs.account_id, date(bs.snapshot_at/1000,'unixepoch')
-                                ORDER BY bs.snapshot_at DESC) AS rn
-      FROM balance_snapshots bs JOIN accounts a ON a.id = bs.account_id
-    ) WHERE rn = 1 ORDER BY day
-  `);
-
-  const rows: NetWorthRow[] = forwardFillNetWorth(
-    accountDays.map((r) => ({ accountId: r.account_id, day: r.day, adj: r.adj })),
-  );
+  const { total: rows } = await getNetWorthData();
 
   const latest = rows.at(-1)?.net_worth ?? null;
 

@@ -1,15 +1,28 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 type Msg = { role: "user" | "assistant"; text: string };
 
-export function Chat() {
-  const [messages, setMessages] = useState<Msg[]>([]);
+export function Chat({
+  conversations,
+  conversationId,
+  initialMessages,
+}: {
+  conversations: { id: number; name: string }[];
+  conversationId: number | null;
+  initialMessages: Msg[];
+}) {
+  const router = useRouter();
+  const [messages, setMessages] = useState<Msg[]>(initialMessages);
+  const [activeId, setActiveId] = useState<number | null>(conversationId);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const appendToLast = (chunk: string) =>
@@ -32,10 +45,24 @@ export function Chat() {
       { role: "assistant", text: "" },
     ]);
     try {
+      let id = activeId;
+      if (id === null) {
+        const res = await fetch("/api/conversations", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: message.slice(0, 40) }),
+        });
+        if (!res.ok) throw new Error("Failed to create conversation");
+        const data = await res.json();
+        id = data.id;
+        setActiveId(id);
+        window.history.replaceState(null, "", "/chat?c=" + id);
+      }
+
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message }),
+        body: JSON.stringify({ message, conversationId: id }),
       });
       if (!res.ok || !res.body) {
         const data = await res.json().catch(() => ({}));
@@ -56,12 +83,74 @@ export function Chat() {
     }
   };
 
+  const handleDelete = () => {
+    if (activeId === null) return;
+    setError(null);
+    setDeleting(true);
+    fetch("/api/conversations", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: activeId }),
+    })
+      .then(async (res) => {
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error ?? "Failed to delete conversation");
+        }
+        router.push("/chat");
+        router.refresh();
+      })
+      .catch((err) => setError(err.message))
+      .finally(() => setDeleting(false));
+  };
+
   const waiting =
     busy && messages[messages.length - 1]?.role === "assistant" &&
     messages[messages.length - 1].text === "";
 
   return (
     <div className="flex flex-1 flex-col gap-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <select
+          value={activeId ?? ""}
+          disabled={busy || deleting}
+          onChange={(e) => router.push(e.target.value ? `/chat?c=${e.target.value}` : "/chat")}
+          className="rounded-md border px-2 py-1 text-sm disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900"
+        >
+          {activeId === null && (
+            <option value="" disabled>
+              New conversation
+            </option>
+          )}
+          {conversations.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+        {activeId !== null && (
+          <>
+            <button
+              type="button"
+              onClick={() => router.push("/chat")}
+              disabled={busy}
+              className="rounded-md border px-2 py-1 text-sm disabled:opacity-50 dark:border-zinc-700"
+            >
+              New
+            </button>
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={busy || deleting}
+              className="rounded-md border px-2 py-1 text-sm text-red-600 disabled:opacity-50 dark:border-zinc-700"
+            >
+              {deleting ? "Deleting…" : "Delete"}
+            </button>
+          </>
+        )}
+        {error && <span className="text-sm text-red-600">{error}</span>}
+      </div>
+
       <div className="flex flex-1 flex-col gap-4">
         {messages.length === 0 && (
           <p className="text-sm opacity-60">
