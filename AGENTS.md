@@ -11,9 +11,15 @@ A personal finance webapp that connects to financial institutions via **Plaid** 
 1. **The webapp** — Plaid link flow, data sync, dashboard, and a chat UI element for talking with the agent.
 2. **Agent skills** — provider-agnostic skill files with instructions for performing personal-finance analysis and guidelines for offering advice/recommendations. These must not assume any specific LLM provider.
 
-## Current State
+## Stack & Architecture
 
-Greenfield. **The stack is TBD** — it will be decided in the first official working session. Do not scaffold or pick a framework before that decision is made with the user. Once decided, record the stack, build/test/lint commands, and architecture here.
+Decided 2026-07-08 (session 1). Roadmap lives in GitHub milestones/issues on `zeapsu/Delta`.
+
+- **Stack:** Next.js (App Router, TypeScript) + Tailwind, SQLite via Drizzle (better-sqlite3). Single codebase; Plaid calls happen in API routes only.
+- **Deployment:** headless Jetson (ARM Linux), 24/7, served over Tailscale to tailnet devices only. **No auth** — the tailnet is the trust boundary.
+- **Chat/agent:** the app makes no LLM API calls. The chat UI is a thin bridge that drives the user's **Hermes** agent non-interactively on the Jetson. The finance skills are also installable into Hermes directly so it can query Delta from its own interfaces.
+- **Agent hardening:** Hermes gets least-privilege access — read-only DB access by default (Plaid tokens never exposed), writes only through validated app API routes, automated SQLite backups.
+- Build/test/lint commands: record here once the app is scaffolded (M1).
 
 ## Environment
 
