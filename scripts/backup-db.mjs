@@ -17,6 +17,12 @@ async function main() {
   await db.backup(dest);
   db.close();
 
+  // The backup inherits WAL mode, but `sqlite3 -readonly` can't open a WAL
+  // db without its -shm file. Flip the copy to a self-contained journal mode.
+  const copy = new Database(dest);
+  copy.pragma("journal_mode = DELETE");
+  copy.close();
+
   const KEEP = 7;
   const old = fs
     .readdirSync(dir)

@@ -77,7 +77,14 @@ export default async function BudgetsPage() {
                       <DeleteBudgetButton category={b.category} />
                     </div>
                   </div>
-                  <div className="h-3 w-full rounded bg-zinc-200 dark:bg-zinc-800">
+                  <div
+                    className="h-3 w-full rounded bg-zinc-200 dark:bg-zinc-800"
+                    role="progressbar"
+                    aria-label={`${formatCategory(b.category)} budget used`}
+                    aria-valuenow={Math.round(pct)}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                  >
                     <div
                       className={`h-3 rounded ${color}`}
                       style={{ width: `${Math.min(100, pct)}%` }}

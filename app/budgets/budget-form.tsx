@@ -76,9 +76,11 @@ export function BudgetForm({ categories }: { categories: string[] }) {
 
 export function DeleteBudgetButton({ category }: { category: string }) {
   const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   const handleDelete = () => {
+    setError(null);
     setDeleting(true);
     fetch("/api/budgets", {
       method: "DELETE",
@@ -89,18 +91,21 @@ export function DeleteBudgetButton({ category }: { category: string }) {
         if (!res.ok) throw new Error("Delete failed");
         router.refresh();
       })
-      .catch(() => {})
+      .catch((err) => setError(err.message))
       .finally(() => setDeleting(false));
   };
 
   return (
-    <button
-      type="button"
-      onClick={handleDelete}
-      disabled={deleting}
-      className="text-sm text-red-600 disabled:opacity-50"
-    >
-      Delete
-    </button>
+    <span className="flex items-center gap-2">
+      {error && <span className="text-sm text-red-600">{error}</span>}
+      <button
+        type="button"
+        onClick={handleDelete}
+        disabled={deleting}
+        className="text-sm text-red-600 disabled:opacity-50"
+      >
+        Delete
+      </button>
+    </span>
   );
 }
