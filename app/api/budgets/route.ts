@@ -20,6 +20,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
+  if (typeof body !== "object" || body === null || Array.isArray(body)) {
+    return NextResponse.json({ error: "Invalid body" }, { status: 400 });
+  }
+
   const { category, monthlyAmount } = body as {
     category?: unknown;
     monthlyAmount?: unknown;
@@ -51,6 +55,10 @@ export async function DELETE(req: Request) {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+
+  if (typeof body !== "object" || body === null || Array.isArray(body)) {
+    return NextResponse.json({ error: "Invalid body" }, { status: 400 });
   }
 
   const { category } = body as { category?: unknown };

@@ -51,7 +51,8 @@ export default async function BudgetsPage() {
         ) : (
           <div className="flex flex-col gap-4">
             {budgetRows.map((b) => {
-              const spent = Math.max(spentByCategory.get(b.category) ?? 0, 0);
+              const net = spentByCategory.get(b.category) ?? 0;
+              const spent = Math.max(net, 0);
               const pct = (spent / b.monthlyAmount) * 100;
               const color =
                 pct > 100 ? "bg-red-600" : pct >= 80 ? "bg-amber-500" : "bg-green-600";
@@ -63,7 +64,7 @@ export default async function BudgetsPage() {
                     </span>
                     <div className="flex items-center gap-3">
                       <span className="text-sm opacity-60">
-                        {formatCents(spent)} / {formatCents(b.monthlyAmount)}
+                        {formatCents(net)} / {formatCents(b.monthlyAmount)}
                       </span>
                       <DeleteBudgetButton category={b.category} />
                     </div>
