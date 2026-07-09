@@ -29,6 +29,8 @@ Decided 2026-07-08 (session 1). Roadmap lives in GitHub milestones/issues on `ze
 
 - **Skill conventions (M4):** `skills/delta-finance/` is provider-agnostic markdown (SKILL.md + `references/`); canonical SQL lives in `references/queries.md`; agents read the DB via `sqlite3 -readonly` (never `items.access_token`) and write only through `/api/budgets`. Verify docs + SQL with `bash scripts/skill-check.sh`.
 
+- **Chat bridge conventions (M5):** `/api/chat` spawns the Hermes CLI (`HERMES_CMD` env, default `hermes`) with `-z <message> --skills delta-finance --continue delta-chat`, streams stdout as `text/plain`, serializes turns (one child at a time), 120s timeout; errors arrive as a trailing `[...]` line in the stream, not an error status. Local dev without Hermes: `HERMES_CMD=./scripts/hermes-stub.sh npm run dev`. Requests are refused unless first-hop is loopback or tailnet (100.64/10) — the tailnet remains the real trust boundary. DB backups: `npm run backup` (better-sqlite3 online backup → `backups/`, keeps 7). Deferred to M6: separate unix user for the bridge, systemd backup timer.
+
 ## Environment
 
 `.env` (gitignored, already present) contains:

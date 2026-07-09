@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "backup": "tsx scripts/backup-db.ts"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",
@@ -15,7 +16,9 @@
     "plaid": "^43.0.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "react-markdown": "^10.1.0",
     "react-plaid-link": "^4.1.1",
+    "remark-gfm": "^4.0.1",
     "server-only": "^0.0.1"
   },
   "devDependencies": {

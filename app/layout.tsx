@@ -36,6 +36,7 @@ export default function RootLayout({
           <Link href="/net-worth">Net worth</Link>
           <Link href="/recurring">Recurring</Link>
           <Link href="/budgets">Budgets</Link>
+          <Link href="/chat">Chat</Link>
         </nav>
         {children}
       </body>
