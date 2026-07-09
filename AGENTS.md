@@ -38,3 +38,5 @@ Use the **sandbox** secret for all development; production credentials only with
 ## Development Workflow
 
 Default to an **orchestrator pattern**: the main session plans and coordinates, delegating implementation tasks to subagents with explicit model choices — cheaper/faster models (e.g. Haiku/Sonnet) for mechanical or well-specified work, stronger models only where the task demands it.
+
+**Cadence: one milestone per session, one PR per milestone.** Work each session on a branch for the current milestone. Commit frequently with descriptive messages — rich git history is how context is preserved across sessions. At the end of the session, run the **close skill**, which commits remaining work, merges the PR, and ends the session.
