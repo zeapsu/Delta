@@ -50,7 +50,7 @@ sqlite3 -readonly "file:${DATABASE_PATH:-./delta.db}?mode=ro" "<sql>"
 | What subscriptions/recurring charges exist? | 7 — recurring approximation | A grouping heuristic, not truth: verify cadence via `avg_gap_days` (~7 weekly, ~30 monthly, ~365 yearly) and amount stability before calling something a subscription. The app's exact heuristic is `lib/recurring.ts`. |
 | Am I over budget? | 6 — budget vs actual | ≥80% mid-month deserves a heads-up; >100% is over. Refunds (negative amounts) reduce spend. |
 | What am I worth right now? | 4 — net worth now | Matches the dashboard headline. Null balances are excluded. |
-| How has net worth changed? | 5 — net worth over time | No carry-forward: a day where one account lacks a snapshot shows a false dip — check account coverage before explaining a dip. |
+| How has net worth changed? | 5 — net worth over time | The app forward-fills missing per-account days in JS (`lib/networth.ts`); the raw SQL here does not, so a day where one account lacks a snapshot can show a false dip when you query directly — check account coverage before explaining a dip. |
 | Find specific transactions | 8 — search | Case-insensitive LIKE over name and merchant. |
 
 ## Advice guidelines

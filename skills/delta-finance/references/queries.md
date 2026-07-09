@@ -20,6 +20,7 @@ SELECT COALESCE(category, 'UNCATEGORIZED') AS category,
 FROM transactions
 WHERE date LIKE :month || '-%'
   AND amount > 0
+  AND pending = 0
   AND (category IS NULL OR (category NOT LIKE 'TRANSFER%' AND category != 'INCOME'))
 GROUP BY 1
 HAVING SUM(amount) > 0
