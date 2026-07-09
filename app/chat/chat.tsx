@@ -93,7 +93,7 @@ export function Chat() {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder="Message"
-          maxLength={4000}
+          maxLength={4000} // keep in sync with MAX_MESSAGE_LENGTH in app/api/chat/route.ts
           className="flex-1 rounded-md border px-3 py-2 text-sm"
         />
         <button

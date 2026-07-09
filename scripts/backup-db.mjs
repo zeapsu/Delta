@@ -1,6 +1,8 @@
 // Automated SQLite backup (issue #15): npm run backup
 // Uses better-sqlite3's online backup API — safe while the app runs (WAL),
 // and the Jetson has no sqlite3 CLI. M6's systemd timer will call this.
+// Plain node (.mjs), not tsx: tsx is a devDependency absent from a
+// production install.
 import Database from "better-sqlite3";
 import fs from "node:fs";
 import path from "node:path";

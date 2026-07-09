@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "backup": "tsx scripts/backup-db.ts"
+    "backup": "node scripts/backup-db.mjs"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",
