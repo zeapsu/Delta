@@ -3,6 +3,8 @@ import { and, desc, isNull, like, ne, notLike, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { transactions } from "@/db/schema";
 import { formatCategory, formatCents } from "@/lib/format";
+import { categoryColor } from "@/lib/colors";
+import { CategoryDonut, type DonutSlice } from "@/app/charts";
 
 export const dynamic = "force-dynamic";
 
@@ -66,6 +68,22 @@ export default async function SpendingPage({
   const max = Math.max(...spending.map((r) => r.total), 0);
   const pendingSum = rows.reduce((s, r) => s + Math.max(r.pendingTotal, 0), 0);
 
+  // Donut: top 8 categories + "Other". Slots come from the displayed set in
+  // sorted order, so colors are deterministic and distinct within the chart.
+  // ponytail: a category can shift color when the month's top-8 changes; a
+  // persistent per-category color map is the upgrade if that ever grates.
+  const top = spending.slice(0, 8);
+  const otherTotal = spending.slice(8).reduce((s, r) => s + r.total, 0);
+  const topCategories = top.map((r) => r.category ?? "UNCATEGORIZED");
+  const donutData: DonutSlice[] = top.map((r) => ({
+    name: formatCategory(r.category),
+    value: r.total,
+    color: categoryColor(r.category ?? "UNCATEGORIZED", topCategories),
+  }));
+  if (otherTotal > 0) {
+    donutData.push({ name: "Other", value: otherTotal, color: "var(--chart-muted)" });
+  }
+
   return (
     <div className="flex flex-col flex-1 items-center bg-zinc-50 font-sans dark:bg-black">
       <main className="flex w-full max-w-3xl flex-col gap-8 px-4 py-8 sm:px-6 sm:py-16">
@@ -86,7 +104,9 @@ export default async function SpendingPage({
         {spending.length === 0 ? (
           <p className="text-sm opacity-60">No spending this month.</p>
         ) : (
-          <div className="flex flex-col gap-3">
+          <>
+            <CategoryDonut data={donutData} />
+            <div className="flex flex-col gap-3">
             {spending.map((r) => (
               <div key={r.category ?? "null"} className="flex items-center gap-3">
                 <span className="w-24 shrink-0 truncate text-sm sm:w-32">
@@ -110,7 +130,8 @@ export default async function SpendingPage({
                 </span>
               </div>
             ))}
-          </div>
+            </div>
+          </>
         )}
       </main>
     </div>
