@@ -119,7 +119,7 @@ export function NetWorthLine({
     <div>
       <div className="h-64 sm:h-72">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 4 }}>
+          <LineChart data={data} margin={{ top: 8, right: 24, bottom: 0, left: 4 }}>
             <CartesianGrid stroke="var(--chart-grid)" strokeWidth={1} vertical={false} />
             <XAxis
               dataKey="day"

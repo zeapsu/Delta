@@ -44,3 +44,30 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* recharts sets fill/stroke as SVG presentation attributes, where var() is
+   invalid and silently falls back to black. Presentation attributes lose to
+   any CSS rule, so these attribute selectors re-assert the same value as CSS,
+   where var() resolves — keeping light/dark switching in CSS alone. */
+[fill="var(--chart-1)"] { fill: var(--chart-1); }
+[fill="var(--chart-2)"] { fill: var(--chart-2); }
+[fill="var(--chart-3)"] { fill: var(--chart-3); }
+[fill="var(--chart-4)"] { fill: var(--chart-4); }
+[fill="var(--chart-5)"] { fill: var(--chart-5); }
+[fill="var(--chart-6)"] { fill: var(--chart-6); }
+[fill="var(--chart-7)"] { fill: var(--chart-7); }
+[fill="var(--chart-8)"] { fill: var(--chart-8); }
+[fill="var(--chart-muted)"] { fill: var(--chart-muted); }
+[fill="var(--chart-grid)"] { fill: var(--chart-grid); }
+[fill="var(--background)"] { fill: var(--background); }
+[stroke="var(--chart-1)"] { stroke: var(--chart-1); }
+[stroke="var(--chart-2)"] { stroke: var(--chart-2); }
+[stroke="var(--chart-3)"] { stroke: var(--chart-3); }
+[stroke="var(--chart-4)"] { stroke: var(--chart-4); }
+[stroke="var(--chart-5)"] { stroke: var(--chart-5); }
+[stroke="var(--chart-6)"] { stroke: var(--chart-6); }
+[stroke="var(--chart-7)"] { stroke: var(--chart-7); }
+[stroke="var(--chart-8)"] { stroke: var(--chart-8); }
+[stroke="var(--chart-grid)"] { stroke: var(--chart-grid); }
+[stroke="var(--chart-muted)"] { stroke: var(--chart-muted); }
+[stroke="var(--background)"] { stroke: var(--background); }
