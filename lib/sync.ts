@@ -101,6 +101,8 @@ function applySync(
         .run();
     }
 
+    // One timestamp per sync run so snapshots group cleanly (net worth over time).
+    const snapshotAt = new Date();
     for (const a of accountsPayload) {
       const accountId = accountIdByPlaidId.get(a.account_id);
       if (accountId == null) continue;
@@ -109,7 +111,7 @@ function applySync(
         .values({
           accountId,
           currentBalance: toCents(a.balances.current ?? 0),
-          snapshotAt: new Date(),
+          snapshotAt,
         })
         .run();
     }
@@ -133,7 +135,6 @@ async function fetchAll(item: Item) {
       cursor,
     });
     const data = res.data;
-    accountsPayload = data.accounts;
     added.push(...data.added);
     modified.push(...data.modified);
     removed.push(...data.removed.map((r) => r.transaction_id));
@@ -141,6 +142,13 @@ async function fetchAll(item: Item) {
     cursor = data.next_cursor;
     hasMore = data.has_more;
   }
+
+  // transactionsSync returns accounts: [] when nothing changed, so fetch
+  // balances explicitly — issue #4 wants a snapshot per account per sync.
+  const balRes = await plaid.accountsBalanceGet({
+    access_token: item.accessToken,
+  });
+  accountsPayload = balRes.data.accounts;
 
   return { accountsPayload, added, modified, removed, nextCursor };
 }

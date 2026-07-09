@@ -1,10 +1,10 @@
 import assert from "node:assert";
 import path from "node:path";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
 
-process.env.DATABASE_PATH = path.join(
-  "/private/tmp/claude-501/-Users-andrypaez-projects-Delta/babb27a5-47ba-45d9-b106-fafa00e9b682/scratchpad",
-  "delta-check.db",
-);
+// Fresh DB per run so reruns don't trip unique constraints.
+process.env.DATABASE_PATH = path.join(mkdtempSync(path.join(tmpdir(), "delta-check-")), "delta-check.db");
 
 async function main() {
   const { db } = await import("./index");
