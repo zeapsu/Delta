@@ -8,7 +8,7 @@ DB="${DATABASE_PATH:-./delta.db}"
 QUERIES=skills/delta-finance/references/queries.md
 
 # The queries doc is the copy-paste surface: it must never touch the secret column.
-if grep -qiE 'access_token|select \*' "$QUERIES"; then
+if grep -qiE 'access_token|select[[:space:]]*\*' "$QUERIES"; then
   echo "FAIL: $QUERIES references access_token or uses SELECT *" >&2
   exit 1
 fi

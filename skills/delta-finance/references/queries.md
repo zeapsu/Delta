@@ -71,13 +71,14 @@ SELECT day, printf('%.2f', SUM(adj) / 100.0) AS net_worth_usd FROM (
 -- expects: one row per budget; pct >= 100 is over budget
 SELECT b.category,
        printf('%.2f', b.monthly_amount / 100.0) AS budget_usd,
-       printf('%.2f', COALESCE(s.spent, 0) / 100.0) AS spent_usd,
-       ROUND(100.0 * COALESCE(s.spent, 0) / b.monthly_amount) AS pct
+       printf('%.2f', MAX(COALESCE(s.spent, 0), 0) / 100.0) AS spent_usd,
+       ROUND(100.0 * MAX(COALESCE(s.spent, 0), 0) / b.monthly_amount) AS pct
 FROM budgets b
 LEFT JOIN (
+  -- no amount > 0 filter: refunds must net against charges (the app clamps the net at zero)
   SELECT category, SUM(amount) AS spent
   FROM transactions
-  WHERE date LIKE :month || '-%' AND amount > 0
+  WHERE date LIKE :month || '-%'
   GROUP BY category
 ) s ON s.category = b.category
 ORDER BY pct DESC;
@@ -102,7 +103,7 @@ HAVING COUNT(*) >= 3
 ORDER BY occurrences DESC;
 ```
 
-Caveat: this groups by exact merchant string, so `Uber 072515` and `Uber 060322` split into different groups when `merchant_name` is null. The app's detector (`lib/recurring.ts`) strips digits, requires gaps within ±max(3 days, 25%) of the median, amounts within ±20% of the median, and recency within 2× the cadence.
+Caveat: this groups by exact merchant string, so `Uber 072515` and `Uber 060322` split into different groups when `merchant_name` is null. The app's detector (`lib/recurring.ts`) strips digits, requires a median gap of at least 5 days (excludes near-daily purchases), gaps within ±max(3 days, 25%) of the median, amounts within ±20% of the median, and recency within 2× the cadence.
 
 ## 8. Transaction search
 
