@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 import { spawn } from "node:child_process";
+import { eq } from "drizzle-orm";
+import { db } from "@/db";
+import { conversations, messages } from "@/db/schema";
 
 const TIMEOUT_MS = 120_000;
 const MAX_MESSAGE_LENGTH = 4000;
@@ -19,13 +22,23 @@ function allowed(req: Request): boolean {
   return m !== null && Number(m[1]) >= 64 && Number(m[1]) <= 127;
 }
 
-function runHermes(message: string): {
+function runHermes(
+  message: string,
+  conversationId: number,
+): {
   stream: ReadableStream<Uint8Array>;
   done: Promise<void>;
 } {
   const child = spawn(
     process.env.HERMES_CMD ?? "hermes",
-    ["-z", message, "--skills", "delta-finance", "--continue", "delta-chat"],
+    [
+      "-z",
+      message,
+      "--skills",
+      "delta-finance",
+      "--continue",
+      `delta-chat-${conversationId}`,
+    ],
     // detached: own process group, so timeout/cancel kills hermes AND any
     // tool subprocesses it spawned, not just the direct child
     { cwd: process.cwd(), stdio: ["ignore", "pipe", "pipe"], detached: true },
@@ -46,6 +59,18 @@ function runHermes(message: string): {
     stderrTail = (stderrTail + chunk.toString()).slice(-300);
   });
 
+  // Persist exactly what the user saw (including any trailing error line) as
+  // the assistant turn; hermes's own --continue session is the model's memory.
+  let assistantText = "";
+  let persisted = false;
+  const persist = () => {
+    if (persisted) return;
+    persisted = true;
+    db.insert(messages)
+      .values({ conversationId, role: "assistant", text: assistantText })
+      .run();
+  };
+
   let finished = false;
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
@@ -53,12 +78,19 @@ function runHermes(message: string): {
         if (finished) return;
         finished = true;
         clearTimeout(timer);
-        if (errorLine) controller.enqueue(encoder.encode(errorLine));
+        if (errorLine) {
+          controller.enqueue(encoder.encode(errorLine));
+          assistantText += errorLine;
+        }
+        persist();
         controller.close();
         resolveDone();
       };
       child.stdout.on("data", (chunk: Buffer) => {
-        if (!finished) controller.enqueue(new Uint8Array(chunk));
+        if (!finished) {
+          controller.enqueue(new Uint8Array(chunk));
+          assistantText += chunk.toString();
+        }
       });
       child.on("error", (err) => finish(`\n[bridge error: ${err.message}]`));
       child.on("close", (code, signal) =>
@@ -75,14 +107,16 @@ function runHermes(message: string): {
       finished = true;
       clearTimeout(timer);
       killTree();
+      persist();
       resolveDone();
     },
   });
   return { stream, done };
 }
 
-// ponytail: module-level promise chain serializes turns — single user, one
-// hermes process at a time; per-session queues if this ever goes multi-user.
+// ponytail: module-level promise chain serializes turns — global on purpose:
+// one hermes process at a time even across conversations (single user, single
+// box); per-conversation queues if this ever goes multi-user.
 let queue: Promise<void> = Promise.resolve();
 
 export async function POST(req: Request) {
@@ -101,7 +135,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid body" }, { status: 400 });
   }
 
-  const { message } = body as { message?: unknown };
+  const { message, conversationId } = body as {
+    message?: unknown;
+    conversationId?: unknown;
+  };
   if (
     typeof message !== "string" ||
     message.trim().length === 0 ||
@@ -109,6 +146,23 @@ export async function POST(req: Request) {
   ) {
     return NextResponse.json({ error: "Invalid message" }, { status: 400 });
   }
+  if (
+    typeof conversationId !== "number" ||
+    !Number.isInteger(conversationId) ||
+    conversationId <= 0
+  ) {
+    return NextResponse.json({ error: "Invalid conversationId" }, { status: 400 });
+  }
+  const known = await db
+    .select({ id: conversations.id })
+    .from(conversations)
+    .where(eq(conversations.id, conversationId));
+  if (known.length === 0) {
+    return NextResponse.json({ error: "Unknown conversation" }, { status: 404 });
+  }
+
+  // Persist the user turn up front so it survives even if hermes fails.
+  await db.insert(messages).values({ conversationId, role: "user", text: message });
 
   const prev = queue;
   let release!: () => void;
@@ -118,7 +172,7 @@ export async function POST(req: Request) {
   // ponytail: errors (nonzero exit, timeout kill, spawn failure) surface as a
   // trailing bracketed line in the 200 stream instead of a 502 — the response
   // has already started by the time hermes can fail.
-  const { stream, done } = runHermes(message);
+  const { stream, done } = runHermes(message, conversationId);
   void done.then(release);
   return new Response(stream, {
     headers: { "Content-Type": "text/plain; charset=utf-8" },
