@@ -35,13 +35,13 @@ export function BudgetForm({ categories }: { categories: string[] }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex items-end gap-3">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-3 sm:flex-row sm:items-end">
       <div className="flex flex-col gap-1">
         <label className="text-sm opacity-60">Category</label>
         <select
           value={category}
           onChange={(e) => setCategory(e.target.value)}
-          className="rounded-md border px-3 py-2 text-sm"
+          className="w-full rounded-md border px-3 py-2 text-sm sm:w-auto"
         >
           {categories.map((c) => (
             <option key={c} value={c}>
@@ -59,7 +59,7 @@ export function BudgetForm({ categories }: { categories: string[] }) {
           required
           value={dollars}
           onChange={(e) => setDollars(e.target.value)}
-          className="rounded-md border px-3 py-2 text-sm"
+          className="w-full rounded-md border px-3 py-2 text-sm sm:w-auto"
         />
       </div>
       <button

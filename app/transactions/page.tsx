@@ -84,19 +84,19 @@ export default async function TransactionsPage({
 
   return (
     <div className="flex flex-col flex-1 items-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex w-full max-w-4xl flex-col gap-6 py-16 px-6">
+      <main className="flex w-full max-w-4xl flex-col gap-6 px-4 py-8 sm:px-6 sm:py-16">
         <h1 className="text-3xl font-semibold">Transactions</h1>
 
         <form
           method="get"
           className="flex flex-wrap items-end gap-3 rounded-lg border p-4"
         >
-          <label className="flex flex-col gap-1 text-sm">
+          <label className="flex w-full flex-col gap-1 text-sm sm:w-auto">
             Account
             <select
               name="account"
               defaultValue={params.account ?? ""}
-              className="rounded border px-2 py-1 dark:bg-zinc-900"
+              className="w-full rounded border px-2 py-2 dark:bg-zinc-900 sm:w-auto sm:py-1"
             >
               <option value="">All accounts</option>
               {allAccounts.map((a) => (
@@ -108,12 +108,12 @@ export default async function TransactionsPage({
             </select>
           </label>
 
-          <label className="flex flex-col gap-1 text-sm">
+          <label className="flex w-full flex-col gap-1 text-sm sm:w-auto">
             Category
             <select
               name="category"
               defaultValue={params.category ?? ""}
-              className="rounded border px-2 py-1 dark:bg-zinc-900"
+              className="w-full rounded border px-2 py-2 dark:bg-zinc-900 sm:w-auto sm:py-1"
             >
               <option value="">All categories</option>
               {categories.map((c) => (
@@ -124,39 +124,39 @@ export default async function TransactionsPage({
             </select>
           </label>
 
-          <label className="flex flex-col gap-1 text-sm">
+          <label className="flex w-full flex-col gap-1 text-sm sm:w-auto">
             From
             <input
               type="date"
               name="from"
               defaultValue={params.from ?? ""}
-              className="rounded border px-2 py-1 dark:bg-zinc-900"
+              className="w-full rounded border px-2 py-2 dark:bg-zinc-900 sm:w-auto sm:py-1"
             />
           </label>
 
-          <label className="flex flex-col gap-1 text-sm">
+          <label className="flex w-full flex-col gap-1 text-sm sm:w-auto">
             To
             <input
               type="date"
               name="to"
               defaultValue={params.to ?? ""}
-              className="rounded border px-2 py-1 dark:bg-zinc-900"
+              className="w-full rounded border px-2 py-2 dark:bg-zinc-900 sm:w-auto sm:py-1"
             />
           </label>
 
-          <label className="flex flex-col gap-1 text-sm">
+          <label className="flex w-full flex-col gap-1 text-sm sm:w-auto">
             Search
             <input
               name="q"
               placeholder="Search"
               defaultValue={params.q ?? ""}
-              className="rounded border px-2 py-1 dark:bg-zinc-900"
+              className="w-full rounded border px-2 py-2 dark:bg-zinc-900 sm:w-auto sm:py-1"
             />
           </label>
 
           <button
             type="submit"
-            className="rounded bg-zinc-900 px-4 py-1.5 text-sm font-medium text-white dark:bg-white dark:text-black"
+            className="w-full rounded bg-zinc-900 px-4 py-2 text-sm font-medium text-white sm:w-auto sm:py-1.5 dark:bg-white dark:text-black"
           >
             Filter
           </button>

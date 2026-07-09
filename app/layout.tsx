@@ -29,7 +29,7 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <nav className="flex gap-4 border-b px-6 py-3 text-sm">
+        <nav className="flex gap-4 overflow-x-auto whitespace-nowrap border-b px-4 py-1 text-sm sm:px-6 [&>a]:py-2">
           <Link href="/">Accounts</Link>
           <Link href="/transactions">Transactions</Link>
           <Link href="/spending">Spending</Link>
