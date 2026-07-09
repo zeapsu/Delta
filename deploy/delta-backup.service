@@ -1,0 +1,9 @@
+[Unit]
+Description=Delta SQLite online backup
+
+[Service]
+Type=oneshot
+User=zeapsu
+WorkingDirectory=/home/zeapsu/Projects/Delta
+EnvironmentFile=/home/zeapsu/Projects/Delta/.env
+ExecStart=/home/zeapsu/.nvm/versions/node/v25.9.0/bin/node scripts/backup-db.mjs

@@ -3,7 +3,7 @@ import { eq, inArray } from "drizzle-orm";
 import { isAxiosError } from "axios";
 import { db } from "@/db";
 import { accounts, balanceSnapshots, items, transactions } from "@/db/schema";
-import { plaid, toCents } from "@/lib/plaid";
+import { getPlaid, toCents } from "@/lib/plaid";
 import type { AccountBase, Transaction as PlaidTransaction } from "plaid";
 
 type Item = typeof items.$inferSelect;
@@ -130,7 +130,7 @@ async function fetchAll(item: Item) {
   let nextCursor = cursor ?? "";
 
   while (hasMore) {
-    const res = await plaid.transactionsSync({
+    const res = await getPlaid().transactionsSync({
       access_token: item.accessToken,
       cursor,
     });
@@ -145,7 +145,7 @@ async function fetchAll(item: Item) {
 
   // transactionsSync returns accounts: [] when nothing changed, so fetch
   // balances explicitly — issue #4 wants a snapshot per account per sync.
-  const balRes = await plaid.accountsBalanceGet({
+  const balRes = await getPlaid().accountsBalanceGet({
     access_token: item.accessToken,
   });
   accountsPayload = balRes.data.accounts;

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { items } from "@/db/schema";
-import { plaid } from "@/lib/plaid";
+import { getPlaid } from "@/lib/plaid";
 import { syncItem } from "@/lib/sync";
 
 export async function POST(req: Request) {
@@ -15,7 +15,7 @@ export async function POST(req: Request) {
     typeof body?.institution_name === "string" ? body.institution_name : null;
 
   try {
-    const exchangeRes = await plaid.itemPublicTokenExchange({
+    const exchangeRes = await getPlaid().itemPublicTokenExchange({
       public_token: publicToken,
     });
     const { item_id: plaidItemId, access_token: accessToken } = exchangeRes.data;

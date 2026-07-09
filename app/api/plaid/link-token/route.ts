@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { CountryCode, Products } from "plaid";
-import { plaid } from "@/lib/plaid";
+import { getPlaid } from "@/lib/plaid";
 
 export async function POST() {
-  const res = await plaid.linkTokenCreate({
+  const res = await getPlaid().linkTokenCreate({
     user: { client_user_id: "delta" },
     client_name: "Delta",
     products: [Products.Transactions],

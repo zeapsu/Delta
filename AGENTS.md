@@ -11,6 +11,16 @@ A personal finance webapp that connects to financial institutions via **Plaid** 
 1. **The webapp** — Plaid link flow, data sync, dashboard, and a chat UI element for talking with the agent.
 2. **Agent skills** — provider-agnostic skill files with instructions for performing personal-finance analysis and guidelines for offering advice/recommendations. These must not assume any specific LLM provider.
 
+## Agent advisor mode
+
+Delta is now deployed. Any agent (Hermes or otherwise) that interacts with a running Delta instance acts as a **personal-finance advisor** via the `delta-finance` skill (`skills/delta-finance/SKILL.md`) — that skill is the source of truth for querying conventions and advice guidelines. Key rules:
+
+- Read the DB only via `sqlite3 -readonly` — never a direct write connection.
+- Never read `items.access_token` (or `SELECT *` from `items`).
+- Writes go only through `POST /api/budgets` — no other write path.
+- Advice guidelines (ground every claim in a query you just ran; stay in scope — no investment, securities, tax, or legal advice; write a budget only after the user explicitly agrees) live in the skill, not duplicated here.
+- `DELTA_URL` points at the deployed instance — on the Jetson: `http://100.116.56.85:3000`.
+
 ## Stack & Architecture
 
 Decided 2026-07-08 (session 1). Roadmap lives in GitHub milestones/issues on `zeapsu/Delta`.
@@ -22,14 +32,17 @@ Decided 2026-07-08 (session 1). Roadmap lives in GitHub milestones/issues on `ze
 - Build/test/lint commands: `npm run dev` (dev server), `npm run build` (production build), `npm run lint` (ESLint). DB smoke test: `npx tsx db/check.ts`.
 - **DB conventions (M1):** money as integer cents (Plaid sign convention: positive = money out), timestamps as `timestamp_ms`, snake_case SQL columns / camelCase TS keys. Schema in `db/schema.ts`; after editing it run `npx drizzle-kit generate` and commit the `drizzle/` output — migrations auto-apply when `db/index.ts` is first imported (no separate migrate step on the Jetson). DB path: `DATABASE_PATH` env, default `./delta.db`.
 
-- **Plaid conventions (M2):** client singleton in `lib/plaid.ts` (`server-only`, sandbox hardcoded until M6); sync engine in `lib/sync.ts`. Gotcha: `/transactions/sync` returns `accounts: []` when nothing changed, so balance snapshots come from `accountsBalanceGet` (which also returns non-transaction accounts — loans/IRA etc.). No in-app scheduler by decision: M6's systemd timer will `POST /api/plaid/sync`.
+- **Plaid conventions (M2):** client singleton in `lib/plaid.ts` (`server-only`, environment switched via `PLAID_ENV` — see Production Plaid gate); sync engine in `lib/sync.ts`. Gotcha: `/transactions/sync` returns `accounts: []` when nothing changed, so balance snapshots come from `accountsBalanceGet` (which also returns non-transaction accounts — loans/IRA etc.). No in-app scheduler by decision: the `delta-sync` systemd timer (see M6) `POST`s `/api/plaid/sync` every 6h instead.
 - **Headless Plaid E2E test:** bypass the Link browser flow with `POST https://sandbox.plaid.com/sandbox/public_token/create` (`institution_id: ins_109508`, `initial_products: ["transactions"]`), then POST the token to `/api/plaid/exchange`. In-browser sandbox creds: `user_good` / `pass_good`. First sync after linking may return 0 added for ~a minute — retry.
 
 - **Dashboard conventions (M3):** pages are async server components (`force-dynamic`) querying Drizzle directly; shared money/category formatting in `lib/format.ts`; charts are hand-rolled (div bars, inline SVG line) — no chart library. Net worth negates `credit`/`loan` account balances (stored as positive amounts owed); snapshots are bucketed by day (timestamps are per-item, not per-run). Spending/recurring views exclude `TRANSFER%` and `INCOME` categories — moving money between own accounts isn't spend. Recurring detection is a pure heuristic in `lib/recurring.ts` (self-check: `npx tsx lib/recurring-check.ts`); upgrade path is Plaid's recurring-transactions product. Budgets writes go through `/api/budgets` only (validated — it's the agent trust boundary).
 
 - **Skill conventions (M4):** `skills/delta-finance/` is provider-agnostic markdown (SKILL.md + `references/`); canonical SQL lives in `references/queries.md`; agents read the DB via `sqlite3 -readonly` (never `items.access_token`) and write only through `/api/budgets`. Verify docs + SQL with `bash scripts/skill-check.sh`.
 
-- **Chat bridge conventions (M5):** `/api/chat` spawns the Hermes CLI (`HERMES_CMD` env, default `hermes`) with `-z <message> --skills delta-finance --continue delta-chat`, streams stdout as `text/plain`, serializes turns (one child at a time), 120s timeout; errors arrive as a trailing `[...]` line in the stream, not an error status. Local dev without Hermes: `HERMES_CMD=./scripts/hermes-stub.sh npm run dev`. Requests are refused unless first-hop is loopback or tailnet (100.64/10) — the tailnet remains the real trust boundary. DB backups: `npm run backup` (better-sqlite3 online backup → `backups/`, keeps 7). Deferred to M6: separate unix user for the bridge, systemd backup timer.
+- **Chat bridge conventions (M5):** `/api/chat` spawns the Hermes CLI (`HERMES_CMD` env, default `hermes`) with `-z <message> --skills delta-finance --continue delta-chat`, streams stdout as `text/plain`, serializes turns (one child at a time), 120s timeout; errors arrive as a trailing `[...]` line in the stream, not an error status. Local dev without Hermes: `HERMES_CMD=./scripts/hermes-stub.sh npm run dev`. Requests are refused unless first-hop is loopback or tailnet (100.64/10) — the tailnet remains the real trust boundary. DB backups: `npm run backup` (better-sqlite3 online backup → `backups/`, keeps 7).
+
+- **Deployment conventions (M6):** systemd units live in `deploy/` — `delta.service` (the app), `delta-backup` (daily backup timer), `delta-sync` (6h Plaid sync timer) — installed via `sudo deploy/install.sh` on the Jetson. App runs as `zeapsu`, `next start -H <tailscale-ip>` (100.116.56.85) — binding to the tailscale interface is what closes the `x-forwarded-for` spoofing ceiling noted in `app/api/chat/route.ts`. `WorkingDirectory` is the repo root because `./delta.db` and `./drizzle` defaults are cwd-relative. Node comes from nvm, so units use absolute paths. The Jetson `.env` additionally sets `DATABASE_PATH` (absolute) and `DELTA_URL` (tailscale IP — localhost is unreachable once bound to the tailscale interface, and spawned Hermes inherits this env). No separate unix user for the bridge — decided against (Hermes login lives in `zeapsu`'s home; the tailnet is the trust boundary).
+- **Production Plaid gate:** `lib/plaid.ts` selects environment via `PLAID_ENV` (`sandbox` default / `production`). Flipping to production requires ALL of: explicit user sign-off, Plaid production access approval, `PLAID_ENV=production` + `PLAID_PRODUCTION_SECRET` set in the Jetson `.env`, a fresh DB (sandbox data doesn't mix), and relinking real institutions through the Link flow from a tailnet browser. Until then everything stays sandbox.
 
 ## Environment
 
@@ -37,6 +50,7 @@ Decided 2026-07-08 (session 1). Roadmap lives in GitHub milestones/issues on `ze
 - `PLAID_CLIENT_ID`
 - `PLAID_PRODUCTION_SECRET`
 - `PLAID_SANDBOX_SECRET`
+- `PLAID_ENV` (default `sandbox`; see Production Plaid gate above)
 
 Use the **sandbox** secret for all development; production credentials only with explicit user sign-off. Never log or commit Plaid secrets or access tokens.
 
