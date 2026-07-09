@@ -42,7 +42,8 @@ Decided 2026-07-08 (session 1). Roadmap lives in GitHub milestones/issues on `ze
 - **Chat bridge conventions (M5):** `/api/chat` spawns the Hermes CLI (`HERMES_CMD` env, default `hermes`) with `-z <message> --skills delta-finance --continue delta-chat`, streams stdout as `text/plain`, serializes turns (one child at a time), 120s timeout; errors arrive as a trailing `[...]` line in the stream, not an error status. Local dev without Hermes: `HERMES_CMD=./scripts/hermes-stub.sh npm run dev`. Requests are refused unless first-hop is loopback or tailnet (100.64/10) — the tailnet remains the real trust boundary. DB backups: `npm run backup` (better-sqlite3 online backup → `backups/`, keeps 7).
 
 - **Deployment conventions (M6):** systemd units live in `deploy/` — `delta.service` (the app), `delta-backup` (daily backup timer), `delta-sync` (6h Plaid sync timer) — installed via `sudo deploy/install.sh` on the Jetson. App runs as `zeapsu`, `next start -H <tailscale-ip>` (100.116.56.85) — binding to the tailscale interface is what closes the `x-forwarded-for` spoofing ceiling noted in `app/api/chat/route.ts`. `WorkingDirectory` is the repo root because `./delta.db` and `./drizzle` defaults are cwd-relative. Node comes from nvm, so units use absolute paths. The Jetson `.env` additionally sets `DATABASE_PATH` (absolute) and `DELTA_URL` (tailscale IP — localhost is unreachable once bound to the tailscale interface, and spawned Hermes inherits this env). No separate unix user for the bridge — decided against (Hermes login lives in `zeapsu`'s home; the tailnet is the trust boundary).
-- **Production Plaid gate:** `lib/plaid.ts` selects environment via `PLAID_ENV` (`sandbox` default / `production`). Flipping to production requires ALL of: explicit user sign-off, Plaid production access approval, `PLAID_ENV=production` + `PLAID_PRODUCTION_SECRET` set in the Jetson `.env`, a fresh DB (sandbox data doesn't mix), and relinking real institutions through the Link flow from a tailnet browser. Until then everything stays sandbox.
+- **Production cutover conventions (M7):** the Jetson runs Plaid **production** since 2026-07-09 — real financial data. Local development stays sandbox (`PLAID_ENV` defaults to `sandbox`; the local `delta.db` is sandbox data). The pre-cutover sandbox DB is preserved on the Jetson as `delta-sandbox-fixture.db` next to the live DB. Off-device backups: the user's Mac pulls the Jetson's `backups/` daily via launchd (`deploy/mac/install.sh`; rsync-over-ssh into `~/Backups/delta/`, 60-day retention). The backup script flips each copy to non-WAL journal mode — `sqlite3 -readonly` cannot open a WAL db without its `-shm` file.
+- **Production Plaid gate (satisfied for the Jetson, still applies to any new instance):** `lib/plaid.ts` selects environment via `PLAID_ENV` (`sandbox` default / `production`). Flipping an instance to production requires ALL of: explicit user sign-off, Plaid production access approval, `PLAID_ENV=production` + `PLAID_PRODUCTION_SECRET` in that instance's `.env`, a fresh DB (sandbox data doesn't mix), and linking real institutions through the Link flow from a tailnet browser.
 
 ## Environment
 
@@ -52,7 +53,7 @@ Decided 2026-07-08 (session 1). Roadmap lives in GitHub milestones/issues on `ze
 - `PLAID_SANDBOX_SECRET`
 - `PLAID_ENV` (default `sandbox`; see Production Plaid gate above)
 
-Use the **sandbox** secret for all development; production credentials only with explicit user sign-off. Never log or commit Plaid secrets or access tokens.
+Use the **sandbox** secret for all development (the Jetson production instance is the only place `PLAID_ENV=production` belongs). Never log or commit Plaid secrets or access tokens.
 
 ## Priorities
 
