@@ -41,10 +41,10 @@ export default async function Home() {
         ) : (
           <div className="flex flex-col gap-6">
             {institutions.map((inst) => {
-              const subtotal = inst.accounts.reduce(
-                (sum, a) => sum + (a.currentBalance ?? 0),
-                0,
-              );
+              const subtotal = inst.accounts.reduce((sum, a) => {
+                const balance = a.currentBalance ?? 0;
+                return sum + (DEBT_TYPES.has(a.type) ? -balance : balance);
+              }, 0);
               return (
                 <div key={inst.id} className="rounded-lg border p-4">
                   <div className="mb-3 flex items-center justify-between">

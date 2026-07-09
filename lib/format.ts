@@ -1,6 +1,7 @@
 export function formatCents(cents: number | null): string {
   if (cents === null) return "—";
-  return `$${(cents / 100).toLocaleString(undefined, {
+  const sign = cents < 0 ? "-" : "";
+  return `${sign}$${(Math.abs(cents) / 100).toLocaleString(undefined, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;

@@ -1,4 +1,4 @@
-import { like, sql } from "drizzle-orm";
+import { and, like, ne, notLike, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { budgets, transactions } from "@/db/schema";
 import { formatCategory, formatCents } from "@/lib/format";
@@ -26,7 +26,15 @@ export default async function BudgetsPage() {
       .from(transactions)
       .where(like(transactions.date, `${month}-%`))
       .groupBy(transactions.category),
-    db.selectDistinct({ category: transactions.category }).from(transactions),
+    db
+      .selectDistinct({ category: transactions.category })
+      .from(transactions)
+      .where(
+        and(
+          notLike(transactions.category, "TRANSFER%"),
+          ne(transactions.category, "INCOME"),
+        ),
+      ),
   ]);
 
   const spentByCategory = new Map(
