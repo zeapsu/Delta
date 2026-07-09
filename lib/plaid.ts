@@ -1,13 +1,22 @@
 import "server-only";
 import { Configuration, PlaidApi, PlaidEnvironments } from "plaid";
 
-// ponytail: sandbox hardcoded; env-switch at M6 production
+const env = process.env.PLAID_ENV ?? "sandbox";
+if (env !== "sandbox" && env !== "production") {
+  throw new Error(`PLAID_ENV must be "sandbox" or "production", got "${env}"`);
+}
+const secret =
+  env === "production"
+    ? process.env.PLAID_PRODUCTION_SECRET
+    : process.env.PLAID_SANDBOX_SECRET;
+if (!secret) throw new Error(`Missing Plaid secret for PLAID_ENV=${env}`);
+
 const configuration = new Configuration({
-  basePath: PlaidEnvironments.sandbox,
+  basePath: PlaidEnvironments[env],
   baseOptions: {
     headers: {
       "PLAID-CLIENT-ID": process.env.PLAID_CLIENT_ID,
-      "PLAID-SECRET": process.env.PLAID_SANDBOX_SECRET,
+      "PLAID-SECRET": secret,
     },
   },
 });

@@ -1,0 +1,9 @@
+[Unit]
+Description=Delta Plaid sync
+After=delta.service
+Requisite=delta.service
+
+[Service]
+Type=oneshot
+User=zeapsu
+ExecStart=/usr/bin/curl -fsS -X POST http://100.116.56.85:3000/api/plaid/sync
