@@ -42,11 +42,10 @@ export default async function SpendingPage({
   const rows = await db
     .select({
       category: transactions.category,
-      total: sql<number>`sum(${transactions.amount})`,
+      total: sql<number>`sum(case when ${transactions.pending} = 0 then ${transactions.amount} else 0 end)`,
+      pendingTotal: sql<number>`sum(case when ${transactions.pending} = 1 then ${transactions.amount} else 0 end)`,
     })
     .from(transactions)
-    // ponytail: pending transactions counted as committed spend; they can
-    // shift/disappear as Plaid finalizes them, so this month's bars may wobble.
     .where(
       and(
         like(transactions.date, `${month}-%`),
@@ -60,11 +59,12 @@ export default async function SpendingPage({
       ),
     )
     .groupBy(transactions.category)
-    .orderBy(desc(sql`sum(${transactions.amount})`));
+    .orderBy(desc(sql`sum(case when ${transactions.pending} = 0 then ${transactions.amount} else 0 end)`));
 
   const spending = rows.filter((r) => r.total > 0);
   const grandTotal = spending.reduce((sum, r) => sum + r.total, 0);
   const max = Math.max(...spending.map((r) => r.total), 0);
+  const pendingSum = rows.reduce((s, r) => s + Math.max(r.pendingTotal, 0), 0);
 
   return (
     <div className="flex flex-col flex-1 items-center bg-zinc-50 font-sans dark:bg-black">
@@ -78,6 +78,9 @@ export default async function SpendingPage({
         <div>
           <span className="text-sm opacity-60">Total spending</span>
           <p className="text-2xl font-semibold">{formatCents(grandTotal)}</p>
+          {pendingSum > 0 && (
+            <p className="text-sm opacity-60">+ {formatCents(pendingSum)} pending</p>
+          )}
         </div>
 
         {spending.length === 0 ? (
