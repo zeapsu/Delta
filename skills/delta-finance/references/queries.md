@@ -105,7 +105,7 @@ HAVING COUNT(*) >= 3
 ORDER BY occurrences DESC;
 ```
 
-Caveat: this groups by exact merchant string, so `Uber 072515` and `Uber 060322` split into different groups when `merchant_name` is null. The app's detector (`lib/recurring.ts`) strips digits, requires a median gap of at least 5 days (excludes near-daily purchases), gaps within ±max(3 days, 25%) of the median, amounts within ±20% of the median, and recency within 2× the cadence.
+Caveat: this groups by exact merchant string, so `Uber 072515` and `Uber 060322` split into different groups when `merchant_name` is null. The app's detector (`lib/recurring.ts`) strips digits, requires a median gap of at least 5 days (excludes near-daily purchases), gaps within ±max(3 days, 30%) of the median (real payments jitter), amounts within ±20% of the median — except a single off-amount txn in a group of 4+ (e.g. a signup charge) is dropped rather than vetoing the series — and recency within 2× the cadence.
 
 ## 8. Investment activity
 
