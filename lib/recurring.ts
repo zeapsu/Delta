@@ -2,6 +2,7 @@
 
 export type RecurringSeries = {
   merchant: string; // display name (most common original merchantName ?? cleaned name in group)
+  matchKey: string; // group key — pairs a series with a recurring_rules row
   amount: number; // median amount, cents
   cadence: string; // display only: "weekly" | "biweekly" | ... | "every ~N days"
   gapDays: number; // median gap between charges, days
@@ -56,7 +57,7 @@ function addDays(date: string, days: number): string {
   return new Date(ms).toISOString().slice(0, 10);
 }
 
-function cadenceFromGap(m: number): string {
+export function cadenceFromGap(m: number): string {
   if (m >= 6 && m <= 8) return "weekly";
   if (m >= 13 && m <= 16) return "biweekly";
   if (m >= 27 && m <= 32) return "monthly";
@@ -86,21 +87,21 @@ export function detectRecurring(txns: Txn[], today?: string): RecurringSeries[] 
   // regular bill — so cluster each merchant's txns by amount (new cluster
   // when an amount exceeds 110% of the cluster minimum) and run the cadence
   // checks per cluster.
-  const clusters: Txn[][] = [];
-  for (const group of groups.values()) {
+  const clusters: { key: string; txns: Txn[] }[] = [];
+  for (const [key, group] of groups) {
     const byAmount = [...group].sort((a, b) => a.amount - b.amount);
     let cluster: Txn[] = [];
     for (const t of byAmount) {
       if (cluster.length > 0 && t.amount > 1.1 * cluster[0].amount) {
-        clusters.push(cluster);
+        clusters.push({ key, txns: cluster });
         cluster = [];
       }
       cluster.push(t);
     }
-    clusters.push(cluster);
+    clusters.push({ key, txns: cluster });
   }
 
-  for (const group of clusters) {
+  for (const { key, txns: group } of clusters) {
     if (group.length < 3) continue;
 
     const sorted = [...group].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
@@ -119,10 +120,10 @@ export function detectRecurring(txns: Txn[], today?: string): RecurringSeries[] 
     const gapsOk = gaps.every((g) => Math.abs(g - m) <= gapTolerance);
     if (!gapsOk) continue;
 
-    // 3 txns at an odd interval is coincidence territory (groceries ~17 days
-    // apart); demand a 4th occurrence unless the cadence is a standard one.
+    // No ≥4-occurrence guard for odd cadences: results are suggestions the
+    // user reviews, so recall beats precision — a false positive costs one
+    // click (issue #44).
     const cadence = cadenceFromGap(m);
-    if (cadence.startsWith("every ~") && sorted.length < 4) continue;
 
     const lastDate = sorted[sorted.length - 1].date;
     const nextDate = addDays(lastDate, m);
@@ -146,6 +147,7 @@ export function detectRecurring(txns: Txn[], today?: string): RecurringSeries[] 
 
     results.push({
       merchant,
+      matchKey: key,
       amount: median(sorted.map((t) => t.amount)),
       cadence,
       gapDays: m,
@@ -157,4 +159,56 @@ export function detectRecurring(txns: Txn[], today?: string): RecurringSeries[] 
 
   results.sort((a, b) => b.amount - a.amount);
   return results;
+}
+
+// A recurring_rules row (see db/schema.ts); confirmed rows are the truth the
+// UI renders, dismissed rows suppress re-detected suggestions.
+export type RecurringRule = {
+  id: number;
+  status: string; // "confirmed" | "dismissed"
+  matchKey: string | null;
+  name: string;
+  amount: number; // cents
+  gapDays: number;
+  anchorDate: string; // ISO yyyy-mm-dd
+};
+
+// Same width as the detector's amount clustering (1.1× the cluster minimum).
+function amountsMatch(a: number, b: number): boolean {
+  return a <= 1.1 * b && b <= 1.1 * a;
+}
+
+function matches(series: RecurringSeries, rule: RecurringRule): boolean {
+  return rule.matchKey === series.matchKey && amountsMatch(series.amount, rule.amount);
+}
+
+// Splits detected series into unreviewed suggestions (no rule matches) and
+// per-confirmed-rule dates: a matching live series supplies lastDate/nextDate;
+// otherwise (manual adds, stale series) the anchor rolls forward past today.
+export function partitionSeries(
+  series: RecurringSeries[],
+  rules: RecurringRule[],
+  today?: string,
+): {
+  suggestions: RecurringSeries[];
+  nextDates: Map<number, { lastDate?: string; nextDate: string }>;
+} {
+  const todayDate = today ?? new Date().toISOString().slice(0, 10);
+
+  const suggestions = series.filter((s) => !rules.some((r) => matches(s, r)));
+
+  const nextDates = new Map<number, { lastDate?: string; nextDate: string }>();
+  for (const rule of rules) {
+    if (rule.status !== "confirmed") continue;
+    const live = series.find((s) => matches(s, rule));
+    if (live) {
+      nextDates.set(rule.id, { lastDate: live.lastDate, nextDate: live.nextDate });
+    } else {
+      let next = addDays(rule.anchorDate, rule.gapDays);
+      while (next <= todayDate) next = addDays(next, rule.gapDays);
+      nextDates.set(rule.id, { nextDate: next });
+    }
+  }
+
+  return { suggestions, nextDates };
 }

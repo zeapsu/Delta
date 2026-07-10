@@ -1,5 +1,5 @@
 import assert from "node:assert";
-import { detectRecurring } from "./recurring";
+import { detectRecurring, partitionSeries, type RecurringRule } from "./recurring";
 
 const today = "2026-07-09";
 
@@ -72,7 +72,15 @@ const apple = [
   { name: "APPLE.COM/BILL", merchantName: "Apple", amount: 5_99, date: "2026-06-06" },
 ];
 
-const all = [...netflix, ...noisy, ...gym, ...uber, ...gymSignup, ...loanJitter, ...rent, ...apple];
+// Odd 17-day cadence with only 3 txns: rejected before issue #44, now a
+// valid suggestion (recall over precision — the user reviews it).
+const oddCadence = [
+  { name: "PODCAST APP", merchantName: "Podcast App", amount: 7_99, date: "2026-06-04" },
+  { name: "PODCAST APP", merchantName: "Podcast App", amount: 7_99, date: "2026-06-21" },
+  { name: "PODCAST APP", merchantName: "Podcast App", amount: 7_99, date: "2026-07-08" },
+];
+
+const all = [...netflix, ...noisy, ...gym, ...uber, ...gymSignup, ...loanJitter, ...rent, ...apple, ...oddCadence];
 const results = detectRecurring(all, today);
 
 const netflixResult = results.find((r) => r.merchant === "Netflix");
@@ -108,5 +116,39 @@ const appleSeries = results.filter((r) => r.merchant === "Apple");
 assert.strictEqual(appleSeries.length, 2, "Apple should yield exactly two series (9.99 and 19.99)");
 const appleAmounts = appleSeries.map((r) => r.amount).sort((a, b) => a - b);
 assert.deepStrictEqual(appleAmounts, [9_99, 19_99], "Apple series should be the two subscriptions");
+
+const oddResult = results.find((r) => r.merchant === "Podcast App");
+assert(oddResult, "3-txn odd-cadence series should now be suggested");
+assert.strictEqual(oddResult.cadence, "every ~17 days", "odd cadence should be ~17 days");
+
+// --- partitionSeries: rules vs detected series ---
+
+const rules: RecurringRule[] = [
+  // Confirmed Netflix: matches the live series → removed from suggestions,
+  // dates come from the detector.
+  { id: 1, status: "confirmed", matchKey: "netflix", name: "Netflix", amount: 15_49, gapDays: 30, anchorDate: "2026-07-08" },
+  // Dismissed Apple $9.99: suppresses that cluster, the $19.99 one stays.
+  { id: 2, status: "dismissed", matchKey: "apple", name: "Apple", amount: 9_99, gapDays: 32, anchorDate: "2026-06-25" },
+  // Manual annual rule with no matchKey: matches nothing, anchor rolls forward.
+  { id: 3, status: "confirmed", matchKey: null, name: "Domain renewal", amount: 12_00, gapDays: 365, anchorDate: "2025-03-01" },
+];
+
+const { suggestions, nextDates } = partitionSeries(results, rules, today);
+
+assert(!suggestions.some((s) => s.merchant === "Netflix"), "confirmed Netflix should leave suggestions");
+const netflixDates = nextDates.get(1);
+assert(netflixDates, "confirmed Netflix should get dates");
+assert.strictEqual(netflixDates.lastDate, "2026-07-08", "live series supplies lastDate");
+assert.strictEqual(netflixDates.nextDate, "2026-08-07", "live series supplies nextDate");
+
+const appleSuggestions = suggestions.filter((s) => s.merchant === "Apple");
+assert.strictEqual(appleSuggestions.length, 1, "dismissed 9.99 cluster suppressed, 19.99 remains");
+assert.strictEqual(appleSuggestions[0].amount, 19_99, "remaining Apple suggestion is the 19.99 sub");
+assert(!nextDates.has(2), "dismissed rules get no dates");
+
+const manualDates = nextDates.get(3);
+assert(manualDates, "manual rule should get dates");
+assert.strictEqual(manualDates.lastDate, undefined, "manual rule has no live lastDate");
+assert.strictEqual(manualDates.nextDate, "2027-03-01", "anchor rolls forward past today");
 
 console.log("lib/recurring-check.ts: all assertions passed");

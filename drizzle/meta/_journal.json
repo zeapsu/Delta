@@ -29,6 +29,13 @@
       "when": 1783646756781,
       "tag": "0003_next_tinkerer",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1783656093114,
+      "tag": "0004_curly_vampiro",
+      "breakpoints": true
     }
   ]
 }
