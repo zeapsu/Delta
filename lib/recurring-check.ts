@@ -35,22 +35,44 @@ const uber = [
 
 // Gym with a signup charge the day before the first monthly bill (seen in
 // production): the single off-amount txn must not veto the series.
-const fitne = [
-  { name: "FITNE", merchantName: "Fitne", amount: 59_99, date: "2026-04-28" },
-  { name: "FITNE", merchantName: "Fitne", amount: 34_99, date: "2026-04-29" },
-  { name: "FITNE", merchantName: "Fitne", amount: 34_99, date: "2026-05-29" },
-  { name: "FITNE", merchantName: "Fitne", amount: 34_99, date: "2026-06-29" },
+const gymSignup = [
+  { name: "IRONWORKS GYM", merchantName: "Ironworks Gym", amount: 59_99, date: "2026-04-28" },
+  { name: "IRONWORKS GYM", merchantName: "Ironworks Gym", amount: 34_99, date: "2026-04-29" },
+  { name: "IRONWORKS GYM", merchantName: "Ironworks Gym", amount: 34_99, date: "2026-05-29" },
+  { name: "IRONWORKS GYM", merchantName: "Ironworks Gym", amount: 34_99, date: "2026-06-29" },
 ];
 
 // Loan payment with real-world jitter (seen in production): identical
 // amounts, gaps of 39 and 22 days around a monthly cadence.
-const uas = [
-  { name: "UAS", merchantName: "UAS", amount: 251_07, date: "2026-05-08" },
-  { name: "UAS", merchantName: "UAS", amount: 251_07, date: "2026-06-16" },
-  { name: "UAS", merchantName: "UAS", amount: 251_07, date: "2026-07-08" },
+const loanJitter = [
+  { name: "LOANSERV", merchantName: "LOANSERV", amount: 251_07, date: "2026-05-08" },
+  { name: "LOANSERV", merchantName: "LOANSERV", amount: 251_07, date: "2026-06-16" },
+  { name: "LOANSERV", merchantName: "LOANSERV", amount: 251_07, date: "2026-07-08" },
 ];
 
-const all = [...netflix, ...noisy, ...gym, ...uber, ...fitne, ...uas];
+// Rent via bank transfer (seen in production): each payment embeds a unique
+// alphanumeric reference code, and amounts drift slightly month to month.
+const rent = [
+  { name: "OAKS PROPERTY PAY ST-A7R5F7J5A2P7 TENANT", merchantName: null, amount: 1405_30, date: "2026-05-04" },
+  { name: "OAKS PROPERTY PAY ST-B3J3Z9O5M3E4 TENANT", merchantName: null, amount: 1439_19, date: "2026-06-01" },
+  { name: "OAKS PROPERTY PAY ST-P0J5M4Y3L2M9 TENANT", merchantName: null, amount: 1404_28, date: "2026-07-02" },
+];
+
+// One merchant, two subscriptions + one-off purchases (seen in production:
+// Apple): amount clustering must separate the $9.99 and $19.99 series and
+// discard the noise.
+const apple = [
+  { name: "APPLE.COM/BILL", merchantName: "Apple", amount: 9_99, date: "2026-04-25" },
+  { name: "APPLE.COM/BILL", merchantName: "Apple", amount: 9_99, date: "2026-05-30" },
+  { name: "APPLE.COM/BILL", merchantName: "Apple", amount: 9_99, date: "2026-06-25" },
+  { name: "APPLE.COM/BILL", merchantName: "Apple", amount: 19_99, date: "2026-04-18" },
+  { name: "APPLE.COM/BILL", merchantName: "Apple", amount: 19_99, date: "2026-05-18" },
+  { name: "APPLE.COM/BILL", merchantName: "Apple", amount: 19_99, date: "2026-06-18" },
+  { name: "APPLE STORE", merchantName: "Apple", amount: 35_99, date: "2026-06-18" },
+  { name: "APPLE.COM/BILL", merchantName: "Apple", amount: 5_99, date: "2026-06-06" },
+];
+
+const all = [...netflix, ...noisy, ...gym, ...uber, ...gymSignup, ...loanJitter, ...rent, ...apple];
 const results = detectRecurring(all, today);
 
 const netflixResult = results.find((r) => r.merchant === "Netflix");
@@ -68,13 +90,23 @@ const uberResult = results.find((r) => r.merchant.startsWith("Uber"));
 assert(uberResult, "Uber txns with digit suffixes should group together and be detected");
 assert.strictEqual(uberResult.count, 3, "Uber group should have 3 txns");
 
-const fitneResult = results.find((r) => r.merchant === "Fitne");
-assert(fitneResult, "Fitne should be detected despite the signup-charge outlier");
-assert.strictEqual(fitneResult.cadence, "monthly", "Fitne should be monthly");
-assert.strictEqual(fitneResult.amount, 34_99, "Fitne amount should be the regular charge");
-assert.strictEqual(fitneResult.count, 3, "Fitne count should exclude the dropped outlier");
+const gymSignupResult = results.find((r) => r.merchant === "Ironworks Gym");
+assert(gymSignupResult, "gym with signup charge should be detected despite the outlier");
+assert.strictEqual(gymSignupResult.cadence, "monthly", "gym should be monthly");
+assert.strictEqual(gymSignupResult.amount, 34_99, "gym amount should be the regular charge");
+assert.strictEqual(gymSignupResult.count, 3, "gym count should exclude the dropped outlier");
 
-const uasResult = results.find((r) => r.merchant === "UAS");
-assert(uasResult, "UAS should be detected despite gap jitter");
+const loanJitterResult = results.find((r) => r.merchant === "LOANSERV");
+assert(loanJitterResult, "loan payment should be detected despite gap jitter");
+
+const rentResult = results.find((r) => r.merchant.startsWith("OAKS"));
+assert(rentResult, "rent should group despite per-txn reference codes");
+assert.strictEqual(rentResult.cadence, "monthly", "rent should be monthly");
+assert.strictEqual(rentResult.count, 3, "rent should have 3 txns");
+
+const appleSeries = results.filter((r) => r.merchant === "Apple");
+assert.strictEqual(appleSeries.length, 2, "Apple should yield exactly two series (9.99 and 19.99)");
+const appleAmounts = appleSeries.map((r) => r.amount).sort((a, b) => a - b);
+assert.deepStrictEqual(appleAmounts, [9_99, 19_99], "Apple series should be the two subscriptions");
 
 console.log("lib/recurring-check.ts: all assertions passed");
