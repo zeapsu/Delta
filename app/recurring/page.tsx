@@ -1,14 +1,11 @@
 import { and, eq, gt, isNull, ne, notLike, or } from "drizzle-orm";
 import { db } from "@/db";
-import { transactions } from "@/db/schema";
+import { recurringRules, transactions } from "@/db/schema";
 import { formatCents } from "@/lib/format";
-import { detectRecurring, type RecurringSeries } from "@/lib/recurring";
+import { cadenceFromGap, detectRecurring, partitionSeries } from "@/lib/recurring";
+import { AddRuleForm, RuleRow, SuggestionCard } from "./recurring-form";
 
 export const dynamic = "force-dynamic";
-
-function monthlyEquivalent(series: RecurringSeries): number {
-  return (series.amount * 30) / series.gapDays;
-}
 
 export default async function RecurringPage() {
   const rows = await db
@@ -33,9 +30,14 @@ export default async function RecurringPage() {
       ),
     );
 
-  const series = detectRecurring(rows);
+  const rules = await db.select().from(recurringRules);
 
-  const estimatedMonthlyTotal = series.reduce((sum, s) => sum + monthlyEquivalent(s), 0);
+  const { suggestions, nextDates } = partitionSeries(detectRecurring(rows), rules);
+  const confirmed = rules
+    .filter((r) => r.status === "confirmed")
+    .sort((a, b) => b.amount - a.amount);
+
+  const estimatedMonthlyTotal = confirmed.reduce((sum, r) => sum + (r.amount * 30) / r.gapDays, 0);
 
   return (
     <div className="flex flex-col flex-1 items-center bg-zinc-50 font-sans dark:bg-black">
@@ -47,34 +49,71 @@ export default async function RecurringPage() {
           <p className="text-2xl font-semibold">{formatCents(Math.round(estimatedMonthlyTotal))}</p>
         </div>
 
-        {series.length === 0 ? (
-          <p className="text-sm opacity-60">No recurring transactions detected yet.</p>
+        {suggestions.length > 0 && (
+          <section className="flex flex-col gap-3">
+            <h2 className="text-lg font-medium">Suggestions</h2>
+            {suggestions.map((s) => (
+              <SuggestionCard
+                key={`${s.matchKey}-${s.amount}`}
+                suggestion={{
+                  matchKey: s.matchKey,
+                  merchant: s.merchant,
+                  amount: s.amount,
+                  cadence: s.cadence,
+                  gapDays: s.gapDays,
+                  lastDate: s.lastDate,
+                  count: s.count,
+                }}
+              />
+            ))}
+          </section>
+        )}
+
+        {confirmed.length === 0 ? (
+          <p className="text-sm opacity-60">
+            No confirmed recurring transactions yet. Confirm a suggestion above or add one manually below.
+          </p>
         ) : (
           <div className="overflow-x-auto">
           <table className="w-full min-w-[540px] text-sm">
             <thead>
               <tr className="border-b border-zinc-200 text-left opacity-60 dark:border-zinc-800">
-                <th className="py-2 font-normal">Merchant</th>
-                <th className="py-2 font-normal">Amount</th>
-                <th className="py-2 font-normal">Cadence</th>
-                <th className="py-2 font-normal">Last</th>
-                <th className="py-2 font-normal">Next expected</th>
+                <th className="py-2 pr-4 font-normal">Name</th>
+                <th className="py-2 pr-4 font-normal">Amount</th>
+                <th className="py-2 pr-4 font-normal">Cadence</th>
+                <th className="py-2 pr-4 font-normal">Last</th>
+                <th className="py-2 pr-4 font-normal">Next expected</th>
+                <th className="py-2 font-normal" />
               </tr>
             </thead>
             <tbody>
-              {series.map((s) => (
-                <tr key={`${s.merchant}-${s.lastDate}`} className="border-b border-zinc-100 dark:border-zinc-900">
-                  <td className="py-2">{s.merchant}</td>
-                  <td className="py-2">{formatCents(s.amount)}</td>
-                  <td className="py-2 capitalize">{s.cadence}</td>
-                  <td className="py-2">{s.lastDate}</td>
-                  <td className="py-2">{s.nextDate}</td>
-                </tr>
-              ))}
+              {confirmed.map((r) => {
+                const dates = nextDates.get(r.id);
+                return (
+                  <RuleRow
+                    key={r.id}
+                    rule={{
+                      id: r.id,
+                      name: r.name,
+                      amount: r.amount,
+                      gapDays: r.gapDays,
+                      anchorDate: r.anchorDate,
+                    }}
+                    cadence={cadenceFromGap(r.gapDays)}
+                    lastDate={dates?.lastDate}
+                    nextDate={dates?.nextDate}
+                  />
+                );
+              })}
             </tbody>
           </table>
           </div>
         )}
+
+        <section className="flex flex-col gap-3">
+          <h2 className="text-lg font-medium">Add manually</h2>
+          <AddRuleForm />
+        </section>
       </main>
     </div>
   );

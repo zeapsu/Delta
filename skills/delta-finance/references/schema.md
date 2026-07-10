@@ -88,3 +88,19 @@ Index: `(account_id, date)`. **Buys/sells here are investment activity, not spen
 | created_at | integer ms | |
 
 Writes to this table go through `POST/DELETE /api/budgets` only.
+
+## recurring_rules — user-reviewed recurring series
+
+| column | type | notes |
+|---|---|---|
+| id | integer PK | |
+| status | text | `confirmed` (counts as recurring) or `dismissed` (rejected suggestion) |
+| match_key | text nullable | detector group key pairing a rule with re-detected series; null for manual entries |
+| name | text | display name, user-editable |
+| amount | integer cents | |
+| gap_days | integer | days between charges (30 ≈ monthly, 365 ≈ yearly) |
+| anchor_date | text | ISO `yyyy-mm-dd`, last known/expected charge — next expected = anchor + gap_days rolled past today |
+| created_at | integer ms | |
+| updated_at | integer ms | |
+
+The app's detection heuristic only *suggests*; these rows are the truth. Writes go through `POST/PUT/DELETE /api/recurring` only.

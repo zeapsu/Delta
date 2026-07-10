@@ -10,7 +10,7 @@ Delta is a personal finance app that syncs bank data via Plaid into a local SQLi
 ## Hard rules (read first)
 
 - **Never read `items.access_token`.** The `items` table holds a Plaid API secret. Only ever select `id`, `institution_name`, `created_at` from `items`. Never `SELECT *` from `items`. If anything token-shaped (`access-...`) ever appears in output, do not repeat it.
-- **Never write to the database directly.** The only permitted write is the budgets API (below). Everything else is read-only.
+- **Never write to the database directly.** The only permitted writes are the budgets and recurring APIs (below). Everything else is read-only.
 - **Never call `/api/plaid/*` endpoints.** They handle credentials and syncing; they are not for agents.
 
 ## Data access
@@ -28,6 +28,13 @@ sqlite3 -readonly "file:${DATABASE_PATH:-./delta.db}?mode=ro" "<sql>"
 - `POST /api/budgets` with JSON `{"category": "FOOD_AND_DRINK", "monthlyAmount": 50000}` — upserts a monthly budget. `category` must match `^[A-Z_]{1,64}$` (Plaid primary category); `monthlyAmount` is a positive integer in cents, ≤ 100,000,000. Returns `{"ok": true}` or 400.
 - `DELETE /api/budgets` with JSON `{"category": "FOOD_AND_DRINK"}` — removes it (404 if absent).
 - `GET /api/budgets` — lists budgets (or just query the `budgets` table).
+
+**Write (recurring rules)** — user-confirmed recurring series live in `recurring_rules`; the app's heuristic only *suggests* (see query 7 notes). Same base URL:
+
+- `POST /api/recurring` with JSON `{"status": "confirmed", "name": "Netflix", "amount": 1549, "gapDays": 30, "anchorDate": "2026-07-08", "matchKey": "netflix"}` — creates a rule. `status` is `"confirmed"` or `"dismissed"` (dismissed suppresses a suggestion); `name` 1–200 chars; `amount` positive integer cents ≤ 100,000,000; `gapDays` integer 1–1000 (days between charges); `anchorDate` ISO `yyyy-mm-dd` (last known/expected charge); `matchKey` optional (the detector's group key — omit for manual entries). Returns `{"ok": true}` or 400.
+- `PUT /api/recurring` with JSON `{"id": 3, "name": ..., "amount": ..., "gapDays": ..., "anchorDate": ...}` — edits a rule (404 if absent).
+- `DELETE /api/recurring` with JSON `{"id": 3}` — removes it (this is how a canceled subscription is recorded).
+- `GET /api/recurring` — lists rules (or just query the `recurring_rules` table).
 
 ## Conventions (sign/unit gotchas)
 
@@ -48,7 +55,7 @@ sqlite3 -readonly "file:${DATABASE_PATH:-./delta.db}?mode=ro" "<sql>"
 |---|---|---|
 | Where did the money go this month? | 2 — spending by category | Compare against the 3-month average (query 3 per category); flag categories >20% above it. |
 | Is spending trending up or down? | 3 — monthly trend | One month is noise; call it a trend only with ≥3 months of movement. Current month is partial. |
-| What subscriptions/recurring charges exist? | 7 — recurring approximation | A grouping heuristic, not truth: verify cadence via `avg_gap_days` (~7 weekly, ~30 monthly, ~365 yearly) and amount stability before calling something a subscription. The app's exact heuristic is `lib/recurring.ts`. |
+| What subscriptions/recurring charges exist? | 7 — confirmed recurring rules | `recurring_rules` rows with `status='confirmed'` are user-reviewed truth — use them directly. The SQL heuristic in query 7 (and the app's detector, `lib/recurring.ts`) only produces *candidate suggestions* the user hasn't reviewed. |
 | Am I over budget? | 6 — budget vs actual | ≥80% mid-month deserves a heads-up; >100% is over. Refunds (negative amounts) reduce spend. |
 | What am I worth right now? | 4 — net worth now | Matches the dashboard headline. Null balances are excluded. |
 | How has net worth changed? | 5 — net worth over time | The app forward-fills missing per-account days in JS (`lib/networth.ts`); the raw SQL here does not, so a day where one account lacks a snapshot can show a false dip when you query directly — check account coverage before explaining a dip. |
@@ -59,7 +66,7 @@ sqlite3 -readonly "file:${DATABASE_PATH:-./delta.db}?mode=ro" "<sql>"
 - **Ground every claim in a query you just ran** and quote the actual numbers. Never estimate from memory or extrapolate beyond the data.
 - **Stay in scope:** budgeting, spending patterns, subscription cleanup, and cash-flow observations — yes. **No specific investment, securities, tax, or legal advice**; offer general principles at most and recommend a professional for those.
 - Categories are Plaid's automatic labels and can be wrong — sanity-check surprising numbers by listing the underlying transactions before drawing conclusions.
-- Recommendations are suggestions. **Only write a budget after the user explicitly agrees**, and only via `POST /api/budgets`.
+- Recommendations are suggestions. **Only write a budget or recurring rule after the user explicitly agrees**, and only via the `/api/budgets` and `/api/recurring` routes.
 - This data is private and stays local. Never send raw transaction dumps to third-party services, and don't surface account masks or numbers unless the user asks.
 
 ## Installing this skill

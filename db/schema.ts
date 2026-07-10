@@ -123,6 +123,27 @@ export const budgets = sqliteTable("budgets", {
     .default(sql`(unixepoch('now', 'subsec') * 1000)`),
 });
 
+// User-reviewed recurring series: the detector only suggests; these rows are
+// the truth. status "confirmed" = counts as recurring; "dismissed" = suppress
+// the matching suggestion. matchKey is the detector group key (null for
+// manual adds). Writes go through /api/recurring only.
+export const recurringRules = sqliteTable("recurring_rules", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  status: text("status").notNull(), // "confirmed" | "dismissed"
+  matchKey: text("match_key"),
+  name: text("name").notNull(),
+  // Money stored as integer cents.
+  amount: integer("amount").notNull(),
+  gapDays: integer("gap_days").notNull(),
+  anchorDate: text("anchor_date").notNull(), // ISO yyyy-mm-dd, last known/expected charge
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
+    .notNull()
+    .default(sql`(unixepoch('now', 'subsec') * 1000)`),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+    .notNull()
+    .default(sql`(unixepoch('now', 'subsec') * 1000)`),
+});
+
 // Chat conversations: the Hermes --continue key is derived (`delta-chat-<id>`),
 // not stored.
 export const conversations = sqliteTable("conversations", {
