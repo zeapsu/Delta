@@ -75,7 +75,20 @@ export function detectRecurring(txns: Txn[], today?: string): RecurringSeries[] 
   for (const group of groups.values()) {
     if (group.length < 3) continue;
 
-    const sorted = [...group].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+    let sorted = [...group].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+
+    // Amount check first: a single off-amount txn in a group of 4+ (e.g. a
+    // signup charge before the regular monthly one) is dropped rather than
+    // vetoing the series; more than one outlier still rejects the group.
+    const medAmount = median(sorted.map((t) => t.amount));
+    const amountOk = (t: Txn) => Math.abs(t.amount - medAmount) <= 0.2 * Math.abs(medAmount);
+    const outliers = sorted.filter((t) => !amountOk(t));
+    if (outliers.length > 1) continue;
+    if (outliers.length === 1) {
+      if (sorted.length < 4) continue;
+      sorted = sorted.filter(amountOk);
+    }
+
     const gaps: number[] = [];
     for (let i = 1; i < sorted.length; i++) {
       gaps.push(daysBetween(sorted[i - 1].date, sorted[i].date));
@@ -84,14 +97,11 @@ export function detectRecurring(txns: Txn[], today?: string): RecurringSeries[] 
     const m = median(gaps);
     if (m < 5) continue;
 
-    const gapTolerance = Math.max(3, 0.25 * m);
+    // 0.3 (was 0.25): real payments jitter — a monthly bill paid 8 days early
+    // one month reads as gaps of ~22 and ~39 days.
+    const gapTolerance = Math.max(3, 0.3 * m);
     const gapsOk = gaps.every((g) => Math.abs(g - m) <= gapTolerance);
     if (!gapsOk) continue;
-
-    const amounts = sorted.map((t) => t.amount);
-    const medAmount = median(amounts);
-    const amountsOk = amounts.every((a) => Math.abs(a - medAmount) <= 0.2 * Math.abs(medAmount));
-    if (!amountsOk) continue;
 
     const lastDate = sorted[sorted.length - 1].date;
     const nextDate = addDays(lastDate, m);

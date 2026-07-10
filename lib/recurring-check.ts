@@ -33,7 +33,24 @@ const uber = [
   { name: "Uber 081215", merchantName: null, amount: 21_75, date: "2026-07-09" },
 ];
 
-const all = [...netflix, ...noisy, ...gym, ...uber];
+// Gym with a signup charge the day before the first monthly bill (seen in
+// production): the single off-amount txn must not veto the series.
+const fitne = [
+  { name: "FITNE", merchantName: "Fitne", amount: 59_99, date: "2026-04-28" },
+  { name: "FITNE", merchantName: "Fitne", amount: 34_99, date: "2026-04-29" },
+  { name: "FITNE", merchantName: "Fitne", amount: 34_99, date: "2026-05-29" },
+  { name: "FITNE", merchantName: "Fitne", amount: 34_99, date: "2026-06-29" },
+];
+
+// Loan payment with real-world jitter (seen in production): identical
+// amounts, gaps of 39 and 22 days around a monthly cadence.
+const uas = [
+  { name: "UAS", merchantName: "UAS", amount: 251_07, date: "2026-05-08" },
+  { name: "UAS", merchantName: "UAS", amount: 251_07, date: "2026-06-16" },
+  { name: "UAS", merchantName: "UAS", amount: 251_07, date: "2026-07-08" },
+];
+
+const all = [...netflix, ...noisy, ...gym, ...uber, ...fitne, ...uas];
 const results = detectRecurring(all, today);
 
 const netflixResult = results.find((r) => r.merchant === "Netflix");
@@ -50,5 +67,14 @@ assert(!results.some((r) => r.merchant === "Gym"), "canceled gym should not be d
 const uberResult = results.find((r) => r.merchant.startsWith("Uber"));
 assert(uberResult, "Uber txns with digit suffixes should group together and be detected");
 assert.strictEqual(uberResult.count, 3, "Uber group should have 3 txns");
+
+const fitneResult = results.find((r) => r.merchant === "Fitne");
+assert(fitneResult, "Fitne should be detected despite the signup-charge outlier");
+assert.strictEqual(fitneResult.cadence, "monthly", "Fitne should be monthly");
+assert.strictEqual(fitneResult.amount, 34_99, "Fitne amount should be the regular charge");
+assert.strictEqual(fitneResult.count, 3, "Fitne count should exclude the dropped outlier");
+
+const uasResult = results.find((r) => r.merchant === "UAS");
+assert(uasResult, "UAS should be detected despite gap jitter");
 
 console.log("lib/recurring-check.ts: all assertions passed");
