@@ -1,14 +1,23 @@
 import { NextResponse } from "next/server";
-import { spawn } from "node:child_process";
 import path from "node:path";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { conversations, messages } from "@/db/schema";
 
 // 30 min: real advisory turns run many SQL queries and long models — the
-// timeout is only a hung-process backstop (#46).
+// timeout is only a hung-turn backstop (#46), enforced via session.interrupt.
 const TIMEOUT_MS = 1_800_000;
 const MAX_MESSAGE_LENGTH = 4000;
+
+// hermes serve gateway (#48): a persistent `hermes serve --host 127.0.0.1
+// --port 9117` process (hermes-serve.service on the Jetson). Loopback bind is
+// what enables ?token= auth — any non-loopback bind flips hermes to its OAuth
+// gate. The token is hermes' own env var, shared with this process via .env.
+const GATEWAY = process.env.HERMES_GATEWAY_URL ?? "http://127.0.0.1:9117";
+const TOKEN = process.env.HERMES_DASHBOARD_SESSION_TOKEN ?? "";
+// Per-session cwd drives hermes' AGENTS.md auto-load — advisor-home/AGENTS.md
+// symlinks to ADVISOR.md so replies talk finances, not milestones (#47).
+const ADVISOR_HOME = path.join(process.cwd(), "deploy", "advisor-home");
 
 // ponytail: the tailnet is the real trust boundary (no route in this app has
 // auth); this guard refuses first-hop addresses outside loopback and the
@@ -25,6 +34,11 @@ function allowed(req: Request): boolean {
   return m !== null && Number(m[1]) >= 64 && Number(m[1]) <= 127;
 }
 
+// The browser stream is NDJSON: {"t":"text","v":...} appends to the reply and
+// the persisted transcript; {"t":"status","v":...} is an ephemeral progress
+// line (tool activity) the client shows under the thinking indicator.
+type Frame = { t: "text" | "status"; v: string };
+
 function runHermes(
   message: string,
   conversationId: number,
@@ -32,48 +46,12 @@ function runHermes(
   stream: ReadableStream<Uint8Array>;
   done: Promise<void>;
 } {
-  // hermes -z auto-loads AGENTS.md from its cwd (cwd only, no upward walk).
-  // Spawning in the repo root fed it the dev doc, so replies talked about
-  // milestones instead of finances (#47) — advisor-home/AGENTS.md symlinks
-  // to ADVISOR.md. A path-y HERMES_CMD (e.g. ./scripts/hermes-stub.sh) is
-  // resolved against the repo root before the cwd changes under it.
-  const cmd = process.env.HERMES_CMD ?? "hermes";
-  const child = spawn(
-    cmd.includes("/") ? path.resolve(cmd) : cmd,
-    [
-      "-z",
-      message,
-      "--skills",
-      "delta-finance",
-      "--continue",
-      `delta-chat-${conversationId}`,
-    ],
-    // detached: own process group, so timeout/cancel kills hermes AND any
-    // tool subprocesses it spawned, not just the direct child
-    {
-      cwd: path.join(process.cwd(), "deploy", "advisor-home"),
-      stdio: ["ignore", "pipe", "pipe"],
-      detached: true,
-    },
-  );
-  const killTree = () => {
-    try {
-      process.kill(-child.pid!, "SIGKILL");
-    } catch {
-      child.kill("SIGKILL");
-    }
-  };
   const encoder = new TextEncoder();
   let resolveDone!: () => void;
   const done = new Promise<void>((r) => (resolveDone = r));
-  const timer = setTimeout(killTree, TIMEOUT_MS);
-  let stderrTail = "";
-  child.stderr.on("data", (chunk: Buffer) => {
-    stderrTail = (stderrTail + chunk.toString()).slice(-300);
-  });
 
-  // Persist exactly what the user saw (including any trailing error line) as
-  // the assistant turn; hermes's own --continue session is the model's memory.
+  // Persist exactly what the user saw (text frames incl. any trailing error
+  // line) as the assistant turn; hermes' own session is the model's memory.
   let assistantText = "";
   let persisted = false;
   const persist = () => {
@@ -84,43 +62,159 @@ function runHermes(
       .run();
   };
 
+  let ws: WebSocket | null = null;
+  let sessionId: string | null = null;
   let finished = false;
+
+  // Minimal JSON-RPC client: one pending map, incrementing ids.
+  let nextId = 1;
+  const pending = new Map<
+    number,
+    { resolve: (v: unknown) => void; reject: (e: unknown) => void }
+  >();
+  const rpc = (method: string, params: object) =>
+    new Promise<unknown>((resolve, reject) => {
+      const id = nextId++;
+      pending.set(id, { resolve, reject });
+      ws!.send(JSON.stringify({ jsonrpc: "2.0", id, method, params }));
+    });
+  const rejectPending = (reason: string) => {
+    for (const p of pending.values()) p.reject(new Error(reason));
+    pending.clear();
+  };
+  const interrupt = () => {
+    if (sessionId && ws?.readyState === WebSocket.OPEN) {
+      rpc("session.interrupt", { session_id: sessionId }).catch(() => {});
+    }
+  };
+
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
+      const send = (frame: Frame) => {
+        controller.enqueue(encoder.encode(JSON.stringify(frame) + "\n"));
+        if (frame.t === "text") assistantText += frame.v;
+      };
       const finish = (errorLine?: string) => {
         if (finished) return;
         finished = true;
         clearTimeout(timer);
-        if (errorLine) {
-          controller.enqueue(encoder.encode(errorLine));
-          assistantText += errorLine;
-        }
+        if (errorLine) send({ t: "text", v: errorLine });
         persist();
+        rejectPending("finished");
+        try {
+          ws?.close();
+        } catch {}
         controller.close();
         resolveDone();
       };
-      child.stdout.on("data", (chunk: Buffer) => {
-        if (!finished) {
-          controller.enqueue(new Uint8Array(chunk));
-          assistantText += chunk.toString();
+      const timer = setTimeout(() => {
+        interrupt();
+        finish("\n[hermes failed (timeout)]");
+      }, TIMEOUT_MS);
+      const emit = (frame: Frame) => {
+        if (!finished && frame.v) send(frame);
+      };
+
+      const startTurn = async () => {
+        // ponytail: session identity = resume-by-title "delta-chat-<id>".
+        // resume follows hermes' compression-continuation chains, so durable
+        // key rotation is handled server-side. Upgrade path if title lookup
+        // ever misbehaves: store stored_session_id on conversations and
+        // refresh it from session.info events.
+        const key = `delta-chat-${conversationId}`;
+        let s: { session_id?: string };
+        try {
+          s = (await rpc("session.resume", { session_id: key })) as typeof s;
+        } catch (err) {
+          if ((err as { code?: number })?.code !== 4007) throw err; // 4007 = not found
+          s = (await rpc("session.create", {
+            cwd: ADVISOR_HOME,
+            title: key,
+            source: "delta",
+          })) as typeof s;
         }
-      });
-      child.on("error", (err) => finish(`\n[bridge error: ${err.message}]`));
-      child.on("close", (code, signal) =>
-        finish(
-          code === 0
-            ? undefined
-            : `\n[hermes failed (${signal ?? `exit ${code}`})${
-                stderrTail ? `: ${stderrTail.trim()}` : ""
+        sessionId = s.session_id ?? null;
+        await rpc("prompt.submit", { session_id: sessionId, text: message });
+      };
+
+      const dispatch = (msg: {
+        id?: number;
+        method?: string;
+        result?: unknown;
+        error?: { code?: number; message?: string };
+        params?: { type: string; session_id?: string; payload?: Record<string, unknown> };
+      }) => {
+        if (msg.id !== undefined && pending.has(msg.id)) {
+          const p = pending.get(msg.id)!;
+          pending.delete(msg.id);
+          if (msg.error) p.reject(msg.error);
+          else p.resolve(msg.result);
+          return;
+        }
+        if (msg.method !== "event" || !msg.params) return;
+        const { type, session_id, payload } = msg.params;
+        if (type === "gateway.ready") {
+          startTurn().catch((err) =>
+            finish(
+              `\n[hermes failed: ${
+                (err as { message?: string })?.message ?? String(err)
               }]`,
-        ),
-      );
+            ),
+          );
+          return;
+        }
+        if (!sessionId || session_id !== sessionId) return; // not our session
+        if (type === "message.delta") {
+          emit({ t: "text", v: String(payload?.text ?? "") });
+        } else if (type === "message.complete") {
+          // deltas already streamed; complete.text is a fallback if none came
+          if (assistantText === "" && payload?.text) {
+            emit({ t: "text", v: String(payload.text) });
+          }
+          finish(
+            payload?.status === "complete"
+              ? undefined
+              : `\n[hermes failed (${payload?.status})]`,
+          );
+        } else if (type === "error") {
+          finish(`\n[hermes failed: ${payload?.message ?? "unknown error"}]`);
+        } else if (type === "tool.start" || type === "tool.generating") {
+          emit({ t: "status", v: String(payload?.name ?? "working") });
+        } else if (type === "status.update") {
+          emit({ t: "status", v: String(payload?.text ?? "") });
+        } else if (type.endsWith(".request") && payload?.request_id) {
+          // ponytail: headless bridge — fail now rather than wait out the
+          // gateway's 300s unanswered-request timeout. Upgrade path: auto-deny
+          // via approval.respond if this ever fires in practice.
+          interrupt();
+          finish(`\n[hermes failed: agent requested interactive input (${type})]`);
+        }
+        // thinking/reasoning deltas, tool.complete, session.info: ignored
+      };
+
+      const url = new URL("/api/ws", GATEWAY);
+      url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+      url.searchParams.set("token", TOKEN);
+      ws = new WebSocket(url);
+      ws.onmessage = (e) => {
+        try {
+          dispatch(JSON.parse(String(e.data)));
+        } catch {
+          /* ignore junk frame */
+        }
+      };
+      ws.onerror = () => finish("\n[bridge error: hermes gateway unreachable]");
+      ws.onclose = () => finish("\n[bridge error: hermes gateway closed connection]");
     },
     cancel() {
+      // browser went away mid-turn: stop the agent, persist what streamed
       finished = true;
-      clearTimeout(timer);
-      killTree();
+      interrupt();
       persist();
+      rejectPending("cancelled");
+      try {
+        ws?.close();
+      } catch {}
       resolveDone();
     },
   });
@@ -128,7 +222,7 @@ function runHermes(
 }
 
 // ponytail: module-level promise chain serializes turns — global on purpose:
-// one hermes process at a time even across conversations (single user, single
+// one hermes turn at a time even across conversations (single user, single
 // box); per-conversation queues if this ever goes multi-user.
 let queue: Promise<void> = Promise.resolve();
 
@@ -182,12 +276,12 @@ export async function POST(req: Request) {
   queue = new Promise((r) => (release = r));
   await prev;
 
-  // ponytail: errors (nonzero exit, timeout kill, spawn failure) surface as a
-  // trailing bracketed line in the 200 stream instead of a 502 — the response
-  // has already started by the time hermes can fail.
+  // ponytail: errors (gateway down, bad token, turn failure) surface as a
+  // trailing bracketed text frame in the 200 stream instead of a 502 — the
+  // response has already started by the time hermes can fail.
   const { stream, done } = runHermes(message, conversationId);
   void done.then(release);
   return new Response(stream, {
-    headers: { "Content-Type": "text/plain; charset=utf-8" },
+    headers: { "Content-Type": "application/x-ndjson; charset=utf-8" },
   });
 }
