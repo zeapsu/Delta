@@ -38,6 +38,7 @@ sqlite3 -readonly "file:${DATABASE_PATH:-./delta.db}?mode=ro" "<sql>"
 - `transactions.date` is ISO text `yyyy-mm-dd`; slice months with `date LIKE 'YYYY-MM-%'`. Timestamps elsewhere are milliseconds since epoch.
 - `pending = 1` transactions may still change or disappear; exclude them when reconciling against statements.
 - Balance snapshots are per sync run; bucket by day taking the latest per account per day (the queries file does this).
+- Investment buys/sells live in `investment_transactions` (not `transactions`) and are never counted as spend.
 
 ## Analysis methodology
 

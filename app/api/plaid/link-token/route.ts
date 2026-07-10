@@ -7,6 +7,9 @@ export async function POST() {
     user: { client_user_id: "delta" },
     client_name: "Delta",
     products: [Products.Transactions],
+    // Carries investments consent on new/re-linked items without forcing
+    // billing for institutions that don't support it.
+    optional_products: [Products.Investments],
     country_codes: [CountryCode.Us],
     language: "en",
   });

@@ -32,6 +32,7 @@ export default function RootLayout({
         <nav className="flex gap-4 overflow-x-auto whitespace-nowrap border-b px-4 py-1 text-sm sm:px-6 [&>a]:py-2">
           <Link href="/">Accounts</Link>
           <Link href="/transactions">Transactions</Link>
+          <Link href="/investments">Investments</Link>
           <Link href="/spending">Spending</Link>
           <Link href="/net-worth">Net worth</Link>
           <Link href="/recurring">Recurring</Link>
