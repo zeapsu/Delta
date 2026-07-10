@@ -6,9 +6,10 @@ Placeholders: replace `:month` with a quoted `'YYYY-MM'` and `:q` with a quoted 
 ## 1. Data freshness — always run first
 
 ```sql
--- expects: one row; warn the user if either value is > ~3 days old
+-- expects: one row; warn the user if any value is > ~3 days old (last_investment may legitimately be null/older — not all accounts hold investments)
 SELECT (SELECT MAX(date) FROM transactions) AS last_transaction,
-       (SELECT date(MAX(snapshot_at) / 1000, 'unixepoch') FROM balance_snapshots) AS last_snapshot;
+       (SELECT date(MAX(snapshot_at) / 1000, 'unixepoch') FROM balance_snapshots) AS last_snapshot,
+       (SELECT MAX(date) FROM investment_transactions) AS last_investment;
 ```
 
 ## 2. Spending by category for a month
@@ -106,7 +107,18 @@ ORDER BY occurrences DESC;
 
 Caveat: this groups by exact merchant string, so `Uber 072515` and `Uber 060322` split into different groups when `merchant_name` is null. The app's detector (`lib/recurring.ts`) strips digits, requires a median gap of at least 5 days (excludes near-daily purchases), gaps within ±max(3 days, 25%) of the median, amounts within ±20% of the median, and recency within 2× the cadence.
 
-## 8. Transaction search
+## 8. Investment activity
+
+```sql
+-- expects: newest 50 buys/sells/fees; investment activity, never spend — keep out of spending analysis
+SELECT date, name, type, subtype, ticker_symbol, quantity,
+       printf('%.2f', amount / 100.0) AS amount_usd
+FROM investment_transactions
+ORDER BY date DESC
+LIMIT 50;
+```
+
+## 9. Transaction search
 
 ```sql
 -- expects: newest 50 matches; LIKE is case-insensitive for ASCII

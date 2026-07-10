@@ -47,6 +47,28 @@ SQLite at `${DATABASE_PATH:-./delta.db}`. Source of truth: `db/schema.ts`. All m
 
 Index: `(account_id, date)`.
 
+## investment_transactions — buys/sells/fees within investment accounts
+
+| column | type | notes |
+|---|---|---|
+| id | integer PK | |
+| account_id | integer FK → accounts.id | |
+| plaid_investment_transaction_id | text unique | |
+| date | text `yyyy-mm-dd` | |
+| name | text | |
+| type | text | Plaid enum: `buy`, `sell`, `cash`, `fee`, `transfer` |
+| subtype | text | |
+| security_name | text nullable | |
+| ticker_symbol | text nullable | denormalized for convenience |
+| quantity | **REAL**, nullable | fractional shares — **not cents** |
+| price | **REAL**, nullable | per-share price in dollars, sub-cent precision — **not cents** |
+| amount | integer cents | Plaid sign: **positive = money out** |
+| fees | integer cents, nullable | |
+| currency | text, default `USD` | |
+| created_at | integer ms | |
+
+Index: `(account_id, date)`. **Buys/sells here are investment activity, not spend — never include this table in spending analysis** (queries 2, 3, 7 in `queries.md` already scope to `transactions` only, which excludes it).
+
 ## balance_snapshots — one row per account per sync run
 
 | column | type | notes |
