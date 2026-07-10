@@ -12,18 +12,27 @@ export type RecurringSeries = {
 
 type Txn = { name: string; merchantName: string | null; amount: number; date: string };
 
-function groupKey(t: Txn): string {
-  return (t.merchantName ?? t.name)
-    .toLowerCase()
-    .replace(/\d+/g, "")
-    .replace(/\s+/g, " ")
+// Drop whole tokens containing digits: bank payment names embed a unique
+// reference code each time ("... ST-A7R5F7J5A2P7 ..."), so stripping digits
+// in place leaves different letter residue per txn and the series never
+// groups. Fallback to in-place digit-stripping for names that are all
+// digit-tokens ("7-Eleven").
+function dropDigitTokens(raw: string): string {
+  return raw
+    .split(/\s+/)
+    .filter((w) => !/\d/.test(w))
+    .join(" ")
     .trim();
 }
 
-// Fallback display name when merchantName is null: strip the digit noise
-// ("Uber 072515" → "Uber") but keep the original casing.
+function groupKey(t: Txn): string {
+  const raw = (t.merchantName ?? t.name).toLowerCase();
+  return dropDigitTokens(raw) || raw.replace(/\d+/g, "").replace(/\s+/g, " ").trim();
+}
+
+// Fallback display name when merchantName is null: same cleanup, original casing.
 function cleanName(raw: string): string {
-  return raw.replace(/\d+/g, "").replace(/\s+/g, " ").trim() || raw;
+  return dropDigitTokens(raw) || raw.replace(/\d+/g, "").replace(/\s+/g, " ").trim() || raw;
 }
 
 function median(nums: number[]): number {
@@ -72,22 +81,29 @@ export function detectRecurring(txns: Txn[], today?: string): RecurringSeries[] 
 
   const results: RecurringSeries[] = [];
 
+  // A merchant can mix several subscriptions with one-off purchases (Apple:
+  // $9.99/mo + $19.99/mo + store buys) or a one-off signup charge with the
+  // regular bill — so cluster each merchant's txns by amount (new cluster
+  // when an amount exceeds 110% of the cluster minimum) and run the cadence
+  // checks per cluster.
+  const clusters: Txn[][] = [];
   for (const group of groups.values()) {
+    const byAmount = [...group].sort((a, b) => a.amount - b.amount);
+    let cluster: Txn[] = [];
+    for (const t of byAmount) {
+      if (cluster.length > 0 && t.amount > 1.1 * cluster[0].amount) {
+        clusters.push(cluster);
+        cluster = [];
+      }
+      cluster.push(t);
+    }
+    clusters.push(cluster);
+  }
+
+  for (const group of clusters) {
     if (group.length < 3) continue;
 
-    let sorted = [...group].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
-
-    // Amount check first: a single off-amount txn in a group of 4+ (e.g. a
-    // signup charge before the regular monthly one) is dropped rather than
-    // vetoing the series; more than one outlier still rejects the group.
-    const medAmount = median(sorted.map((t) => t.amount));
-    const amountOk = (t: Txn) => Math.abs(t.amount - medAmount) <= 0.2 * Math.abs(medAmount);
-    const outliers = sorted.filter((t) => !amountOk(t));
-    if (outliers.length > 1) continue;
-    if (outliers.length === 1) {
-      if (sorted.length < 4) continue;
-      sorted = sorted.filter(amountOk);
-    }
+    const sorted = [...group].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
 
     const gaps: number[] = [];
     for (let i = 1; i < sorted.length; i++) {
@@ -102,6 +118,11 @@ export function detectRecurring(txns: Txn[], today?: string): RecurringSeries[] 
     const gapTolerance = Math.max(3, 0.3 * m);
     const gapsOk = gaps.every((g) => Math.abs(g - m) <= gapTolerance);
     if (!gapsOk) continue;
+
+    // 3 txns at an odd interval is coincidence territory (groceries ~17 days
+    // apart); demand a 4th occurrence unless the cadence is a standard one.
+    const cadence = cadenceFromGap(m);
+    if (cadence.startsWith("every ~") && sorted.length < 4) continue;
 
     const lastDate = sorted[sorted.length - 1].date;
     const nextDate = addDays(lastDate, m);
@@ -125,8 +146,8 @@ export function detectRecurring(txns: Txn[], today?: string): RecurringSeries[] 
 
     results.push({
       merchant,
-      amount: medAmount,
-      cadence: cadenceFromGap(m),
+      amount: median(sorted.map((t) => t.amount)),
+      cadence,
       gapDays: m,
       lastDate,
       nextDate,
