@@ -45,11 +45,13 @@ function RuleFields({
   submitLabel,
   onSubmit,
   onDone,
+  onCancel,
 }: {
   initial: { name: string; amount?: number; gapDays?: number; anchorDate?: string };
   submitLabel: string;
   onSubmit: (fields: { name: string; amount: number; gapDays: number; anchorDate: string }) => Promise<void>;
   onDone?: () => void;
+  onCancel?: () => void;
 }) {
   const [name, setName] = useState(initial.name);
   const [dollars, setDollars] = useState(initial.amount != null ? (initial.amount / 100).toFixed(2) : "");
@@ -116,6 +118,11 @@ function RuleFields({
       <button type="submit" disabled={saving} className={buttonClass}>
         {saving ? "Saving…" : submitLabel}
       </button>
+      {onCancel && (
+        <button type="button" onClick={onCancel} className={buttonClass}>
+          Cancel
+        </button>
+      )}
       {error && <p className="text-sm text-red-600">{error}</p>}
     </form>
   );
@@ -193,7 +200,19 @@ export function AddRuleForm() {
   );
 }
 
-export function RuleActions({ rule }: { rule: Rule }) {
+// Owns the whole table row so the edit form can replace it as a single
+// full-width cell instead of exploding inside the actions column.
+export function RuleRow({
+  rule,
+  cadence,
+  lastDate,
+  nextDate,
+}: {
+  rule: Rule;
+  cadence: string;
+  lastDate?: string;
+  nextDate?: string;
+}) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -210,24 +229,38 @@ export function RuleActions({ rule }: { rule: Rule }) {
 
   if (editing) {
     return (
-      <RuleFields
-        initial={rule}
-        submitLabel="Save"
-        onSubmit={(fields) => postRule({ id: rule.id, ...fields }, "PUT").then(() => router.refresh())}
-        onDone={() => setEditing(false)}
-      />
+      <tr className="border-b border-zinc-100 dark:border-zinc-900">
+        <td colSpan={6} className="py-3">
+          <RuleFields
+            initial={rule}
+            submitLabel="Save"
+            onSubmit={(fields) => postRule({ id: rule.id, ...fields }, "PUT").then(() => router.refresh())}
+            onDone={() => setEditing(false)}
+            onCancel={() => setEditing(false)}
+          />
+        </td>
+      </tr>
     );
   }
 
   return (
-    <span className="flex items-center gap-3">
-      {error && <span className="text-sm text-red-600">{error}</span>}
-      <button type="button" onClick={() => setEditing(true)} className="text-sm underline opacity-70">
-        Edit
-      </button>
-      <button type="button" onClick={handleDelete} disabled={deleting} className="text-sm text-red-600 disabled:opacity-50">
-        Delete
-      </button>
-    </span>
+    <tr className="border-b border-zinc-100 dark:border-zinc-900">
+      <td className="py-2 pr-4">{rule.name}</td>
+      <td className="py-2 pr-4">{formatCents(rule.amount)}</td>
+      <td className="py-2 pr-4 capitalize">{cadence}</td>
+      <td className="py-2 pr-4">{lastDate ?? "—"}</td>
+      <td className="py-2 pr-4">{nextDate}</td>
+      <td className="py-2">
+        <span className="flex items-center gap-3">
+          {error && <span className="text-sm text-red-600">{error}</span>}
+          <button type="button" onClick={() => setEditing(true)} className="text-sm underline opacity-70">
+            Edit
+          </button>
+          <button type="button" onClick={handleDelete} disabled={deleting} className="text-sm text-red-600 disabled:opacity-50">
+            Delete
+          </button>
+        </span>
+      </td>
+    </tr>
   );
 }

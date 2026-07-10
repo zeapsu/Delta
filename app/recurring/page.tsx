@@ -3,7 +3,7 @@ import { db } from "@/db";
 import { recurringRules, transactions } from "@/db/schema";
 import { formatCents } from "@/lib/format";
 import { cadenceFromGap, detectRecurring, partitionSeries } from "@/lib/recurring";
-import { AddRuleForm, RuleActions, SuggestionCard } from "./recurring-form";
+import { AddRuleForm, RuleRow, SuggestionCard } from "./recurring-form";
 
 export const dynamic = "force-dynamic";
 
@@ -78,11 +78,11 @@ export default async function RecurringPage() {
           <table className="w-full min-w-[540px] text-sm">
             <thead>
               <tr className="border-b border-zinc-200 text-left opacity-60 dark:border-zinc-800">
-                <th className="py-2 font-normal">Name</th>
-                <th className="py-2 font-normal">Amount</th>
-                <th className="py-2 font-normal">Cadence</th>
-                <th className="py-2 font-normal">Last</th>
-                <th className="py-2 font-normal">Next expected</th>
+                <th className="py-2 pr-4 font-normal">Name</th>
+                <th className="py-2 pr-4 font-normal">Amount</th>
+                <th className="py-2 pr-4 font-normal">Cadence</th>
+                <th className="py-2 pr-4 font-normal">Last</th>
+                <th className="py-2 pr-4 font-normal">Next expected</th>
                 <th className="py-2 font-normal" />
               </tr>
             </thead>
@@ -90,24 +90,19 @@ export default async function RecurringPage() {
               {confirmed.map((r) => {
                 const dates = nextDates.get(r.id);
                 return (
-                  <tr key={r.id} className="border-b border-zinc-100 dark:border-zinc-900">
-                    <td className="py-2">{r.name}</td>
-                    <td className="py-2">{formatCents(r.amount)}</td>
-                    <td className="py-2 capitalize">{cadenceFromGap(r.gapDays)}</td>
-                    <td className="py-2">{dates?.lastDate ?? "—"}</td>
-                    <td className="py-2">{dates?.nextDate}</td>
-                    <td className="py-2">
-                      <RuleActions
-                        rule={{
-                          id: r.id,
-                          name: r.name,
-                          amount: r.amount,
-                          gapDays: r.gapDays,
-                          anchorDate: r.anchorDate,
-                        }}
-                      />
-                    </td>
-                  </tr>
+                  <RuleRow
+                    key={r.id}
+                    rule={{
+                      id: r.id,
+                      name: r.name,
+                      amount: r.amount,
+                      gapDays: r.gapDays,
+                      anchorDate: r.anchorDate,
+                    }}
+                    cadence={cadenceFromGap(r.gapDays)}
+                    lastDate={dates?.lastDate}
+                    nextDate={dates?.nextDate}
+                  />
                 );
               })}
             </tbody>
