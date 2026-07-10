@@ -65,6 +65,10 @@ function runHermes(
   let ws: WebSocket | null = null;
   let sessionId: string | null = null;
   let finished = false;
+  // #54: client disconnect (mobile backgrounding aborts the fetch) must not
+  // kill the turn — it keeps running server-side and finish() persists the
+  // full reply; a refresh then shows it from the DB.
+  let clientGone = false;
 
   // Minimal JSON-RPC client: one pending map, incrementing ids.
   let nextId = 1;
@@ -91,7 +95,13 @@ function runHermes(
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
       const send = (frame: Frame) => {
-        controller.enqueue(encoder.encode(JSON.stringify(frame) + "\n"));
+        if (!clientGone) {
+          try {
+            controller.enqueue(encoder.encode(JSON.stringify(frame) + "\n"));
+          } catch {
+            clientGone = true; // enqueue on a cancelled stream throws
+          }
+        }
         if (frame.t === "text") assistantText += frame.v;
       };
       const finish = (errorLine?: string) => {
@@ -104,7 +114,9 @@ function runHermes(
         try {
           ws?.close();
         } catch {}
-        controller.close();
+        try {
+          if (!clientGone) controller.close();
+        } catch {}
         resolveDone();
       };
       const timer = setTimeout(() => {
@@ -134,6 +146,11 @@ function runHermes(
           })) as typeof s;
         }
         sessionId = s.session_id ?? null;
+        // #53: bypass tool-approval prompts for this session only — a headless
+        // bridge can't answer them. In-memory per-session flag on the gateway
+        // (config.set scope defaults to "session"), so re-assert every turn;
+        // never touches the user's global approvals.mode.
+        await rpc("config.set", { session_id: sessionId, key: "yolo", value: "on" });
         await rpc("prompt.submit", { session_id: sessionId, text: message });
       };
 
@@ -207,15 +224,10 @@ function runHermes(
       ws.onclose = () => finish("\n[bridge error: hermes gateway closed connection]");
     },
     cancel() {
-      // browser went away mid-turn: stop the agent, persist what streamed
-      finished = true;
-      interrupt();
-      persist();
-      rejectPending("cancelled");
-      try {
-        ws?.close();
-      } catch {}
-      resolveDone();
+      // #54: browser went away mid-turn (mobile backgrounding) — do NOT
+      // interrupt. The turn keeps running; finish() persists the full reply
+      // and releases the queue. The 30-min timeout is the hung-turn backstop.
+      clientGone = true;
     },
   });
   return { stream, done };
