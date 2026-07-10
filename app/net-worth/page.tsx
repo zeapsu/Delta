@@ -39,7 +39,12 @@ export default async function NetWorthPage() {
 
         {rows.length === 0 ? (
           <p className="text-sm opacity-60">Sync to start tracking net worth.</p>
-        ) : rows.length === 1 ? null : (
+        ) : rows.length === 1 ? (
+          <p className="text-sm opacity-60">
+            First snapshot recorded — the history chart appears once there&apos;s
+            more than one day of data.
+          </p>
+        ) : (
           <NetWorthLine data={data} series={series} />
         )}
       </main>
