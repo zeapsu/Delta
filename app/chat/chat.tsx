@@ -1,11 +1,27 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 type Msg = { role: "user" | "assistant"; text: string };
+
+// hermes -z prints only the final response, so a long turn produces no bytes
+// until it's done — show elapsed time so it doesn't look hung (#46). Mounts
+// when a turn starts, unmounts on the first byte, so it resets itself.
+function Thinking() {
+  const [secs, setSecs] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setSecs((s) => s + 1), 1000);
+    return () => clearInterval(t);
+  }, []);
+  return (
+    <p className="animate-pulse text-sm opacity-60">
+      Thinking… {Math.floor(secs / 60)}:{String(secs % 60).padStart(2, "0")}
+    </p>
+  );
+}
 
 export function Chat({
   conversations,
@@ -179,7 +195,7 @@ export function Chat({
             </div>
           ),
         )}
-        {waiting && <p className="animate-pulse text-sm opacity-60">Thinking…</p>}
+        {waiting && <Thinking />}
         <div ref={bottomRef} />
       </div>
       <form onSubmit={send} className="flex gap-3">
