@@ -7,9 +7,10 @@ import remarkGfm from "remark-gfm";
 
 type Msg = { role: "user" | "assistant"; text: string };
 
-// hermes -z prints only the final response, so a long turn produces no bytes
-// until it's done — show elapsed time so it doesn't look hung (#46). Mounts
-// when a turn starts, unmounts on the first byte, so it resets itself.
+// Assistant text streams, but tool-heavy advisory turns spend most of their
+// time in SQL calls before the first delta — show elapsed time so it doesn't
+// look hung (#46). Mounts when a turn starts, unmounts on the first text, so
+// it resets itself.
 function Thinking() {
   const [secs, setSecs] = useState(0);
   useEffect(() => {
@@ -37,6 +38,8 @@ export function Chat({
   const [activeId, setActiveId] = useState<number | null>(conversationId);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  // ephemeral tool-activity line from {"t":"status"} frames — never persisted
+  const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -84,18 +87,39 @@ export function Chat({
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error ?? `Request failed (${res.status})`);
       }
+      // NDJSON stream: {"t":"text","v":...} appends to the reply,
+      // {"t":"status","v":...} is a transient progress label (tool activity).
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
+      let buf = "";
       for (;;) {
         const { done, value } = await reader.read();
         if (done) break;
-        appendToLast(decoder.decode(value, { stream: true }));
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split("\n");
+        buf = lines.pop()!; // partial tail stays in the buffer
+        for (const line of lines) {
+          if (!line) continue;
+          let frame: { t: string; v: string };
+          try {
+            frame = JSON.parse(line);
+          } catch {
+            continue;
+          }
+          if (frame.t === "text") {
+            setStatus(null);
+            appendToLast(frame.v);
+          } else if (frame.t === "status") {
+            setStatus(frame.v);
+          }
+        }
         bottomRef.current?.scrollIntoView({ behavior: "smooth" });
       }
     } catch (err) {
       appendToLast(`\n[error: ${err instanceof Error ? err.message : String(err)}]`);
     } finally {
       setBusy(false);
+      setStatus(null);
     }
   };
 
@@ -196,6 +220,9 @@ export function Chat({
           ),
         )}
         {waiting && <Thinking />}
+        {busy && status && (
+          <p className="animate-pulse text-sm opacity-60">⚙ {status}</p>
+        )}
         <div ref={bottomRef} />
       </div>
       <form onSubmit={send} className="flex gap-3">
