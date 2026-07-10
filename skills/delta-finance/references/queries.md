@@ -86,7 +86,25 @@ LEFT JOIN (
 ORDER BY pct DESC;
 ```
 
-## 7. Recurring charges (approximation)
+## 7. Recurring charges
+
+User-confirmed recurring series are the truth — read them first:
+
+```sql
+-- expects: confirmed recurring series (user-reviewed); monthly cost = amount * 30 / gap_days
+SELECT name,
+       printf('%.2f', amount / 100.0) AS amount_usd,
+       gap_days,
+       anchor_date,
+       printf('%.2f', amount * 30.0 / gap_days / 100.0) AS monthly_usd
+FROM recurring_rules
+WHERE status = 'confirmed'
+ORDER BY amount DESC;
+```
+
+`status = 'dismissed'` rows are suggestions the user rejected — never count them. To *propose* a new recurring entry, suggest it to the user and (on agreement) `POST /api/recurring`.
+
+The heuristic below only surfaces unreviewed **candidates** — useful for "anything recurring the user hasn't confirmed yet?", not for totals:
 
 ```sql
 -- expects: candidate subscriptions; verify avg_gap_days (~7 weekly, ~30 monthly, ~365 yearly)
@@ -105,7 +123,7 @@ HAVING COUNT(*) >= 3
 ORDER BY occurrences DESC;
 ```
 
-Caveat: this groups by exact merchant string, so `Uber 072515` and `Uber 060322` split into different groups when `merchant_name` is null, and it lumps all of a merchant's charges together. The app's detector (`lib/recurring.ts`) is smarter: it drops whole name tokens containing digits (bank payments embed a unique reference code per txn — rent), clusters each merchant's txns by amount (~10% band) so multiple subscriptions from one merchant (Apple $9.99 + $19.99) separate from one-off purchases, then requires a median gap of at least 5 days, gaps within ±max(3 days, 30%) of the median, ≥4 occurrences for non-standard cadences (3 grocery runs ~17 days apart is coincidence), and recency within 2× the cadence.
+Caveat: this groups by exact merchant string, so `Uber 072515` and `Uber 060322` split into different groups when `merchant_name` is null, and it lumps all of a merchant's charges together. The app's detector (`lib/recurring.ts`) is smarter: it drops whole name tokens containing digits (bank payments embed a unique reference code per txn — rent), clusters each merchant's txns by amount (~10% band) so multiple subscriptions from one merchant (Apple $9.99 + $19.99) separate from one-off purchases, then requires a median gap of at least 5 days, gaps within ±max(3 days, 30%) of the median, and recency within 2× the cadence. Either way these are only suggestions — the user confirms or dismisses each on the app's /recurring page, and only `recurring_rules` rows count.
 
 ## 8. Investment activity
 
