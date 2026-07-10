@@ -2,8 +2,10 @@
 # ponytail: Jetson paths/IP hardcoded (single known device); parameterize if a second host appears.
 [Unit]
 Description=Delta personal finance webapp
-After=network-online.target tailscaled.service
-Wants=network-online.target
+After=network-online.target tailscaled.service hermes-serve.service
+# soft dep: dashboard pages must survive hermes being down — chat degrades to
+# a [bridge error] line
+Wants=network-online.target hermes-serve.service
 
 [Service]
 User=zeapsu
