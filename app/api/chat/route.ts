@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
 import { spawn } from "node:child_process";
+import path from "node:path";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { conversations, messages } from "@/db/schema";
 
-const TIMEOUT_MS = 120_000;
+// 30 min: real advisory turns run many SQL queries and long models — the
+// timeout is only a hung-process backstop (#46).
+const TIMEOUT_MS = 1_800_000;
 const MAX_MESSAGE_LENGTH = 4000;
 
 // ponytail: the tailnet is the real trust boundary (no route in this app has
@@ -29,8 +32,14 @@ function runHermes(
   stream: ReadableStream<Uint8Array>;
   done: Promise<void>;
 } {
+  // hermes -z auto-loads AGENTS.md from its cwd (cwd only, no upward walk).
+  // Spawning in the repo root fed it the dev doc, so replies talked about
+  // milestones instead of finances (#47) — advisor-home/AGENTS.md symlinks
+  // to ADVISOR.md. A path-y HERMES_CMD (e.g. ./scripts/hermes-stub.sh) is
+  // resolved against the repo root before the cwd changes under it.
+  const cmd = process.env.HERMES_CMD ?? "hermes";
   const child = spawn(
-    process.env.HERMES_CMD ?? "hermes",
+    cmd.includes("/") ? path.resolve(cmd) : cmd,
     [
       "-z",
       message,
@@ -41,7 +50,11 @@ function runHermes(
     ],
     // detached: own process group, so timeout/cancel kills hermes AND any
     // tool subprocesses it spawned, not just the direct child
-    { cwd: process.cwd(), stdio: ["ignore", "pipe", "pipe"], detached: true },
+    {
+      cwd: path.join(process.cwd(), "deploy", "advisor-home"),
+      stdio: ["ignore", "pipe", "pipe"],
+      detached: true,
+    },
   );
   const killTree = () => {
     try {
