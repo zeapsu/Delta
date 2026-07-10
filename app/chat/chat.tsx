@@ -97,7 +97,12 @@ export function Chat({
           const data = await res.json().catch(() => ({}));
           throw new Error(data.error ?? "Failed to delete conversation");
         }
-        router.push("/chat");
+        // Can't rely on router.push remounting <Chat>: creating a conversation
+        // mid-session updates the URL via history.replaceState (line ~59), which
+        // the router doesn't see, so push("/chat") is a same-route no-op there.
+        setMessages([]);
+        setActiveId(null);
+        window.history.replaceState(null, "", "/chat");
         router.refresh();
       })
       .catch((err) => setError(err.message))
