@@ -2,6 +2,7 @@ import {
   sqliteTable,
   text,
   integer,
+  real,
   index,
 } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
@@ -61,6 +62,45 @@ export const transactions = sqliteTable(
       .default(sql`(unixepoch('now', 'subsec') * 1000)`),
   },
   (table) => [index("transactions_account_id_date_idx").on(table.accountId, table.date)],
+);
+
+// Investment activity from /investments/transactions/get (buys/sells/dividends/
+// fees). Separate from `transactions` — different shape, and buys must never
+// count as spend. Security name/ticker are denormalized from the response's
+// securities[] (no securities table — display only).
+export const investmentTransactions = sqliteTable(
+  "investment_transactions",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    accountId: integer("account_id")
+      .notNull()
+      .references(() => accounts.id),
+    plaidInvestmentTransactionId: text("plaid_investment_transaction_id")
+      .notNull()
+      .unique(),
+    date: text("date").notNull(), // ISO yyyy-mm-dd
+    name: text("name").notNull(),
+    type: text("type").notNull(), // Plaid enum: buy/sell/cash/fee/transfer
+    subtype: text("subtype").notNull(),
+    securityName: text("security_name"),
+    tickerSymbol: text("ticker_symbol"),
+    // Fractional shares / sub-cent share prices — real, NOT cents.
+    quantity: real("quantity"),
+    price: real("price"),
+    // Money stored as integer cents. Plaid convention: positive = money out.
+    amount: integer("amount").notNull(),
+    fees: integer("fees"),
+    currency: text("currency").notNull().default("USD"),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch('now', 'subsec') * 1000)`),
+  },
+  (table) => [
+    index("investment_transactions_account_id_date_idx").on(
+      table.accountId,
+      table.date,
+    ),
+  ],
 );
 
 export const balanceSnapshots = sqliteTable("balance_snapshots", {
