@@ -41,7 +41,7 @@ export function BudgetForm({ categories }: { categories: string[] }) {
         <select
           value={category}
           onChange={(e) => setCategory(e.target.value)}
-          className="w-full rounded-md border px-3 py-2 text-sm sm:w-auto"
+          className="w-full rounded-md border px-3 py-2 text-base sm:w-auto sm:text-sm"
         >
           {categories.map((c) => (
             <option key={c} value={c}>
@@ -59,7 +59,7 @@ export function BudgetForm({ categories }: { categories: string[] }) {
           required
           value={dollars}
           onChange={(e) => setDollars(e.target.value)}
-          className="w-full rounded-md border px-3 py-2 text-sm sm:w-auto"
+          className="w-full rounded-md border px-3 py-2 text-base sm:w-auto sm:text-sm"
         />
       </div>
       <button

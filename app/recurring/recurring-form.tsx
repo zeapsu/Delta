@@ -22,7 +22,7 @@ type Rule = {
   anchorDate: string;
 };
 
-const inputClass = "w-full rounded-md border px-3 py-2 text-sm sm:w-auto";
+const inputClass = "w-full rounded-md border px-3 py-2 text-base sm:w-auto sm:text-sm";
 const buttonClass = "rounded-md border px-4 py-2 text-sm font-medium disabled:opacity-50";
 
 function postRule(body: Record<string, unknown>, method: string) {

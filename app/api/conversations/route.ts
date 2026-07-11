@@ -42,6 +42,42 @@ export async function POST(req: Request) {
   return NextResponse.json(row);
 }
 
+export async function PATCH(req: Request) {
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+
+  if (typeof body !== "object" || body === null || Array.isArray(body)) {
+    return NextResponse.json({ error: "Invalid body" }, { status: 400 });
+  }
+
+  const { id, name } = body as { id?: unknown; name?: unknown };
+  if (typeof id !== "number" || !Number.isInteger(id) || id <= 0) {
+    return NextResponse.json({ error: "Invalid id" }, { status: 400 });
+  }
+  if (
+    typeof name !== "string" ||
+    name.trim().length === 0 ||
+    name.length > MAX_NAME_LENGTH
+  ) {
+    return NextResponse.json({ error: "Invalid name" }, { status: 400 });
+  }
+
+  const [row] = await db
+    .update(conversations)
+    .set({ name: name.trim() })
+    .where(eq(conversations.id, id))
+    .returning({ id: conversations.id, name: conversations.name });
+  if (!row) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  return NextResponse.json(row);
+}
+
 export async function DELETE(req: Request) {
   let body: unknown;
   try {

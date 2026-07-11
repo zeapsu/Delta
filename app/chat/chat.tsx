@@ -25,11 +25,9 @@ function Thinking() {
 }
 
 export function Chat({
-  conversations,
   conversationId,
   initialMessages,
 }: {
-  conversations: { id: number; name: string }[];
   conversationId: number | null;
   initialMessages: Msg[];
 }) {
@@ -43,6 +41,9 @@ export function Chat({
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  // set when this send created the conversation — drives the post-stream
+  // router.refresh() so the server sidebar picks it up (never mid-stream)
+  const createdRef = useRef(false);
 
   const appendToLast = (chunk: string) =>
     setMessages((m) => {
@@ -75,6 +76,9 @@ export function Chat({
         const data = await res.json();
         id = data.id;
         setActiveId(id);
+        createdRef.current = true;
+        // raw replaceState on purpose: a router navigation would remount the
+        // keyed <Chat> and drop the in-flight stream (gotcha #40)
         window.history.replaceState(null, "", "/chat?c=" + id);
       }
 
@@ -120,7 +124,24 @@ export function Chat({
     } finally {
       setBusy(false);
       setStatus(null);
+      if (createdRef.current) {
+        createdRef.current = false;
+        // safe post-stream: Next 16 synced the replaceState URL into router
+        // state, and the route persists the reply before closing the stream,
+        // so the refreshed server page renders the full transcript
+        router.refresh();
+      }
     }
+  };
+
+  const stop = () => {
+    if (activeId === null) return;
+    // route finishes the stream with "[stopped]" — the reader loop then ends
+    fetch("/api/chat/stop", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ conversationId: activeId }),
+    }).catch(() => {});
   };
 
   const handleDelete = () => {
@@ -138,7 +159,7 @@ export function Chat({
           throw new Error(data.error ?? "Failed to delete conversation");
         }
         // Can't rely on router.push remounting <Chat>: creating a conversation
-        // mid-session updates the URL via history.replaceState (line ~59), which
+        // mid-session updates the URL via history.replaceState (see send), which
         // the router doesn't see, so push("/chat") is a same-route no-op there.
         setMessages([]);
         setActiveId(null);
@@ -154,51 +175,24 @@ export function Chat({
     messages[messages.length - 1].text === "";
 
   return (
-    <div className="flex flex-1 flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <select
-          value={activeId ?? ""}
-          disabled={busy || deleting}
-          onChange={(e) => router.push(e.target.value ? `/chat?c=${e.target.value}` : "/chat")}
-          className="rounded-md border px-2 py-1 text-sm disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900"
-        >
-          {activeId === null && (
-            <option value="" disabled>
-              New conversation
-            </option>
-          )}
-          {conversations.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
-        {activeId !== null && (
-          <>
-            <button
-              type="button"
-              onClick={() => router.push("/chat")}
-              disabled={busy}
-              className="rounded-md border px-2 py-1 text-sm disabled:opacity-50 dark:border-zinc-700"
-            >
-              New
-            </button>
-            <button
-              type="button"
-              onClick={handleDelete}
-              disabled={busy || deleting}
-              className="rounded-md border px-2 py-1 text-sm text-red-600 disabled:opacity-50 dark:border-zinc-700"
-            >
-              {deleting ? "Deleting…" : "Delete"}
-            </button>
-          </>
-        )}
-        {error && <span className="text-sm text-red-600">{error}</span>}
-      </div>
+    <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-4 pt-4 sm:px-6">
+      {activeId !== null && (
+        <div className="flex items-center justify-end gap-2">
+          {error && <span className="text-sm text-red-600">{error}</span>}
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={busy || deleting}
+            className="rounded-md px-2 py-1 text-sm text-red-600 opacity-70 hover:opacity-100 disabled:opacity-40"
+          >
+            {deleting ? "Deleting…" : "Delete"}
+          </button>
+        </div>
+      )}
 
-      <div className="flex flex-1 flex-col gap-4">
+      <div className="flex flex-1 flex-col gap-5 pb-4">
         {messages.length === 0 && (
-          <p className="text-sm opacity-60">
+          <p className="pt-8 text-center text-sm opacity-60">
             Ask about your spending, budgets, subscriptions, or net worth.
           </p>
         )}
@@ -206,14 +200,14 @@ export function Chat({
           m.role === "user" ? (
             <p
               key={i}
-              className="self-end rounded-md border bg-white px-3 py-2 text-sm dark:bg-zinc-900"
+              className="max-w-[85%] self-end whitespace-pre-wrap rounded-2xl rounded-br-md bg-zinc-200 px-4 py-2.5 text-sm dark:bg-zinc-800"
             >
               {m.text}
             </p>
           ) : (
             <div
               key={i}
-              className="text-sm [&_a]:underline [&_code]:font-mono [&_code]:text-xs [&_h1]:text-lg [&_h1]:font-semibold [&_h2]:text-base [&_h2]:font-semibold [&_h3]:font-semibold [&_li]:ml-4 [&_ol]:list-decimal [&_p]:my-2 [&_pre]:overflow-x-auto [&_pre]:rounded-md [&_pre]:border [&_pre]:p-3 [&_table]:my-2 [&_table]:block [&_table]:max-w-full [&_table]:overflow-x-auto [&_td]:border [&_td]:px-2 [&_td]:py-1 [&_th]:border [&_th]:px-2 [&_th]:py-1 [&_ul]:list-disc"
+              className="text-sm leading-relaxed [&_a]:underline [&_blockquote]:border-l-2 [&_blockquote]:pl-3 [&_blockquote]:opacity-80 [&_code]:rounded [&_code]:bg-zinc-100 [&_code]:px-1 [&_code]:font-mono [&_code]:text-xs [&_h1]:text-lg [&_h1]:font-semibold [&_h2]:text-base [&_h2]:font-semibold [&_h3]:font-semibold [&_hr]:my-4 [&_li]:ml-4 [&_ol]:list-decimal [&_p]:my-2 [&_pre]:overflow-x-auto [&_pre]:rounded-md [&_pre]:border [&_pre]:p-3 [&_table]:my-2 [&_table]:block [&_table]:max-w-full [&_table]:overflow-x-auto [&_td]:border [&_td]:px-2 [&_td]:py-1 [&_th]:border [&_th]:px-2 [&_th]:py-1 [&_ul]:list-disc dark:[&_code]:bg-zinc-800"
             >
               <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.text}</ReactMarkdown>
             </div>
@@ -223,23 +217,45 @@ export function Chat({
         {busy && status && (
           <p className="animate-pulse text-sm opacity-60">⚙ {status}</p>
         )}
-        <div ref={bottomRef} />
+        <div ref={bottomRef} className="scroll-mb-24" />
       </div>
-      <form onSubmit={send} className="flex gap-3">
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Message"
-          maxLength={4000} // keep in sync with MAX_MESSAGE_LENGTH in app/api/chat/route.ts
-          className="flex-1 rounded-md border px-3 py-2 text-sm"
-        />
-        <button
-          type="submit"
-          disabled={busy || input.trim().length === 0}
-          className="rounded-md border px-4 py-2 text-sm font-medium disabled:opacity-50"
-        >
-          {busy ? "Sending…" : "Send"}
-        </button>
+
+      <form onSubmit={send} className="sticky bottom-0 bg-zinc-50 pb-4 pt-2 dark:bg-black">
+        <div className="flex items-end gap-2 rounded-xl border bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900">
+          <textarea
+            rows={1}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+                e.preventDefault();
+                e.currentTarget.form?.requestSubmit();
+              }
+            }}
+            placeholder="Message"
+            maxLength={4000} // keep in sync with MAX_MESSAGE_LENGTH in app/api/chat/route.ts
+            // text-base on mobile: <16px inputs trigger iOS zoom-on-focus (#56);
+            // field-sizing-content auto-grows without JS (Chrome 123+)
+            className="max-h-40 flex-1 resize-none bg-transparent text-base outline-none field-sizing-content sm:text-sm"
+          />
+          {busy ? (
+            <button
+              type="button"
+              onClick={stop}
+              className="rounded-md border px-4 py-2 text-sm font-medium dark:border-zinc-700"
+            >
+              Stop
+            </button>
+          ) : (
+            <button
+              type="submit"
+              disabled={input.trim().length === 0}
+              className="rounded-md border px-4 py-2 text-sm font-medium disabled:opacity-50 dark:border-zinc-700"
+            >
+              Send
+            </button>
+          )}
+        </div>
       </form>
     </div>
   );

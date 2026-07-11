@@ -29,7 +29,8 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <nav className="sticky top-0 z-10 bg-background flex gap-4 overflow-x-auto whitespace-nowrap border-b px-4 py-1 text-sm sm:px-6 [&>a]:py-2">
+        {/* h-11 is explicit because the chat sidebar's sticky top-11 / height calc depends on it */}
+        <nav className="sticky top-0 z-10 bg-background flex h-11 items-center gap-4 overflow-x-auto whitespace-nowrap border-b px-4 text-sm sm:px-6 [&>a]:py-2">
           <Link href="/">Accounts</Link>
           <Link href="/transactions">Transactions</Link>
           <Link href="/investments">Investments</Link>

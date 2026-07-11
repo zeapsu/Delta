@@ -3,6 +3,7 @@ import path from "node:path";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { conversations, messages } from "@/db/schema";
+import { activeTurns, allowed } from "@/lib/tailnet";
 
 // 30 min: real advisory turns run many SQL queries and long models — the
 // timeout is only a hung-turn backstop (#46), enforced via session.interrupt.
@@ -18,21 +19,6 @@ const TOKEN = process.env.HERMES_DASHBOARD_SESSION_TOKEN ?? "";
 // Per-session cwd drives hermes' AGENTS.md auto-load — advisor-home/AGENTS.md
 // symlinks to ADVISOR.md so replies talk finances, not milestones (#47).
 const ADVISOR_HOME = path.join(process.cwd(), "deploy", "advisor-home");
-
-// ponytail: the tailnet is the real trust boundary (no route in this app has
-// auth); this guard refuses first-hop addresses outside loopback and the
-// tailscale CGNAT range (100.64.0.0/10). Next.js fills x-forwarded-for with
-// the real peer when the client sends none (verified), but a client-supplied
-// header wins — spoofable by anyone who can already reach the port. M6 closes
-// that by binding the server to the tailscale interface.
-function allowed(req: Request): boolean {
-  const ip = (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim();
-  if (ip === "127.0.0.1" || ip === "::1" || ip === "::ffff:127.0.0.1") {
-    return true;
-  }
-  const m = ip.match(/^(?:::ffff:)?100\.(\d+)\.\d+\.\d+$/);
-  return m !== null && Number(m[1]) >= 64 && Number(m[1]) <= 127;
-}
 
 // The browser stream is NDJSON: {"t":"text","v":...} appends to the reply and
 // the persisted transcript; {"t":"status","v":...} is an ephemeral progress
@@ -65,6 +51,10 @@ function runHermes(
   let ws: WebSocket | null = null;
   let sessionId: string | null = null;
   let finished = false;
+  // #54: client disconnect (mobile backgrounding aborts the fetch) must not
+  // kill the turn — it keeps running server-side and finish() persists the
+  // full reply; a refresh then shows it from the DB.
+  let clientGone = false;
 
   // Minimal JSON-RPC client: one pending map, incrementing ids.
   let nextId = 1;
@@ -91,12 +81,19 @@ function runHermes(
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
       const send = (frame: Frame) => {
-        controller.enqueue(encoder.encode(JSON.stringify(frame) + "\n"));
+        if (!clientGone) {
+          try {
+            controller.enqueue(encoder.encode(JSON.stringify(frame) + "\n"));
+          } catch {
+            clientGone = true; // enqueue on a cancelled stream throws
+          }
+        }
         if (frame.t === "text") assistantText += frame.v;
       };
       const finish = (errorLine?: string) => {
         if (finished) return;
         finished = true;
+        activeTurns.delete(conversationId);
         clearTimeout(timer);
         if (errorLine) send({ t: "text", v: errorLine });
         persist();
@@ -104,7 +101,9 @@ function runHermes(
         try {
           ws?.close();
         } catch {}
-        controller.close();
+        try {
+          if (!clientGone) controller.close();
+        } catch {}
         resolveDone();
       };
       const timer = setTimeout(() => {
@@ -114,6 +113,11 @@ function runHermes(
       const emit = (frame: Frame) => {
         if (!finished && frame.v) send(frame);
       };
+      // Stop button (#55): /api/chat/stop looks this up by conversationId.
+      activeTurns.set(conversationId, () => {
+        interrupt();
+        finish("\n[stopped]");
+      });
 
       const startTurn = async () => {
         // ponytail: session identity = resume-by-title "delta-chat-<id>".
@@ -134,6 +138,11 @@ function runHermes(
           })) as typeof s;
         }
         sessionId = s.session_id ?? null;
+        // #53: bypass tool-approval prompts for this session only — a headless
+        // bridge can't answer them. In-memory per-session flag on the gateway
+        // (config.set scope defaults to "session"), so re-assert every turn;
+        // never touches the user's global approvals.mode.
+        await rpc("config.set", { session_id: sessionId, key: "yolo", value: "on" });
         await rpc("prompt.submit", { session_id: sessionId, text: message });
       };
 
@@ -207,15 +216,10 @@ function runHermes(
       ws.onclose = () => finish("\n[bridge error: hermes gateway closed connection]");
     },
     cancel() {
-      // browser went away mid-turn: stop the agent, persist what streamed
-      finished = true;
-      interrupt();
-      persist();
-      rejectPending("cancelled");
-      try {
-        ws?.close();
-      } catch {}
-      resolveDone();
+      // #54: browser went away mid-turn (mobile backgrounding) — do NOT
+      // interrupt. The turn keeps running; finish() persists the full reply
+      // and releases the queue. The 30-min timeout is the hung-turn backstop.
+      clientGone = true;
     },
   });
   return { stream, done };
