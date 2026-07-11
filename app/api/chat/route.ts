@@ -3,6 +3,7 @@ import path from "node:path";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { conversations, messages } from "@/db/schema";
+import { activeTurns, allowed } from "@/lib/tailnet";
 
 // 30 min: real advisory turns run many SQL queries and long models — the
 // timeout is only a hung-turn backstop (#46), enforced via session.interrupt.
@@ -18,21 +19,6 @@ const TOKEN = process.env.HERMES_DASHBOARD_SESSION_TOKEN ?? "";
 // Per-session cwd drives hermes' AGENTS.md auto-load — advisor-home/AGENTS.md
 // symlinks to ADVISOR.md so replies talk finances, not milestones (#47).
 const ADVISOR_HOME = path.join(process.cwd(), "deploy", "advisor-home");
-
-// ponytail: the tailnet is the real trust boundary (no route in this app has
-// auth); this guard refuses first-hop addresses outside loopback and the
-// tailscale CGNAT range (100.64.0.0/10). Next.js fills x-forwarded-for with
-// the real peer when the client sends none (verified), but a client-supplied
-// header wins — spoofable by anyone who can already reach the port. M6 closes
-// that by binding the server to the tailscale interface.
-function allowed(req: Request): boolean {
-  const ip = (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim();
-  if (ip === "127.0.0.1" || ip === "::1" || ip === "::ffff:127.0.0.1") {
-    return true;
-  }
-  const m = ip.match(/^(?:::ffff:)?100\.(\d+)\.\d+\.\d+$/);
-  return m !== null && Number(m[1]) >= 64 && Number(m[1]) <= 127;
-}
 
 // The browser stream is NDJSON: {"t":"text","v":...} appends to the reply and
 // the persisted transcript; {"t":"status","v":...} is an ephemeral progress
@@ -107,6 +93,7 @@ function runHermes(
       const finish = (errorLine?: string) => {
         if (finished) return;
         finished = true;
+        activeTurns.delete(conversationId);
         clearTimeout(timer);
         if (errorLine) send({ t: "text", v: errorLine });
         persist();
@@ -126,6 +113,11 @@ function runHermes(
       const emit = (frame: Frame) => {
         if (!finished && frame.v) send(frame);
       };
+      // Stop button (#55): /api/chat/stop looks this up by conversationId.
+      activeTurns.set(conversationId, () => {
+        interrupt();
+        finish("\n[stopped]");
+      });
 
       const startTurn = async () => {
         // ponytail: session identity = resume-by-title "delta-chat-<id>".

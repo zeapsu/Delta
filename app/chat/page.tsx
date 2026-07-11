@@ -2,6 +2,7 @@ import { asc, desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { conversations, messages } from "@/db/schema";
 import { Chat } from "./chat";
+import { ChatSidebar } from "./sidebar";
 
 export const dynamic = "force-dynamic";
 
@@ -36,12 +37,12 @@ export default async function ChatPage({
     : [];
 
   return (
-    <div className="flex flex-col flex-1 items-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex w-full max-w-3xl flex-1 flex-col gap-8 px-4 py-8 sm:px-6 sm:py-16">
-        <h1 className="text-2xl font-semibold">Chat</h1>
+    <div className="flex flex-1 flex-col bg-zinc-50 font-sans sm:flex-row dark:bg-black">
+      <ChatSidebar conversations={allConversations} activeId={conversationId} />
+      {/* min-w-0 is load-bearing: wide markdown (pre/table) otherwise blows the flex row */}
+      <main className="flex min-w-0 flex-1 flex-col">
         <Chat
           key={conversationId ?? "new"}
-          conversations={allConversations}
           conversationId={conversationId}
           initialMessages={initialMessages as { role: "user" | "assistant"; text: string }[]}
         />
