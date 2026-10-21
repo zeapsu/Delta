@@ -13,8 +13,8 @@ export function allowed(req: Request): boolean {
   return m !== null && Number(m[1]) >= 64 && Number(m[1]) <= 127;
 }
 
-// Active bridge turns by conversationId: runHermes registers a stopper,
-// /api/chat/stop invokes it (#55). Client disconnect no longer interrupts
+// Active chat turns by conversationId: the agent backend registers a stopper,
+// /api/chat/stop invokes it (#55). Empty until #58 adds a backend. Client disconnect no longer interrupts
 // (#54), so an explicit Stop needs this side channel.
 // ponytail: module-level map — single process, single user; revisit if the
 // app ever runs multi-instance.

@@ -1,6 +1,6 @@
 # ADVISOR.md — agents talking to a running Delta instance
 
-This file is for agents (Hermes or otherwise) acting as a **personal-finance advisor** against a deployed Delta instance — not for development work on this repo (that's `AGENTS.md`).
+This file is for agents acting as a **personal-finance advisor** against a deployed Delta instance — not for development work on this repo (that's `AGENTS.md`).
 
 The `delta-finance` skill (`skills/delta-finance/SKILL.md`) is the source of truth for querying conventions and advice guidelines. Key rules:
 
