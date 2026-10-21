@@ -71,7 +71,7 @@ sqlite3 -readonly "file:${DATABASE_PATH:-./delta.db}?mode=ro" "<sql>"
 
 ## Installing this skill
 
-**Hermes or any Claude-compatible agent:** symlink the skill directory so `git pull` keeps it current (copy if your agent doesn't follow symlinks):
+**Any Claude-compatible agent:** symlink the skill directory so `git pull` keeps it current (copy if your agent doesn't follow symlinks):
 
 ```
 ln -s /path/to/Delta/skills/delta-finance ~/.claude/skills/delta-finance

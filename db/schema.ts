@@ -144,8 +144,7 @@ export const recurringRules = sqliteTable("recurring_rules", {
     .default(sql`(unixepoch('now', 'subsec') * 1000)`),
 });
 
-// Chat conversations: the Hermes --continue key is derived (`delta-chat-<id>`),
-// not stored.
+// Chat conversations; transcripts live in `messages`.
 export const conversations = sqliteTable("conversations", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   name: text("name").notNull(),
