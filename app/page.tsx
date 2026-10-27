@@ -4,6 +4,7 @@ import { DEBT_TYPES, formatCents } from "@/lib/format";
 import { getNetWorthData } from "@/lib/networth-data";
 import type { NetWorthRow } from "@/lib/networth";
 import PlaidButtons from "./plaid-buttons";
+import ReconnectButton from "./reconnect-button";
 
 export const dynamic = "force-dynamic";
 
@@ -55,8 +56,11 @@ export default async function Home() {
                 <div key={inst.id} className="rounded-lg border p-4">
                   <div className="mb-3 flex items-center justify-between">
                     <h2 className="text-lg font-medium">{inst.name}</h2>
-                    <span className="text-sm opacity-60">
-                      {formatCents(subtotal)}
+                    <span className="flex items-center gap-3">
+                      <ReconnectButton itemId={inst.id} />
+                      <span className="text-sm opacity-60">
+                        {formatCents(subtotal)}
+                      </span>
                     </span>
                   </div>
                   {inst.accounts.length === 0 ? (
