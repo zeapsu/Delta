@@ -51,14 +51,11 @@ export default function ReconnectButton({ itemId }: { itemId: number }) {
     if (token && ready) open();
   }, [token, ready, open]);
 
-  // The Link script failed to load (offline, blocked): never leave the button stuck.
-  useEffect(() => {
-    if (token && linkError) {
-      setToken(null);
-      setBusy(false);
-      setMessage("Could not load Plaid Link.");
-    }
-  }, [token, linkError]);
+  // The Link script failed to load (offline, blocked): Link will never become
+  // ready, so don't leave the button stuck on "Reconnecting…".
+  const loadFailed = Boolean(token && linkError);
+  const working = busy && !loadFailed;
+  const shown = loadFailed ? "Could not load Plaid Link." : message;
 
   const start = () => {
     setBusy(true);
@@ -84,12 +81,12 @@ export default function ReconnectButton({ itemId }: { itemId: number }) {
       <button
         type="button"
         onClick={start}
-        disabled={busy}
+        disabled={working}
         className="rounded-md border px-2 py-1 text-xs font-medium disabled:opacity-50"
       >
-        {busy ? "Reconnecting…" : "Reconnect"}
+        {working ? "Reconnecting…" : "Reconnect"}
       </button>
-      {message && <span className="text-xs text-red-600">{message}</span>}
+      {shown && <span className="text-xs text-red-600">{shown}</span>}
     </span>
   );
 }
