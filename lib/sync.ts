@@ -26,6 +26,40 @@ type SyncCounts = {
   investments: number;
 };
 
+type SyncError = {
+  itemId: number;
+  institution: string | null;
+  error_code: string;
+};
+
+export type SyncResult = SyncCounts & { errors: SyncError[] };
+
+// A non-Plaid body (e.g. a gateway 502) can put anything in these fields.
+function shortString(v: unknown): string | null {
+  return typeof v === "string" ? v.slice(0, 100) : null;
+}
+
+// Never log or return a raw Axios/Plaid error: err.config.data is the request
+// body, which carries client_id, secret and the item's access_token. Pick
+// these fields instead.
+export function safePlaidError(err: unknown) {
+  if (isAxiosError(err)) {
+    const data = err.response?.data;
+    return {
+      error_code: shortString(data?.error_code) ?? err.code ?? "AXIOS_ERROR",
+      error_code_reason: shortString(data?.error_code_reason),
+      request_id: shortString(data?.request_id),
+    };
+  }
+  // Non-Plaid errors (e.g. Drizzle) can echo query params in the message —
+  // keep only the class name.
+  return {
+    error_code: err instanceof Error ? err.name : "UNKNOWN_ERROR",
+    error_code_reason: null,
+    request_id: null,
+  };
+}
+
 function applySync(
   item: Item,
   accountsPayload: AccountBase[],
@@ -310,11 +344,32 @@ export async function syncItem(item: Item): Promise<SyncCounts> {
   return { ...base, investments };
 }
 
-export async function syncAll(): Promise<SyncCounts> {
+// One failing item (e.g. ITEM_LOGIN_REQUIRED) must not block the rest.
+export async function syncAll(): Promise<SyncResult> {
   const allItems = db.select().from(items).all();
-  const totals: SyncCounts = { added: 0, modified: 0, removed: 0, investments: 0 };
+  const totals: SyncResult = {
+    added: 0,
+    modified: 0,
+    removed: 0,
+    investments: 0,
+    errors: [],
+  };
   for (const item of allItems) {
-    const counts = await syncItem(item);
+    let counts: SyncCounts;
+    try {
+      counts = await syncItem(item);
+    } catch (err) {
+      const e = safePlaidError(err);
+      console.error(
+        `plaid sync failed: item=${item.id} institution=${JSON.stringify(item.institutionName)} error_code=${e.error_code} error_code_reason=${e.error_code_reason} request_id=${e.request_id}`,
+      );
+      totals.errors.push({
+        itemId: item.id,
+        institution: item.institutionName,
+        error_code: e.error_code,
+      });
+      continue;
+    }
     totals.added += counts.added;
     totals.modified += counts.modified;
     totals.removed += counts.removed;
