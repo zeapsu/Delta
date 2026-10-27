@@ -51,12 +51,21 @@ export default function PlaidButtons() {
     setError(null);
     setSyncResult(null);
     fetch("/api/plaid/sync", { method: "POST" })
+      // 502 = some items failed but the rest synced; the body still has counts.
       .then((res) => {
-        if (!res.ok) throw new Error("Sync failed");
+        if (!res.ok && res.status !== 502) throw new Error("Sync failed");
         return res.json();
       })
       .then((data) => {
         setSyncResult(`+${data.added} / ~${data.modified} / -${data.removed}`);
+        if (data.errors?.length) {
+          setError(
+            `Sync failed for ${data.errors
+              .map((e: { institution: string | null; error_code: string }) =>
+                `${e.institution ?? "an account"} (${e.error_code})`)
+              .join(", ")}.`,
+          );
+        }
         router.refresh();
       })
       .catch(() => setError("Sync failed."))

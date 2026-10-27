@@ -34,6 +34,11 @@ type SyncError = {
 
 export type SyncResult = SyncCounts & { errors: SyncError[] };
 
+// A non-Plaid body (e.g. a gateway 502) can put anything in these fields.
+function shortString(v: unknown): string | null {
+  return typeof v === "string" ? v.slice(0, 100) : null;
+}
+
 // Never log or return a raw Axios/Plaid error: err.config.data is the request
 // body, which carries client_id, secret and the item's access_token. Pick
 // these fields instead.
@@ -41,9 +46,9 @@ export function safePlaidError(err: unknown) {
   if (isAxiosError(err)) {
     const data = err.response?.data;
     return {
-      error_code: String(data?.error_code ?? err.code ?? "AXIOS_ERROR"),
-      error_code_reason: data?.error_code_reason ?? null,
-      request_id: data?.request_id ?? null,
+      error_code: shortString(data?.error_code) ?? err.code ?? "AXIOS_ERROR",
+      error_code_reason: shortString(data?.error_code_reason),
+      request_id: shortString(data?.request_id),
     };
   }
   // Non-Plaid errors (e.g. Drizzle) can echo query params in the message —
