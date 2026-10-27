@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { usePlaidLink } from "react-plaid-link";
 
@@ -12,32 +12,57 @@ export default function ReconnectButton({ itemId }: { itemId: number }) {
   const router = useRouter();
   const [token, setToken] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  // Clearing the token after success force-exits Link, which may fire onExit
+  // while the sync is still running; this keeps busy set until it finishes.
+  const succeeded = useRef(false);
 
-  const { open, ready } = usePlaidLink({
+  const { open, ready, error: linkError } = usePlaidLink({
     token,
     onSuccess: () => {
+      succeeded.current = true;
       setToken(null);
       fetch("/api/plaid/sync", { method: "POST" })
-        .catch(() => undefined)
+        // 502 = some items failed; the body names them (see plaid-buttons.tsx).
+        .then((res) => (res.ok || res.status === 502 ? res.json() : Promise.reject()))
+        .then((data) => {
+          const failed = (data.errors ?? []).find(
+            (e: { itemId: number }) => e.itemId === itemId,
+          );
+          setMessage(failed ? `Still failing (${failed.error_code}).` : null);
+        })
+        .catch(() => setMessage("Reconnected, but the sync failed."))
         .finally(() => {
+          succeeded.current = false;
           setBusy(false);
           router.refresh();
         });
     },
     onExit: () => {
+      if (succeeded.current) return;
       setToken(null);
       setBusy(false);
     },
   });
 
+  // When the token changes, the hook first hands back the previous (destroyed)
+  // handler, whose open() is a no-op; the next render brings the new one.
   useEffect(() => {
     if (token && ready) open();
   }, [token, ready, open]);
 
+  // The Link script failed to load (offline, blocked): never leave the button stuck.
+  useEffect(() => {
+    if (token && linkError) {
+      setToken(null);
+      setBusy(false);
+      setMessage("Could not load Plaid Link.");
+    }
+  }, [token, linkError]);
+
   const start = () => {
     setBusy(true);
-    setError(null);
+    setMessage(null);
     fetch("/api/plaid/link-token", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -50,13 +75,12 @@ export default function ReconnectButton({ itemId }: { itemId: number }) {
       .then((data) => setToken(data.link_token))
       .catch(() => {
         setBusy(false);
-        setError("Could not start reconnect.");
+        setMessage("Could not start reconnect.");
       });
   };
 
   return (
-    <span className="flex items-center gap-2">
-      {error && <span className="text-xs text-red-600">{error}</span>}
+    <span className="flex flex-col items-end gap-1">
       <button
         type="button"
         onClick={start}
@@ -65,6 +89,7 @@ export default function ReconnectButton({ itemId }: { itemId: number }) {
       >
         {busy ? "Reconnecting…" : "Reconnect"}
       </button>
+      {message && <span className="text-xs text-red-600">{message}</span>}
     </span>
   );
 }
