@@ -17,6 +17,10 @@ export const items = sqliteTable("items", {
   institutionName: text("institution_name"),
   // /transactions/sync cursor; null = never synced.
   syncCursor: text("sync_cursor"),
+  // Plaid error_code from the latest sync attempt; null = last sync succeeded
+  // (or never ran). ITEM_LOGIN_REQUIRED etc. drive the UI's Reconnect state.
+  lastErrorCode: text("last_error_code"),
+  lastSyncedAt: integer("last_synced_at", { mode: "timestamp_ms" }),
   createdAt: integer("created_at", { mode: "timestamp_ms" })
     .notNull()
     .default(sql`(unixepoch('now', 'subsec') * 1000)`),
