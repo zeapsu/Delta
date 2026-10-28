@@ -1,5 +1,14 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Connect an agent (MCP)
+
+Delta serves an MCP server at `/api/v1/mcp` (Streamable HTTP). Connecting an agent takes two steps on the Delta host:
+
+1. `npm run token -- create <agent-name>` (add `--scope write` if the agent may set budgets and recurring rules). It prints the token plus ready-to-paste MCP configs (Claude Code command, JSON for most clients, and an `mcp-remote` stdio bridge for clients that only run local servers), pointed at `DELTA_URL` from `.env`.
+2. Paste one of them into the agent.
+
+The tools carry Delta's finance conventions in their descriptions, return dollars, and attach an `as_of` block with stale-data warnings, so no skill install is needed. The agent's machine must be on the tailnet.
+
 ## Agent skills
 
 Finance analysis skills for LLM agents live in [`skills/delta-finance/`](skills/delta-finance/SKILL.md) — see its SKILL.md for querying conventions and install instructions.

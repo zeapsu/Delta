@@ -13,6 +13,11 @@ export async function GET() {
       spend: "excludes TRANSFER% and INCOME categories; includes uncategorized",
       debt: "credit/loan balances are positive amounts owed; net worth negates them",
     },
+    mcp: {
+      path: "/api/v1/mcp",
+      transport: "streamable-http (stateless, JSON responses)",
+      about: "the same data as MCP tools, money in dollars; send the bearer token as a header",
+    },
     endpoints: [
       { method: "GET", path: "/api/v1/status", about: "data freshness and per-connection sync health" },
       { method: "GET", path: "/api/v1/accounts", about: "accounts with current balances" },

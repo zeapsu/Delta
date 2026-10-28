@@ -23,6 +23,10 @@ export function tokenPrefix(token: string): string {
   return token.slice(0, 8);
 }
 
+// The MCP endpoint carries every JSON-RPC call, reads included, as a POST; its
+// write tools check for write scope themselves (lib/mcp.ts).
+export const MCP_PATH = "/api/v1/mcp";
+
 export function isV1(pathname: string): boolean {
   return pathname === "/api/v1" || pathname.startsWith("/api/v1/");
 }
@@ -30,6 +34,7 @@ export function isV1(pathname: string): boolean {
 // The scope a request needs, or null when it may go through without a token.
 export function requiredScope(pathname: string, method: string, hasAuth: boolean): Scope | null {
   if (!isV1(pathname) && !hasAuth) return null;
+  if (pathname === MCP_PATH) return "read";
   return SAFE_METHODS.has(method) ? "read" : "write";
 }
 

@@ -1,0 +1,110 @@
+import assert from "node:assert";
+import { asOf, cents, handleRpc, toDollars, toolList, validateArgs, type Api } from "./mcp";
+
+// Fake API: records calls, answers like the v1 routes (cents).
+const calls: { method: string; path: string; query?: unknown; body?: unknown }[] = [];
+const today = new Date().toISOString().slice(0, 10);
+const api: Api = async (method, path, opts = {}) => {
+  calls.push({ method, path, query: opts.query, body: opts.body });
+  if (path === "/api/v1/status") {
+    return {
+      status: 200,
+      data: {
+        lastTransaction: today,
+        lastSnapshot: today,
+        lastInvestment: null,
+        connections: [{ id: 1, institution: "Chase", lastSyncedAt: `${today}T06:00:00.000Z`, lastErrorCode: null }],
+      },
+    };
+  }
+  if (path === "/api/v1/spending") {
+    return { status: 200, data: { month: "2026-10", total: 12345, pendingTotal: 500, categories: [{ category: "FOOD_AND_DRINK", total: 12345, pendingTotal: 500 }] } };
+  }
+  if (path === "/api/v1/transactions") {
+    return { status: 200, data: { transactions: [{ id: 1, amount: -2500 }], total: 41, nextOffset: 1 } };
+  }
+  if (path === "/api/v1/budgets" && method === "POST") return { status: 200, data: { ok: true } };
+  if (path === "/api/v1/budgets") return { status: 400, data: { error: "month must be YYYY-MM" } };
+  return { status: 404, data: { error: "nope" } };
+};
+const rpc = (method: string, params?: object, scope: "read" | "write" = "read") =>
+  handleRpc({ jsonrpc: "2.0", id: 1, method, params }, scope, api) as Promise<{
+    result?: { protocolVersion?: string; instructions?: string; isError?: boolean; structuredContent?: Record<string, unknown> };
+    error?: { code: number };
+  }>;
+const payload = (r: { result?: { structuredContent?: Record<string, unknown>; isError?: boolean } }) =>
+  r.result!.structuredContent!;
+
+async function main() {
+  // initialize: echoes a supported version, falls back to the newest.
+  let r = await rpc("initialize", { protocolVersion: "2025-06-18" });
+  assert.strictEqual(r.result!.protocolVersion, "2025-06-18");
+  r = await rpc("initialize", { protocolVersion: "1999-01-01" });
+  assert.strictEqual(r.result!.protocolVersion, "2025-11-25");
+  assert.match(r.result!.instructions!, /positive = money out/);
+
+  // Notifications get no response; unknown methods are -32601; junk is -32600.
+  assert.strictEqual(await handleRpc({ jsonrpc: "2.0", method: "notifications/initialized" }, "read", api), null);
+  assert.strictEqual((await rpc("nope")).error!.code, -32601);
+  assert.strictEqual(((await handleRpc("junk", "read", api)) as { error: { code: number } }).error.code, -32600);
+
+  // tools/list: write tools only for write tokens; schemas are closed.
+  const names = (s: "read" | "write") => toolList(s).map((t) => t.name);
+  assert(!names("read").includes("set_budget"));
+  assert(names("write").includes("set_budget"));
+  assert(toolList("read").every((t) => t.inputSchema.additionalProperties === false));
+
+  // A read tool: cents -> dollars, plus an as_of block.
+  let c = await rpc("tools/call", { name: "spending_by_category", arguments: { month: "2026-10" } });
+  let p = payload(c);
+  assert.strictEqual(p.total, 123.45);
+  assert.deepStrictEqual(p.categories, [{ category: "FOOD_AND_DRINK", total: 123.45, pendingTotal: 5 }]);
+  assert.deepStrictEqual((p.as_of as { warnings: string[] }).warnings, []);
+
+  // Paged tools: amount converted, row count NOT converted, renamed.
+  c = await rpc("tools/call", { name: "search_transactions", arguments: { pending: false, limit: 1 } });
+  p = payload(c);
+  assert.deepStrictEqual(p.transactions, [{ id: 1, amount: -25 }]);
+  assert.strictEqual(p.total_count, 41);
+  assert.strictEqual(p.next_offset, 1);
+  assert.deepStrictEqual(calls.find((x) => x.path === "/api/v1/transactions")!.query, { pending: false, limit: 1 });
+
+  // Strict args: unknown key, wrong type, bool-for-int, bad pattern -> tool error, no API call.
+  for (const args of [{ bogus: 1 }, { limit: "5" }, { limit: true }, { limit: 1.5 }, { month: "2026-13" }, { limit: 501 }]) {
+    const before = calls.length;
+    c = await rpc("tools/call", { name: "search_transactions", arguments: args });
+    assert.strictEqual(c.result!.isError, true, JSON.stringify(args));
+    assert.strictEqual(calls.length, before);
+  }
+  assert.throws(() => validateArgs({}, ["x"], {}), /missing required/);
+
+  // API errors surface as tool errors with the API's message.
+  c = await rpc("tools/call", { name: "get_budgets", arguments: {} });
+  assert.match(String(payload(c).error), /400: month must be/);
+
+  // Writes: refused for read tokens; dollars -> cents for write tokens.
+  c = await rpc("tools/call", { name: "set_budget", arguments: { category: "FOOD_AND_DRINK", monthly_amount: 400.1 } });
+  assert.strictEqual(c.result!.isError, true);
+  c = await rpc("tools/call", { name: "set_budget", arguments: { category: "FOOD_AND_DRINK", monthly_amount: 400.1 } }, "write");
+  assert.strictEqual(payload(c).ok, true);
+  assert.deepStrictEqual(calls.findLast((x) => x.method === "POST")!.body, { category: "FOOD_AND_DRINK", monthlyAmount: 40010 });
+  assert.strictEqual((await rpc("tools/call", { name: "drop_tables" })).error!.code, -32602);
+
+  // Helpers.
+  assert.strictEqual(cents(19.99), 1999);
+  assert.deepStrictEqual(toDollars({ a: [{ amount: 150 }], amount: null, n: 3 }, new Set(["amount"])), { a: [{ amount: 1.5 }], amount: null, n: 3 });
+  const conn = { id: 2, institution: "Amex", lastSyncedAt: "2026-10-20T00:00:00.000Z", lastErrorCode: "ITEM_LOGIN_REQUIRED" };
+  const old = asOf({ lastTransaction: "2026-10-20", lastSnapshot: "2026-10-21", lastInvestment: null, connections: [conn] }, "2026-10-28");
+  assert.strictEqual(old.warnings.length, 2);
+  assert.match(old.warnings[0], /2026-10-21 \(7 days ago\)/);
+  assert.match(old.warnings[1], /Amex: last sync failed \(ITEM_LOGIN_REQUIRED\)/);
+  assert.strictEqual(old.last_sync, "2026-10-20T00:00:00.000Z");
+  assert.deepStrictEqual(asOf({ lastTransaction: null, lastSnapshot: null, lastInvestment: null, connections: [] }).warnings, ["No synced data yet."]);
+
+  console.log("lib/mcp-check.ts: all assertions passed");
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

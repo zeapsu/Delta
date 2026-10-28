@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AskFelix } from "./ask-felix";
+import { AskAgent } from "./ask-agent";
 
 // Shared layout primitives for the server pages. Styling lives in the
 // `.surface` / `.glass` / `.btn` / `.field` classes in globals.css.
@@ -33,7 +33,7 @@ export function Page({
         {actions || ask ? (
           <div className="flex flex-wrap items-center gap-2">
             {actions}
-            {ask ? <AskFelix scope="page" /> : null}
+            {ask ? <AskAgent scope="page" /> : null}
           </div>
         ) : null}
       </div>
@@ -42,7 +42,7 @@ export function Page({
   );
 }
 
-// Titled cards get an "Ask" button that copies the card for Felix; pass
+// Titled cards get an "Ask" button that copies the card for the agent; pass
 // ask={false} on cards that are forms rather than data.
 export function Card({
   title,
@@ -60,11 +60,11 @@ export function Card({
   return (
     <section className={`surface flex min-w-0 flex-col gap-4 p-4 sm:p-5 ${className}`}>
       {title || action ? (
-        <div data-felix-skip="" className="flex items-center justify-between gap-3">
+        <div data-ask-skip="" className="flex items-center justify-between gap-3">
           {title ? <h2 className="text-sm font-semibold">{title}</h2> : <span />}
           <div className="flex min-w-0 items-center gap-1">
             {action}
-            {title && ask ? <AskFelix /> : null}
+            {title && ask ? <AskAgent /> : null}
           </div>
         </div>
       ) : null}
