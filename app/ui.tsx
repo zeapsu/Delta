@@ -131,21 +131,30 @@ export function Empty({
   );
 }
 
-// Horizontal magnitude bar, single neutral ink (magnitude never needs hue).
+// Horizontal magnitude bar. Ink by default; `tone` for status, `color` for a
+// category's identity color (always shown next to its text label).
 export function Meter({
   value,
   max,
   label,
   tone = "ink",
+  color,
 }: {
   value: number;
   max: number;
   label: string;
-  tone?: "ink" | "warning" | "negative";
+  tone?: "ink" | "positive" | "warning" | "negative";
+  color?: string;
 }) {
   const pct = max > 0 ? Math.min(100, Math.max(0, (value / max) * 100)) : 0;
   const fill =
-    tone === "negative" ? "bg-negative" : tone === "warning" ? "bg-warning" : "bg-ink";
+    tone === "negative"
+      ? "bg-negative"
+      : tone === "warning"
+        ? "bg-warning"
+        : tone === "positive"
+          ? "bg-positive"
+          : "bg-ink";
   return (
     <div
       className="h-2 w-full overflow-hidden rounded-full bg-fill-strong"
@@ -155,8 +164,34 @@ export function Meter({
       aria-valuemin={0}
       aria-valuemax={100}
     >
-      <div className={`h-full rounded-full ${fill}`} style={{ width: `${pct}%` }} />
+      <div
+        className={`h-full rounded-full ${color ? "" : fill}`}
+        style={{ width: `${pct}%`, background: color }}
+      />
     </div>
+  );
+}
+
+// Letter avatar on a soft wash of an identity color (text stays in ink).
+export function Tint({ color, children }: { color: string; children: React.ReactNode }) {
+  return (
+    <span
+      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold uppercase"
+      style={{ background: `color-mix(in oklab, ${color} 24%, transparent)` }}
+    >
+      {children}
+    </span>
+  );
+}
+
+// Small category marker: a tinted circle with the category's identity color.
+export function Dot({ color, className = "h-2.5 w-2.5" }: { color: string; className?: string }) {
+  return (
+    <span
+      aria-hidden
+      className={`inline-block shrink-0 rounded-full ${className}`}
+      style={{ background: color }}
+    />
   );
 }
 

@@ -3,8 +3,10 @@ import { and, count, desc, eq, gte, lte, or, sql, SQL } from "drizzle-orm";
 import { db } from "@/db";
 import { accounts, transactions } from "@/db/schema";
 import { formatCategory, formatCents } from "@/lib/format";
-import { shortDate } from "@/lib/months";
-import { Card, Empty, Page, Pager } from "@/app/ui";
+import { currentMonth, shortDate } from "@/lib/months";
+import { categoryTotals } from "@/lib/insights";
+import { categoryColor } from "@/lib/colors";
+import { Card, Dot, Empty, Page, Pager } from "@/app/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -44,7 +46,7 @@ export default async function TransactionsPage({
   }
   const where = conditions.length > 0 ? and(...conditions) : undefined;
 
-  const [allAccounts, categoryRows, rows, [{ total, moneyIn, moneyOut }]] = await Promise.all([
+  const [allAccounts, categoryRows, rows, [{ total, moneyIn, moneyOut }], monthCats] = await Promise.all([
     db.select().from(accounts),
     db.selectDistinct({ category: transactions.category }).from(transactions),
     db
@@ -73,6 +75,8 @@ export default async function TransactionsPage({
       })
       .from(transactions)
       .where(where),
+    // this month's top-8 slot assignment, shared with /spending and the overview
+    categoryTotals(currentMonth()),
   ]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -91,6 +95,10 @@ export default async function TransactionsPage({
   const pageHref = (p: number) =>
     `/transactions?${new URLSearchParams({ ...baseParams, page: String(p) }).toString()}`;
 
+  const top8 = monthCats
+    .filter((c) => c.total > 0)
+    .slice(0, 8)
+    .map((c) => c.category ?? "UNCATEGORIZED");
   const filtered = Object.keys(baseParams).length > 0;
   const filterHref = (extra: Record<string, string>) =>
     `/transactions?${new URLSearchParams({ ...baseParams, ...extra }).toString()}`;
@@ -212,8 +220,9 @@ export default async function TransactionsPage({
                         {tx.category ? (
                           <Link
                             href={filterHref({ category: tx.category })}
-                            className="rounded-full bg-fill px-2.5 py-1 text-xs hover:bg-fill-strong"
+                            className="inline-flex items-center gap-1.5 rounded-full bg-fill px-2.5 py-1 text-xs hover:bg-fill-strong"
                           >
+                            <Dot color={categoryColor(tx.category, top8)} className="h-2 w-2" />
                             {formatCategory(tx.category)}
                           </Link>
                         ) : (

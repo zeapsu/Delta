@@ -21,6 +21,15 @@ export function Nav() {
   const pathname = usePathname();
   const navRef = useRef<HTMLElement>(null);
 
+  // Refraction (app/refraction.tsx) only renders correctly in Chromium;
+  // iOS Chrome is WebKit and reports "CriOS", not "Chrome/".
+  useEffect(() => {
+    const ua = navigator.userAgent;
+    if (/Chrome\//.test(ua) && CSS.supports("backdrop-filter", "url(#delta-refract)")) {
+      document.documentElement.dataset.refraction = "";
+    }
+  }, []);
+
   // On narrow screens the pill scrolls; keep the current tab in view.
   useEffect(() => {
     navRef.current
@@ -43,7 +52,7 @@ export function Nav() {
       <nav
         ref={navRef}
         aria-label="Primary"
-        className="glass flex h-10 min-w-0 items-center gap-0.5 overflow-x-auto whitespace-nowrap rounded-full px-1 text-sm [scrollbar-width:none]"
+        className="glass glass-refract flex h-10 min-w-0 items-center gap-0.5 overflow-x-auto whitespace-nowrap rounded-full px-1 text-sm [scrollbar-width:none]"
       >
         {LINKS.map((l) => {
           const active = isActive(l.href);

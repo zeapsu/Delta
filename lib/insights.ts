@@ -137,6 +137,6 @@ export async function budgetProgress(m: string): Promise<BudgetProgress[]> {
   });
 }
 
-export function budgetTone(pct: number): "ink" | "warning" | "negative" {
-  return pct > 100 ? "negative" : pct >= 80 ? "warning" : "ink";
+export function budgetTone(pct: number): "positive" | "warning" | "negative" {
+  return pct > 100 ? "negative" : pct >= 80 ? "warning" : "positive";
 }

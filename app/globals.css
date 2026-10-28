@@ -4,8 +4,9 @@
    guidance: a *content* layer (opaque-ish `.surface` cards, no blur) and a
    floating *functional* layer (`.glass`: nav, composer, drawers, tooltips)
    that blurs whatever scrolls beneath it. Glass never stacks on glass.
-   Chrome is black/white/gray only; hue is reserved for data identity (the
-   CVD-validated --chart-1..8 slots) and status (over/near budget). */
+   Chrome (nav, cards, controls) is black/white/gray; color carries meaning:
+   category identity (the CVD-validated --chart-1..8 slots), money in/out
+   (--chart-in/--chart-out) and status (--positive/--warning/--negative). */
 :root {
   --background: #f2f2f3;
   --foreground: #0b0b0c;
@@ -32,6 +33,9 @@
 
   --chart-ink: #0b0b0c;
   --chart-ink-2: #a3a3a8;
+  /* money in / out: separated by lightness too, so they survive red-green CVD */
+  --chart-in: #15803d;
+  --chart-out: #f87171;
   --chart-1: #2a78d6;
   --chart-2: #1baf7a;
   --chart-3: #eda100;
@@ -71,6 +75,8 @@
 
     --chart-ink: #f4f4f5;
     --chart-ink-2: #5d5d63;
+    --chart-in: #22c55e;
+    --chart-out: #dc2626;
     --chart-1: #3987e5;
     --chart-2: #199e70;
     --chart-3: #c98500;
@@ -86,6 +92,10 @@
 
 /* Increased contrast: crisper edges, solid materials. */
 @media (prefers-contrast: more) {
+  :root[data-refraction] .glass-refract {
+    -webkit-backdrop-filter: blur(22px);
+    backdrop-filter: blur(22px);
+  }
   :root {
     --hairline: rgb(0 0 0 / 0.35);
     --glass-border: rgb(0 0 0 / 0.35);
@@ -153,6 +163,12 @@ body {
       inset 0 -1px 0 0 var(--glass-edge),
       0 10px 30px -12px var(--glass-shadow),
       0 1px 2px 0 var(--glass-shadow);
+  }
+
+  /* Chromium only (opted in by nav.tsx): lens-like edge refraction. */
+  :root[data-refraction] .glass-refract {
+    -webkit-backdrop-filter: url(#delta-refract);
+    backdrop-filter: url(#delta-refract);
   }
 
   /* Content layer: frosted card without backdrop blur (cheap, legible). */
@@ -257,7 +273,8 @@ body {
 
 /* Reduce transparency: frost becomes solid, ambient light switches off. */
 @media (prefers-reduced-transparency: reduce) {
-  .glass {
+  .glass,
+  :root[data-refraction] .glass-refract {
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
     background-color: var(--glass-solid);
@@ -305,6 +322,8 @@ body {
 [fill="var(--chart-8)"] { fill: var(--chart-8); }
 [fill="var(--chart-ink)"] { fill: var(--chart-ink); }
 [fill="var(--chart-ink-2)"] { fill: var(--chart-ink-2); }
+[fill="var(--chart-in)"] { fill: var(--chart-in); }
+[fill="var(--chart-out)"] { fill: var(--chart-out); }
 [fill="var(--chart-muted)"] { fill: var(--chart-muted); }
 [fill="var(--chart-grid)"] { fill: var(--chart-grid); }
 [fill="var(--negative)"] { fill: var(--negative); }
@@ -320,8 +339,12 @@ body {
 [stroke="var(--chart-8)"] { stroke: var(--chart-8); }
 [stroke="var(--chart-ink)"] { stroke: var(--chart-ink); }
 [stroke="var(--chart-ink-2)"] { stroke: var(--chart-ink-2); }
+[stroke="var(--chart-in)"] { stroke: var(--chart-in); }
+[stroke="var(--chart-out)"] { stroke: var(--chart-out); }
 [stroke="var(--chart-grid)"] { stroke: var(--chart-grid); }
 [stroke="var(--chart-muted)"] { stroke: var(--chart-muted); }
 [stroke="var(--background)"] { stroke: var(--background); }
 [stroke="var(--surface-solid)"] { stroke: var(--surface-solid); }
 [stop-color="var(--chart-ink)"] { stop-color: var(--chart-ink); }
+[stop-color="var(--chart-in)"] { stop-color: var(--chart-in); }
+[stop-color="var(--chart-out)"] { stop-color: var(--chart-out); }

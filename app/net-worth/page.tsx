@@ -91,13 +91,13 @@ export default async function NetWorthPage() {
       {allAccounts.length > 0 ? (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-5">
           <Card title="Assets" action={<span className="text-sm font-semibold tabular-nums">{formatCents(assets)}</span>}>
-            <Composition groups={assetGroups} scale={scale} />
+            <Composition groups={assetGroups} scale={scale} tone="positive" />
           </Card>
           <Card title="Liabilities" action={<span className="text-sm font-semibold tabular-nums">{formatCents(debts)}</span>}>
             {debtGroups.length === 0 ? (
               <Empty>No debts linked.</Empty>
             ) : (
-              <Composition groups={debtGroups} scale={scale} />
+              <Composition groups={debtGroups} scale={scale} tone="negative" />
             )}
           </Card>
         </div>
@@ -110,9 +110,11 @@ export default async function NetWorthPage() {
 function Composition({
   groups,
   scale,
+  tone,
 }: {
   groups: { label: string; total: number }[];
   scale: number;
+  tone: "positive" | "negative";
 }) {
   return (
     <ul className="flex flex-col gap-3">
@@ -122,7 +124,7 @@ function Composition({
             <span>{g.label}</span>
             <span className="tabular-nums text-muted">{formatCents(g.total)}</span>
           </div>
-          <Meter value={g.total} max={scale} label={`${g.label} share`} />
+          <Meter value={g.total} max={scale} tone={tone} label={`${g.label} share`} />
         </li>
       ))}
     </ul>

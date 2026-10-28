@@ -4,7 +4,7 @@ import { categoryColor } from "@/lib/colors";
 import { categoryTotals, monthlyCashFlow } from "@/lib/insights";
 import { currentMonth, isMonth, monthLabel, recentMonths, shiftMonth, shortMonthLabel } from "@/lib/months";
 import { CategoryDonut, MonthBars, type DonutSlice } from "@/app/charts";
-import { Card, Change, Empty, Meter, Page, Stat } from "@/app/ui";
+import { Card, Change, Dot, Empty, Meter, Page, Stat } from "@/app/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -137,11 +137,17 @@ export default async function SpendingPage({
                     href={txHref(r.category)}
                     className="flex items-center gap-3 rounded-xl px-2 py-2 hover:bg-fill"
                   >
-                    <span className="w-28 shrink-0 truncate text-sm sm:w-40">
-                      {formatCategory(r.category)}
+                    <span className="flex w-28 shrink-0 items-center gap-2 text-sm sm:w-40">
+                      <Dot color={categoryColor(r.category ?? "UNCATEGORIZED", topCategories)} />
+                      <span className="truncate">{formatCategory(r.category)}</span>
                     </span>
                     <span className="flex-1">
-                      <Meter value={r.total} max={max} label={`${formatCategory(r.category)} spending`} />
+                      <Meter
+                        value={r.total}
+                        max={max}
+                        color={categoryColor(r.category ?? "UNCATEGORIZED", topCategories)}
+                        label={`${formatCategory(r.category)} spending`}
+                      />
                     </span>
                     <span className="w-12 shrink-0 text-right text-xs tabular-nums text-muted">
                       {Math.round((r.total / grandTotal) * 100)}%

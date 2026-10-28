@@ -138,7 +138,15 @@ export type TrendPoint = { label: string; value: number };
 
 // Compact hoverable area trend (home hero). Single series: no legend; the
 // card title names it.
-export function TrendArea({ data, height = 120 }: { data: TrendPoint[]; height?: number }) {
+export function TrendArea({
+  data,
+  height = 120,
+  color = "var(--chart-ink)",
+}: {
+  data: TrendPoint[];
+  height?: number;
+  color?: string;
+}) {
   const id = useId().replace(/:/g, "");
   return (
     <div style={{ height }}>
@@ -146,8 +154,8 @@ export function TrendArea({ data, height = 120 }: { data: TrendPoint[]; height?:
         <AreaChart data={data} margin={{ top: 6, right: 4, bottom: 0, left: 4 }}>
           <defs>
             <linearGradient id={`g${id}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="var(--chart-ink)" stopOpacity={0.18} />
-              <stop offset="100%" stopColor="var(--chart-ink)" stopOpacity={0} />
+              <stop offset="0%" stopColor={color} stopOpacity={0.22} />
+              <stop offset="100%" stopColor={color} stopOpacity={0} />
             </linearGradient>
           </defs>
           <XAxis dataKey="label" hide />
@@ -165,11 +173,11 @@ export function TrendArea({ data, height = 120 }: { data: TrendPoint[]; height?:
           />
           <Area
             dataKey="value"
-            stroke="var(--chart-ink)"
+            stroke={color}
             strokeWidth={2}
             fill={`url(#g${id})`}
             dot={false}
-            activeDot={{ r: 4, stroke: "var(--surface-solid)", strokeWidth: 2, fill: "var(--chart-ink)" }}
+            activeDot={{ r: 4, stroke: "var(--surface-solid)", strokeWidth: 2, fill: color }}
             isAnimationActive={false}
           />
         </AreaChart>
@@ -274,8 +282,8 @@ export function NetWorthLine({
 
 export type CashFlowPoint = { label: string; income: number; spending: number };
 
-// Income vs spending per month. Two neutral inks (dark = in, light = out)
-// separated by lightness, always with a legend.
+// Income vs spending per month: green in, red out (also separated by
+// lightness for red-green CVD), always with a legend.
 export function CashFlowChart({ data }: { data: CashFlowPoint[] }) {
   return (
     <div className="flex flex-col gap-3">
@@ -294,23 +302,23 @@ export function CashFlowChart({ data }: { data: CashFlowPoint[] }) {
                   <ChartTooltip
                     title={String(label)}
                     rows={[
-                      { name: "Income", value: p.income, color: "var(--chart-ink)" },
-                      { name: "Spending", value: p.spending, color: "var(--chart-ink-2)" },
+                      { name: "Income", value: p.income, color: "var(--chart-in)" },
+                      { name: "Spending", value: p.spending, color: "var(--chart-out)" },
                       { name: "Net", value: p.income - p.spending },
                     ]}
                   />
                 );
               }}
             />
-            <Bar dataKey="income" name="Income" fill="var(--chart-ink)" maxBarSize={18} radius={[4, 4, 0, 0]} isAnimationActive={false} />
-            <Bar dataKey="spending" name="Spending" fill="var(--chart-ink-2)" maxBarSize={18} radius={[4, 4, 0, 0]} isAnimationActive={false} />
+            <Bar dataKey="income" name="Income" fill="var(--chart-in)" maxBarSize={18} radius={[4, 4, 0, 0]} isAnimationActive={false} />
+            <Bar dataKey="spending" name="Spending" fill="var(--chart-out)" maxBarSize={18} radius={[4, 4, 0, 0]} isAnimationActive={false} />
           </BarChart>
         </ResponsiveContainer>
       </div>
       <Legend
         items={[
-          { name: "Income", color: "var(--chart-ink)" },
-          { name: "Spending", color: "var(--chart-ink-2)" },
+          { name: "Income", color: "var(--chart-in)" },
+          { name: "Spending", color: "var(--chart-out)" },
         ]}
       />
     </div>
@@ -398,7 +406,7 @@ export function BudgetTrendChart({
             maxBarSize={24}
             radius={[4, 4, 0, 0]}
             isAnimationActive={false}
-            // status red for over-budget months, matching the progress bars
+            // status green/red for under/over-budget months, matching the progress bars
             // (shape prop replaces the deprecated Cell)
             shape={(props: BarShapeProps) => (
               <Rectangle
@@ -406,7 +414,7 @@ export function BudgetTrendChart({
                 fill={
                   data[props.index ?? 0]?.spent > budget
                     ? "var(--negative)"
-                    : "var(--chart-ink)"
+                    : "var(--chart-in)"
                 }
               />
             )}

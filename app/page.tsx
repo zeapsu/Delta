@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { accounts, items, transactions } from "@/db/schema";
 import { DEBT_TYPES, formatCategory, formatCents } from "@/lib/format";
 import { getNetWorthData } from "@/lib/networth-data";
+import { categoryColor } from "@/lib/colors";
 import {
   budgetProgress,
   budgetTone,
@@ -24,7 +25,7 @@ import {
 import { CashFlowChart, TrendArea } from "./charts";
 import PlaidButtons from "./plaid-buttons";
 import ReconnectButton from "./reconnect-button";
-import { Card, Change, Empty, Meter, Page, Stat } from "./ui";
+import { Card, Change, Empty, Meter, Page, Stat, Tint } from "./ui";
 
 export const dynamic = "force-dynamic";
 
@@ -100,6 +101,10 @@ export default async function Home() {
 
   const spending = categories.filter((c) => c.total > 0);
   const topCats = spending.slice(0, 5);
+  // Same slot assignment as the /spending donut for this month, so a
+  // category wears one color across the app.
+  const top8 = spending.slice(0, 8).map((c) => c.category ?? "UNCATEGORIZED");
+  const colorFor = (category: string | null) => categoryColor(category ?? "UNCATEGORIZED", top8);
   const topMax = topCats[0]?.total ?? 0;
 
   const lastSix = cashFlow.map((m) => ({ label: shortMonthLabel(m.month), income: m.income, spending: m.spending }));
@@ -156,9 +161,15 @@ export default async function Home() {
               }
             />
             <Stat label="Assets" value={formatCents(assets)} />
-            <Stat label="Liabilities" value={formatCents(liabilities)} />
+            <Stat label="Liabilities" value={<span className="text-negative">{formatCents(liabilities)}</span>} />
           </div>
-          {trend.length > 1 ? <TrendArea data={trend} height={200} /> : null}
+          {trend.length > 1 ? (
+            <TrendArea
+              data={trend}
+              height={200}
+              color={trend[trend.length - 1].value >= trend[0].value ? "var(--chart-in)" : "var(--chart-out)"}
+            />
+          ) : null}
         </Card>
 
         <Card
@@ -188,7 +199,12 @@ export default async function Home() {
                     <span className="truncate">{formatCategory(c.category)}</span>
                     <span className="tabular-nums text-muted">{formatCents(c.total)}</span>
                   </div>
-                  <Meter value={c.total} max={topMax} label={`${formatCategory(c.category)} spending`} />
+                  <Meter
+                    value={c.total}
+                    max={topMax}
+                    color={colorFor(c.category)}
+                    label={`${formatCategory(c.category)} spending`}
+                  />
                 </li>
               ))}
             </ul>
@@ -297,9 +313,9 @@ export default async function Home() {
             <ul className="flex flex-col divide-y divide-hairline">
               {recent.map((tx) => (
                 <li key={tx.id} className="flex items-center gap-3 py-2.5 text-sm">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-fill text-xs font-semibold uppercase">
+                  <Tint color={tx.amount < 0 ? "var(--chart-in)" : colorFor(tx.category)}>
                     {(tx.merchantName ?? tx.name).slice(0, 1)}
-                  </span>
+                  </Tint>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-medium">{tx.merchantName ?? tx.name}</span>
                     <span className="text-xs text-muted">
@@ -346,7 +362,11 @@ export default async function Home() {
                           {account.subtype ?? account.type}
                         </span>
                       </Link>
-                      <span className="text-sm font-medium tabular-nums">
+                      <span
+                        className={`text-sm font-medium tabular-nums ${
+                          DEBT_TYPES.has(account.type) && account.currentBalance ? "text-negative" : ""
+                        }`}
+                      >
                         {DEBT_TYPES.has(account.type) && account.currentBalance
                           ? formatCents(-account.currentBalance)
                           : formatCents(account.currentBalance)}
