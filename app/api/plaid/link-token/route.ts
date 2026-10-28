@@ -8,12 +8,18 @@ import { safePlaidError } from "@/lib/sync";
 
 // No body: a token for linking a new item. `{ item_id }`: an update-mode token
 // that re-authenticates that existing item in place (#62), so its accounts and
-// history stay and no public-token exchange follows.
+// history stay and no public-token exchange follows. `{ item_id, investments:
+// true }` also asks the user to consent to investments — items linked before
+// investments became an optional product never granted it.
 export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
   const itemId = body?.item_id;
   if (itemId !== undefined && !Number.isInteger(itemId)) {
     return NextResponse.json({ error: "item_id must be an integer" }, { status: 400 });
+  }
+  const addInvestments = body?.investments === true;
+  if (addInvestments && itemId === undefined) {
+    return NextResponse.json({ error: "investments requires item_id" }, { status: 400 });
   }
 
   const request: LinkTokenCreateRequest = {
@@ -27,6 +33,7 @@ export async function POST(req: Request) {
     if (!item) return NextResponse.json({ error: "unknown item" }, { status: 404 });
     // Update mode: the access token selects the item; `products` must be omitted.
     request.access_token = item.accessToken;
+    if (addInvestments) request.additional_consented_products = [Products.Investments];
   } else {
     request.products = [Products.Transactions];
     // Carries investments consent on new items without forcing billing for
