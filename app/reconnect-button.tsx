@@ -82,11 +82,11 @@ export default function ReconnectButton({ itemId }: { itemId: number }) {
         type="button"
         onClick={start}
         disabled={working}
-        className="rounded-md border px-2 py-1 text-xs font-medium disabled:opacity-50"
+        className="btn btn-sm"
       >
         {working ? "Reconnecting…" : "Reconnect"}
       </button>
-      {shown && <span className="text-xs text-red-600">{shown}</span>}
+      {shown && <span className="text-xs text-negative">{shown}</span>}
     </span>
   );
 }

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatCents } from "@/lib/format";
+import { shortDate } from "@/lib/months";
 
 type Suggestion = {
   matchKey: string;
@@ -22,8 +23,8 @@ type Rule = {
   anchorDate: string;
 };
 
-const inputClass = "w-full rounded-md border px-3 py-2 text-base sm:w-auto sm:text-sm";
-const buttonClass = "rounded-md border px-4 py-2 text-sm font-medium disabled:opacity-50";
+const inputClass = "field";
+const buttonClass = "btn";
 
 function postRule(body: Record<string, unknown>, method: string) {
   return fetch("/api/recurring", {
@@ -78,11 +79,11 @@ function RuleFields({
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-3 sm:flex-row sm:items-end sm:flex-wrap">
       <div className="flex flex-col gap-1">
-        <label className="text-sm opacity-60">Name</label>
+        <label className="eyebrow">Name</label>
         <input required maxLength={200} value={name} onChange={(e) => setName(e.target.value)} className={inputClass} />
       </div>
       <div className="flex flex-col gap-1">
-        <label className="text-sm opacity-60">Amount ($)</label>
+        <label className="eyebrow">Amount ($)</label>
         <input
           type="number"
           step="0.01"
@@ -94,7 +95,7 @@ function RuleFields({
         />
       </div>
       <div className="flex flex-col gap-1">
-        <label className="text-sm opacity-60">Every (days)</label>
+        <label className="eyebrow">Every (days)</label>
         <input
           type="number"
           min="1"
@@ -106,7 +107,7 @@ function RuleFields({
         />
       </div>
       <div className="flex flex-col gap-1">
-        <label className="text-sm opacity-60">Last charge</label>
+        <label className="eyebrow">Last charge</label>
         <input
           type="date"
           required
@@ -115,7 +116,7 @@ function RuleFields({
           className={inputClass}
         />
       </div>
-      <button type="submit" disabled={saving} className={buttonClass}>
+      <button type="submit" disabled={saving} className="btn btn-primary">
         {saving ? "Saving…" : submitLabel}
       </button>
       {onCancel && (
@@ -123,7 +124,7 @@ function RuleFields({
           Cancel
         </button>
       )}
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-negative">{error}</p>}
     </form>
   );
 }
@@ -154,10 +155,14 @@ export function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
   };
 
   return (
-    <div className="flex flex-col gap-3 rounded-md border border-zinc-200 p-4 dark:border-zinc-800">
-      <p className="text-sm">
-        Is <span className="font-medium">{suggestion.merchant}</span> (~{formatCents(suggestion.amount)},{" "}
-        {suggestion.cadence}, seen {suggestion.count}×) a recurring transaction?
+    <div className="flex flex-col gap-3 rounded-2xl border border-hairline bg-fill p-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <p className="font-medium">{suggestion.merchant}</p>
+        <p className="text-sm tabular-nums">~{formatCents(suggestion.amount)}</p>
+      </div>
+      <p className="-mt-2 text-xs text-muted">
+        Charged {suggestion.cadence}, seen {suggestion.count}× · last {suggestion.lastDate}. Is this a
+        recurring bill or subscription?
       </p>
       {confirming ? (
         <RuleFields
@@ -176,15 +181,15 @@ export function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
         />
       ) : (
         <div className="flex gap-2">
-          <button type="button" onClick={() => setConfirming(true)} className={buttonClass}>
-            Yes
+          <button type="button" onClick={() => setConfirming(true)} className="btn btn-primary btn-sm">
+            Yes, track it
           </button>
-          <button type="button" onClick={handleNo} disabled={dismissing} className={buttonClass}>
-            {dismissing ? "Dismissing…" : "No"}
+          <button type="button" onClick={handleNo} disabled={dismissing} className="btn btn-sm">
+            {dismissing ? "Dismissing…" : "Not recurring"}
           </button>
         </div>
       )}
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-negative">{error}</p>}
     </div>
   );
 }
@@ -229,7 +234,7 @@ export function RuleRow({
 
   if (editing) {
     return (
-      <tr className="border-b border-zinc-100 dark:border-zinc-900">
+      <tr className="border-b border-hairline last:border-0">
         <td colSpan={6} className="py-3">
           <RuleFields
             initial={rule}
@@ -244,19 +249,19 @@ export function RuleRow({
   }
 
   return (
-    <tr className="border-b border-zinc-100 dark:border-zinc-900">
-      <td className="py-2 pr-4">{rule.name}</td>
-      <td className="py-2 pr-4">{formatCents(rule.amount)}</td>
-      <td className="py-2 pr-4 capitalize">{cadence}</td>
-      <td className="py-2 pr-4">{lastDate ?? "—"}</td>
-      <td className="py-2 pr-4">{nextDate}</td>
-      <td className="py-2">
+    <tr className="border-b border-hairline last:border-0">
+      <td className="py-2.5 pr-4 font-medium">{rule.name}</td>
+      <td className="py-2.5 pr-4 tabular-nums">{formatCents(rule.amount)}</td>
+      <td className="py-2.5 pr-4 capitalize text-muted">{cadence}</td>
+      <td className="py-2.5 pr-4 text-muted">{lastDate ? shortDate(lastDate) : "—"}</td>
+      <td className="py-2.5 pr-4">{nextDate ? shortDate(nextDate) : "—"}</td>
+      <td className="py-2.5">
         <span className="flex items-center gap-3">
-          {error && <span className="text-sm text-red-600">{error}</span>}
-          <button type="button" onClick={() => setEditing(true)} className="text-sm underline opacity-70">
+          {error && <span className="text-sm text-negative">{error}</span>}
+          <button type="button" onClick={() => setEditing(true)} className="btn btn-sm">
             Edit
           </button>
-          <button type="button" onClick={handleDelete} disabled={deleting} className="text-sm text-red-600 disabled:opacity-50">
+          <button type="button" onClick={handleDelete} disabled={deleting} className="btn btn-sm btn-danger">
             Delete
           </button>
         </span>

@@ -1,10 +1,10 @@
 import Link from "next/link";
-import { and, desc, isNull, like, ne, notLike, or, sql } from "drizzle-orm";
-import { db } from "@/db";
-import { transactions } from "@/db/schema";
 import { formatCategory, formatCents } from "@/lib/format";
 import { categoryColor } from "@/lib/colors";
-import { CategoryDonut, type DonutSlice } from "@/app/charts";
+import { categoryTotals, monthlyCashFlow } from "@/lib/insights";
+import { currentMonth, isMonth, monthLabel, recentMonths, shiftMonth, shortMonthLabel } from "@/lib/months";
+import { CategoryDonut, MonthBars, type DonutSlice } from "@/app/charts";
+import { Card, Change, Dot, Empty, Meter, Page, Stat } from "@/app/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -12,23 +12,9 @@ type SearchParams = {
   month?: string;
 };
 
-function currentMonth(): string {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-}
-
-function shiftMonth(month: string, delta: number): string {
-  const [year, mon] = month.split("-").map(Number);
-  const d = new Date(year, mon - 1 + delta, 1);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-}
-
-function monthLabel(month: string): string {
-  const [year, mon] = month.split("-").map(Number);
-  return new Date(year, mon - 1, 1).toLocaleString("default", {
-    month: "long",
-    year: "numeric",
-  });
+function lastDay(month: string): string {
+  const [y, m] = month.split("-").map(Number);
+  return `${month}-${String(new Date(y, m, 0).getDate()).padStart(2, "0")}`;
 }
 
 export default async function SpendingPage({
@@ -38,35 +24,21 @@ export default async function SpendingPage({
 }) {
   const params = await searchParams;
   // Guard covers the heading, the SQL LIKE, and the prev/next links.
-  const month =
-    params.month && /^\d{4}-\d{2}$/.test(params.month) ? params.month : currentMonth();
+  const month = isMonth(params.month) ? params.month : currentMonth();
+  const isCurrent = month === currentMonth();
+  const trendMonths = recentMonths(6, month);
 
-  const rows = await db
-    .select({
-      category: transactions.category,
-      total: sql<number>`sum(case when ${transactions.pending} = 0 then ${transactions.amount} else 0 end)`,
-      pendingTotal: sql<number>`sum(case when ${transactions.pending} = 1 then ${transactions.amount} else 0 end)`,
-    })
-    .from(transactions)
-    .where(
-      and(
-        like(transactions.date, `${month}-%`),
-        or(
-          isNull(transactions.category),
-          and(
-            notLike(transactions.category, "TRANSFER%"),
-            ne(transactions.category, "INCOME"),
-          ),
-        ),
-      ),
-    )
-    .groupBy(transactions.category)
-    .orderBy(desc(sql`sum(case when ${transactions.pending} = 0 then ${transactions.amount} else 0 end)`));
+  const [rows, trend] = await Promise.all([categoryTotals(month), monthlyCashFlow(trendMonths)]);
 
   const spending = rows.filter((r) => r.total > 0);
   const grandTotal = spending.reduce((sum, r) => sum + r.total, 0);
   const max = Math.max(...spending.map((r) => r.total), 0);
   const pendingSum = rows.reduce((s, r) => s + Math.max(r.pendingTotal, 0), 0);
+  const prevTotal = trend.at(-2)?.spending ?? 0;
+  const priorMonths = trend.slice(0, -1).filter((m) => m.spending > 0);
+  const avg = priorMonths.length
+    ? priorMonths.reduce((s, m) => s + m.spending, 0) / priorMonths.length
+    : 0;
 
   // Donut: top 8 categories + "Other". Slots come from the displayed set in
   // sorted order, so colors are deterministic and distinct within the chart.
@@ -84,56 +56,112 @@ export default async function SpendingPage({
     donutData.push({ name: "Other", value: otherTotal, color: "var(--chart-muted)" });
   }
 
-  return (
-    <div className="flex flex-col flex-1 items-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex w-full max-w-3xl flex-col gap-8 px-4 py-8 sm:px-6 sm:py-16">
-        <div className="flex items-center justify-between">
-          <Link href={`/spending?month=${shiftMonth(month, -1)}`}>Prev</Link>
-          <h1 className="text-2xl font-semibold">{monthLabel(month)}</h1>
-          <Link href={`/spending?month=${shiftMonth(month, 1)}`}>Next</Link>
-        </div>
+  const txHref = (category: string | null) => {
+    const q = new URLSearchParams({ from: `${month}-01`, to: lastDay(month) });
+    if (category) q.set("category", category);
+    return `/transactions?${q}`;
+  };
 
-        <div>
-          <span className="text-sm opacity-60">Total spending</span>
-          <p className="text-2xl font-semibold">{formatCents(grandTotal)}</p>
-          {pendingSum > 0 && (
-            <p className="text-sm opacity-60">+ {formatCents(pendingSum)} pending</p>
+  return (
+    <Page
+      title="Spending"
+      subtitle="Everything that left your accounts, minus transfers and income."
+      actions={
+        <div className="glass flex items-center gap-1 rounded-full p-1">
+          <Link
+            href={`/spending?month=${shiftMonth(month, -1)}`}
+            aria-label="Previous month"
+            className="rounded-full px-3 py-1.5 text-sm hover:bg-fill"
+          >
+            ←
+          </Link>
+          <span className="min-w-32 text-center text-sm font-medium">{monthLabel(month)}</span>
+          {isCurrent ? (
+            <span className="px-3 py-1.5 text-sm opacity-30" aria-hidden>
+              →
+            </span>
+          ) : (
+            <Link
+              href={`/spending?month=${shiftMonth(month, 1)}`}
+              aria-label="Next month"
+              className="rounded-full px-3 py-1.5 text-sm hover:bg-fill"
+            >
+              →
+            </Link>
           )}
         </div>
+      }
+    >
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-5">
+        <Card className="md:col-span-1">
+          <Stat
+            size="lg"
+            label={isCurrent ? "Spent so far" : "Total spent"}
+            value={formatCents(grandTotal)}
+            sub={pendingSum > 0 ? `+ ${formatCents(pendingSum)} pending` : undefined}
+          />
+          <div className="flex flex-col gap-1 text-xs">
+            <Change current={grandTotal} previous={prevTotal} suffix="vs last month" goodWhenUp={false} />
+            {avg > 0 ? (
+              <span className="text-muted">
+                6-month average {formatCents(Math.round(avg))}
+              </span>
+            ) : null}
+          </div>
+        </Card>
+        <Card className="md:col-span-2" title="Last 6 months">
+          <MonthBars
+            data={trend.map((m) => ({
+              label: shortMonthLabel(m.month),
+              value: m.spending,
+              current: m.month === month,
+            }))}
+          />
+        </Card>
+      </div>
 
-        {spending.length === 0 ? (
-          <p className="text-sm opacity-60">No spending this month.</p>
-        ) : (
-          <>
-            <CategoryDonut data={donutData} />
-            <div className="flex flex-col gap-3">
-            {spending.map((r) => (
-              <div key={r.category ?? "null"} className="flex items-center gap-3">
-                <span className="w-24 shrink-0 truncate text-sm sm:w-32">
-                  {formatCategory(r.category)}
-                </span>
-                <div
-                  className="h-4 flex-1 rounded bg-zinc-200 dark:bg-zinc-800"
-                  role="progressbar"
-                  aria-label={`${formatCategory(r.category)} spending`}
-                  aria-valuenow={r.total}
-                  aria-valuemin={0}
-                  aria-valuemax={max}
-                >
-                  <div
-                    className="h-4 rounded bg-zinc-900 dark:bg-white"
-                    style={{ width: `${(r.total / max) * 100}%` }}
-                  />
-                </div>
-                <span className="w-20 shrink-0 text-right text-sm font-medium">
-                  {formatCents(r.total)}
-                </span>
-              </div>
-            ))}
-            </div>
-          </>
-        )}
-      </main>
-    </div>
+      {spending.length === 0 ? (
+        <Card>
+          <Empty>No spending in {monthLabel(month)}.</Empty>
+        </Card>
+      ) : (
+        <>
+          <Card title="Where it went">
+            <CategoryDonut data={donutData} total={grandTotal} />
+          </Card>
+          <Card title="By category" action={<span className="text-xs text-muted">Tap a row to see transactions</span>}>
+            <ul className="-mx-2 flex flex-col">
+              {spending.map((r) => (
+                <li key={r.category ?? "null"}>
+                  <Link
+                    href={txHref(r.category)}
+                    className="flex items-center gap-3 rounded-xl px-2 py-2 hover:bg-fill"
+                  >
+                    <span className="flex w-28 shrink-0 items-center gap-2 text-sm sm:w-40">
+                      <Dot color={categoryColor(r.category ?? "UNCATEGORIZED", topCategories)} />
+                      <span className="truncate">{formatCategory(r.category)}</span>
+                    </span>
+                    <span className="flex-1">
+                      <Meter
+                        value={r.total}
+                        max={max}
+                        color={categoryColor(r.category ?? "UNCATEGORIZED", topCategories)}
+                        label={`${formatCategory(r.category)} spending`}
+                      />
+                    </span>
+                    <span className="w-12 shrink-0 text-right text-xs tabular-nums text-muted">
+                      {Math.round((r.total / grandTotal) * 100)}%
+                    </span>
+                    <span className="w-24 shrink-0 text-right text-sm font-medium tabular-nums">
+                      {formatCents(r.total)}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        </>
+      )}
+    </Page>
   );
 }

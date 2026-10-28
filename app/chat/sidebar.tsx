@@ -26,7 +26,7 @@ export function ChatSidebar({
       <Link
         href="/chat"
         onClick={() => setOpen(false)}
-        className="rounded-md border px-3 py-2 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+        className="btn btn-primary"
       >
         + New chat
       </Link>
@@ -41,32 +41,34 @@ export function ChatSidebar({
   return (
     <>
       {/* mobile: slim bar with drawer trigger + active title */}
-      <div className="sticky top-11 z-10 flex items-center gap-2 border-b bg-background px-4 py-2 sm:hidden dark:border-zinc-800">
+      <div className="glass sticky top-14 z-10 mx-2 flex items-center gap-2 rounded-full px-1.5 py-1.5 sm:hidden">
         <button
           type="button"
           aria-label="Conversations"
           onClick={() => setOpen(true)}
-          className="rounded-md border px-2.5 py-1.5 text-sm dark:border-zinc-700"
+          className="btn btn-sm"
         >
           ☰
         </button>
-        <span className="truncate text-sm opacity-80">{activeName ?? "New conversation"}</span>
+        <span className="truncate text-sm">{activeName ?? "New conversation"}</span>
       </div>
       {open && (
         <div className="fixed inset-0 z-30 sm:hidden">
           <div
-            className="absolute inset-0 bg-black/40"
+            className="absolute inset-0 bg-black/30"
             onClick={() => setOpen(false)}
           />
-          <div className="absolute inset-y-0 left-0 flex w-64 flex-col overflow-y-auto border-r bg-background px-2 py-3 dark:border-zinc-800">
+          <div className="glass absolute inset-y-2 left-2 flex w-64 flex-col overflow-y-auto rounded-3xl px-2 py-3">
             {list}
           </div>
         </div>
       )}
 
       {/* desktop: persistent sidebar under the sticky nav */}
-      <aside className="sticky top-11 hidden h-[calc(100dvh-2.75rem)] w-60 shrink-0 flex-col overflow-y-auto border-r px-2 py-3 sm:flex dark:border-zinc-800">
-        {list}
+      <aside className="sticky top-14 hidden h-[calc(100dvh-3.5rem)] w-64 shrink-0 flex-col py-2 pl-4 sm:flex">
+        <div className="surface flex min-h-0 flex-1 flex-col overflow-y-auto p-2">
+          {list}
+        </div>
       </aside>
     </>
   );
@@ -127,15 +129,15 @@ function Row({
             setEditing(false);
           }
         }}
-        className="rounded-md border px-3 py-2 text-base sm:text-sm dark:border-zinc-700 dark:bg-zinc-900"
+        className="field sm:w-full"
       />
     );
   }
 
   return (
     <div
-      className={`group flex items-center rounded-md ${
-        active ? "bg-zinc-200 dark:bg-zinc-800" : "hover:bg-zinc-100 dark:hover:bg-zinc-900"
+      className={`group flex items-center rounded-xl ${
+        active ? "bg-fill-strong font-medium" : "hover:bg-fill"
       }`}
     >
       <Link

@@ -57,7 +57,9 @@ export default function PlaidButtons() {
         return res.json();
       })
       .then((data) => {
-        setSyncResult(`+${data.added} / ~${data.modified} / -${data.removed}`);
+        setSyncResult(
+          `Synced · ${data.added} new, ${data.modified} updated, ${data.removed} removed`,
+        );
         if (data.errors?.length) {
           setError(
             `Sync failed for ${data.errors
@@ -73,29 +75,27 @@ export default function PlaidButtons() {
   }, [router]);
 
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex flex-wrap items-center gap-3">
-        <button
-          type="button"
-          onClick={() => open()}
-          disabled={!ready || !linkToken}
-          className="rounded-md border px-4 py-2 text-sm font-medium disabled:opacity-50"
-        >
-          Connect account
-        </button>
+    <div className="flex flex-col items-start gap-2 sm:items-end">
+      <div className="flex flex-wrap items-center gap-2">
+        {syncResult && <span className="text-xs text-muted">{syncResult}</span>}
         <button
           type="button"
           onClick={handleSync}
           disabled={syncing}
-          className="rounded-md border px-4 py-2 text-sm font-medium disabled:opacity-50"
+          className="btn"
         >
           {syncing ? "Syncing…" : "Sync now"}
         </button>
-        {syncResult && (
-          <span className="text-sm opacity-60">{syncResult}</span>
-        )}
+        <button
+          type="button"
+          onClick={() => open()}
+          disabled={!ready || !linkToken}
+          className="btn btn-primary"
+        >
+          + Connect account
+        </button>
       </div>
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-negative">{error}</p>}
     </div>
   );
 }

@@ -37,7 +37,7 @@ export default async function ChatPage({
     : [];
 
   return (
-    <div className="flex flex-1 flex-col bg-zinc-50 font-sans sm:flex-row dark:bg-black">
+    <div className="flex flex-1 flex-col sm:flex-row">
       <ChatSidebar conversations={allConversations} activeId={conversationId} />
       {/* min-w-0 is load-bearing: wide markdown (pre/table) otherwise blows the flex row */}
       <main className="flex min-w-0 flex-1 flex-col">

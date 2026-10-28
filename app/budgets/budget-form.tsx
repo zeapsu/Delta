@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { formatCategory } from "@/lib/format";
 
 export function BudgetForm({ categories }: { categories: string[] }) {
   const router = useRouter();
@@ -35,23 +36,23 @@ export function BudgetForm({ categories }: { categories: string[] }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-3 sm:flex-row sm:items-end">
-      <div className="flex flex-col gap-1">
-        <label className="text-sm opacity-60">Category</label>
+    <form onSubmit={handleSubmit} className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+      <label className="flex flex-col gap-1">
+        <span className="eyebrow">Category</span>
         <select
           value={category}
           onChange={(e) => setCategory(e.target.value)}
-          className="w-full rounded-md border px-3 py-2 text-base sm:w-auto sm:text-sm"
+          className="field"
         >
           {categories.map((c) => (
             <option key={c} value={c}>
-              {c}
+              {formatCategory(c)}
             </option>
           ))}
         </select>
-      </div>
-      <div className="flex flex-col gap-1">
-        <label className="text-sm opacity-60">Monthly amount ($)</label>
+      </label>
+      <label className="flex flex-col gap-1">
+        <span className="eyebrow">Monthly amount ($)</span>
         <input
           type="number"
           step="0.01"
@@ -59,17 +60,19 @@ export function BudgetForm({ categories }: { categories: string[] }) {
           required
           value={dollars}
           onChange={(e) => setDollars(e.target.value)}
-          className="w-full rounded-md border px-3 py-2 text-base sm:w-auto sm:text-sm"
+          placeholder="0.00"
+          inputMode="decimal"
+          className="field"
         />
-      </div>
+      </label>
       <button
         type="submit"
         disabled={saving || !category}
-        className="rounded-md border px-4 py-2 text-sm font-medium disabled:opacity-50"
+        className="btn btn-primary"
       >
         {saving ? "Saving…" : "Save budget"}
       </button>
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-negative">{error}</p>}
     </form>
   );
 }
@@ -97,14 +100,15 @@ export function DeleteBudgetButton({ category }: { category: string }) {
 
   return (
     <span className="flex items-center gap-2">
-      {error && <span className="text-sm text-red-600">{error}</span>}
+      {error && <span className="text-xs text-negative">{error}</span>}
       <button
         type="button"
         onClick={handleDelete}
         disabled={deleting}
-        className="text-sm text-red-600 disabled:opacity-50"
+        aria-label={`Delete ${formatCategory(category)} budget`}
+        className="btn btn-sm btn-danger"
       >
-        Delete
+        {deleting ? "Deleting…" : "Delete"}
       </button>
     </span>
   );
