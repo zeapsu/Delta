@@ -15,6 +15,10 @@ Delta is a personal finance app that syncs bank data via Plaid into a local SQLi
 - **Writes only through the validated budgets and recurring endpoints** (below), and only with a write-scoped token. Never write to the database directly.
 - **Never call `/api/plaid/*` endpoints.** They handle credentials and syncing; they are not for agents.
 
+## Data access (MCP — easiest)
+
+If your agent has Delta's MCP server connected (tools such as `get_status`, `spending_by_category`, `search_transactions`), use those tools: they wrap the API below, return **dollars** instead of cents, and add an `as_of` block with stale-data warnings to every answer. The conventions and advice guidelines in this file still apply. To connect: `npm run token -- create <agent-name>` on the Delta host prints a ready-to-paste MCP config for `${DELTA_URL}/api/v1/mcp`.
+
 ## Data access (API — primary)
 
 Base URL `${DELTA_URL:-http://localhost:3000}`. Every request sends `Authorization: Bearer $DELTA_API_TOKEN`. A **read** token can call every GET; a **write** token can also call the budget/recurring writes. The user creates tokens on the Delta host with `npm run token -- create <name> [--scope read|write]` (and `list` / `revoke <id>`).

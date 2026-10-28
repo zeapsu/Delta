@@ -24,6 +24,9 @@ assert.strictEqual(requiredScope("/api/v1", "GET", false), "read");
 assert.strictEqual(requiredScope("/api/v1/budgets", "POST", false), "write");
 assert.strictEqual(requiredScope("/api/v1/recurring", "DELETE", true), "write");
 assert.strictEqual(requiredScope("/api/v10/x", "GET", false), null);
+// MCP posts reads too; its write tools check write scope per call.
+assert.strictEqual(requiredScope("/api/v1/mcp", "POST", false), "read");
+assert.strictEqual(requiredScope("/api/v1/mcp", "GET", true), "read");
 assert.strictEqual(requiredScope("/api/budgets", "POST", false), null);
 assert.strictEqual(requiredScope("/api/plaid/sync", "POST", false), null);
 assert.strictEqual(requiredScope("/api/budgets", "GET", true), "read");
