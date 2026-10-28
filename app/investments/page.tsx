@@ -1,13 +1,24 @@
 import { count, desc, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { accounts, investmentTransactions } from "@/db/schema";
+import { accounts, investmentTransactions, items } from "@/db/schema";
 import { formatCents } from "@/lib/format";
+import { investmentsAccess, type InvestmentsAccess } from "@/lib/investments";
 import { shortDate } from "@/lib/months";
 import { Card, Empty, Page, Pager, Stat } from "@/app/ui";
+import GrantInvestmentsButton from "./grant-button";
 
 export const dynamic = "force-dynamic";
 
 const PAGE_SIZE = 50;
+
+const ACCESS_NOTE: Record<InvestmentsAccess, string> = {
+  active: "has investments access but no activity has synced (Plaid covers the last 24 months).",
+  needs_consent:
+    "was connected without investments access, so Plaid won't share its trades or dividends. Grant access to start syncing them.",
+  consented: "has investments access. Activity appears after the next sync.",
+  unsupported: "doesn't offer investment activity through Plaid.",
+  error: "couldn't be checked for investments access right now.",
+};
 
 export default async function InvestmentsPage({
   searchParams,
@@ -17,7 +28,7 @@ export default async function InvestmentsPage({
   const params = await searchParams;
   const page = Math.max(1, Number(params.page) || 1);
 
-  const [rows, [{ total }], byType] = await Promise.all([
+  const [rows, [{ total }], byType, brokerages] = await Promise.all([
     db
       .select({
         id: investmentTransactions.id,
@@ -48,7 +59,31 @@ export default async function InvestmentsPage({
       })
       .from(investmentTransactions)
       .groupBy(investmentTransactions.type),
+    // Connections holding investment accounts but no synced activity.
+    db
+      .select({
+        id: items.id,
+        name: items.institutionName,
+        accessToken: items.accessToken,
+        n: count(investmentTransactions.id),
+      })
+      .from(items)
+      .innerJoin(accounts, eq(accounts.itemId, items.id))
+      .leftJoin(investmentTransactions, eq(investmentTransactions.accountId, accounts.id))
+      .where(eq(accounts.type, "investment"))
+      .groupBy(items.id),
   ]);
+
+  // Ask Plaid why, one /item/get per empty connection (none once data flows).
+  const missing = await Promise.all(
+    brokerages
+      .filter((b) => b.n === 0)
+      .map(async (b) => ({
+        id: b.id,
+        name: b.name ?? "This connection",
+        access: await investmentsAccess(b.accessToken),
+      })),
+  );
 
   // Plaid sign convention: positive = money out (buys), negative = money in.
   const t = (type: string) => byType.find((r) => r.type === type);
@@ -75,6 +110,18 @@ export default async function InvestmentsPage({
           </Card>
         </div>
       ) : null}
+
+      {missing.map((b) => (
+        <Card key={b.id}>
+          <div className="flex flex-col gap-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+            <p>
+              <span className="font-medium">{b.name}</span>{" "}
+              <span className="text-muted">{ACCESS_NOTE[b.access]}</span>
+            </p>
+            {b.access === "needs_consent" ? <GrantInvestmentsButton itemId={b.id} /> : null}
+          </div>
+        </Card>
+      ))}
 
       <Card className="p-0 sm:p-0">
         {rows.length === 0 ? (
