@@ -1,0 +1,46 @@
+// Pure token policy for /api routes, no DB imports — see lib/api-auth-check.ts.
+// The tailnet stays the outer boundary (lib/tailnet.ts); per-client tokens are
+// the inner one. /api/v1 is the token-only agent API. The older routes keep
+// serving the dashboard (same-origin browser, no token) and the sync timer,
+// but a request that does carry a token gets it checked there too.
+import { createHash, randomBytes } from "node:crypto";
+
+export type Scope = "read" | "write";
+
+const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+const TOKEN_RE = /^dlt_[A-Za-z0-9_-]{43}$/;
+
+export function newToken(): string {
+  return `dlt_${randomBytes(32).toString("base64url")}`;
+}
+
+// Tokens are 256 random bits, so a plain sha256 is enough (no slow hash needed).
+export function hashToken(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
+}
+
+export function tokenPrefix(token: string): string {
+  return token.slice(0, 8);
+}
+
+export function isV1(pathname: string): boolean {
+  return pathname === "/api/v1" || pathname.startsWith("/api/v1/");
+}
+
+// The scope a request needs, or null when it may go through without a token.
+export function requiredScope(pathname: string, method: string, hasAuth: boolean): Scope | null {
+  if (!isV1(pathname) && !hasAuth) return null;
+  return SAFE_METHODS.has(method) ? "read" : "write";
+}
+
+// "Authorization: Bearer dlt_..." -> the token; undefined when absent;
+// null when present but malformed.
+export function bearerToken(header: string | null): string | null | undefined {
+  if (header === null) return undefined;
+  const m = header.match(/^Bearer\s+(\S+)\s*$/i);
+  return m && TOKEN_RE.test(m[1]) ? m[1] : null;
+}
+
+export function scopeAllows(granted: string, needed: Scope): boolean {
+  return needed === "read" ? granted === "read" || granted === "write" : granted === "write";
+}
