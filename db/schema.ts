@@ -148,7 +148,8 @@ export const recurringRules = sqliteTable("recurring_rules", {
     .default(sql`(unixepoch('now', 'subsec') * 1000)`),
 });
 
-// Chat conversations; transcripts live in `messages`.
+// Legacy chat transcripts (Hermes era). The chat tab is gone and nothing
+// writes these any more; the tables stay so existing history isn't dropped.
 export const conversations = sqliteTable("conversations", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   name: text("name").notNull(),

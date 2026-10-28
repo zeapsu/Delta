@@ -88,7 +88,7 @@ export default async function RecurringPage() {
         )}
       </Card>
 
-      <Card title="Add manually">
+      <Card title="Add manually" ask={false}>
         <AddRuleForm />
       </Card>
     </Page>

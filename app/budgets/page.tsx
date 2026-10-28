@@ -102,7 +102,7 @@ export default async function BudgetsPage() {
         </Card>
       ) : null}
 
-      <Card title="Add or update a budget">
+      <Card title="Add or update a budget" ask={false}>
         <BudgetForm categories={categories} />
       </Card>
 
