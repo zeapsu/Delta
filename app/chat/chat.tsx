@@ -18,7 +18,7 @@ function Thinking() {
     return () => clearInterval(t);
   }, []);
   return (
-    <p className="animate-pulse text-sm opacity-60">
+    <p className="animate-pulse text-sm text-muted">
       Thinking… {Math.floor(secs / 60)}:{String(secs % 60).padStart(2, "0")}
     </p>
   );
@@ -178,12 +178,12 @@ export function Chat({
     <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-4 pt-4 sm:px-6">
       {activeId !== null && (
         <div className="flex items-center justify-end gap-2">
-          {error && <span className="text-sm text-red-600">{error}</span>}
+          {error && <span className="text-sm text-negative">{error}</span>}
           <button
             type="button"
             onClick={handleDelete}
             disabled={busy || deleting}
-            className="rounded-md px-2 py-1 text-sm text-red-600 opacity-70 hover:opacity-100 disabled:opacity-40"
+            className="btn btn-sm btn-danger"
           >
             {deleting ? "Deleting…" : "Delete"}
           </button>
@@ -192,22 +192,28 @@ export function Chat({
 
       <div className="flex flex-1 flex-col gap-5 pb-4">
         {messages.length === 0 && (
-          <p className="pt-8 text-center text-sm opacity-60">
-            Ask about your spending, budgets, subscriptions, or net worth.
-          </p>
+          <div className="flex flex-col items-center gap-2 pt-16 text-center">
+            <span className="glass flex h-14 w-14 items-center justify-center rounded-full text-2xl font-semibold">
+              Δ
+            </span>
+            <p className="text-lg font-semibold tracking-tight">Ask Delta</p>
+            <p className="max-w-sm text-sm text-muted">
+              Ask about your spending, budgets, subscriptions, or net worth.
+            </p>
+          </div>
         )}
         {messages.map((m, i) =>
           m.role === "user" ? (
             <p
               key={i}
-              className="max-w-[85%] self-end whitespace-pre-wrap rounded-2xl rounded-br-md bg-zinc-200 px-4 py-2.5 text-sm dark:bg-zinc-800"
+              className="max-w-[85%] self-end whitespace-pre-wrap rounded-3xl rounded-br-lg bg-ink px-4 py-2.5 text-sm text-ink-foreground"
             >
               {m.text}
             </p>
           ) : (
             <div
               key={i}
-              className="text-sm leading-relaxed [&_a]:underline [&_blockquote]:border-l-2 [&_blockquote]:pl-3 [&_blockquote]:opacity-80 [&_code]:rounded [&_code]:bg-zinc-100 [&_code]:px-1 [&_code]:font-mono [&_code]:text-xs [&_h1]:text-lg [&_h1]:font-semibold [&_h2]:text-base [&_h2]:font-semibold [&_h3]:font-semibold [&_hr]:my-4 [&_li]:ml-4 [&_ol]:list-decimal [&_p]:my-2 [&_pre]:overflow-x-auto [&_pre]:rounded-md [&_pre]:border [&_pre]:p-3 [&_table]:my-2 [&_table]:block [&_table]:max-w-full [&_table]:overflow-x-auto [&_td]:border [&_td]:px-2 [&_td]:py-1 [&_th]:border [&_th]:px-2 [&_th]:py-1 [&_ul]:list-disc dark:[&_code]:bg-zinc-800"
+              className="text-sm leading-relaxed [&_a]:underline [&_blockquote]:border-l-2 [&_blockquote]:pl-3 [&_blockquote]:opacity-80 [&_code]:rounded [&_code]:bg-fill-strong [&_code]:px-1 [&_code]:font-mono [&_code]:text-xs [&_h1]:text-lg [&_h1]:font-semibold [&_h2]:text-base [&_h2]:font-semibold [&_h3]:font-semibold [&_hr]:my-4 [&_li]:ml-4 [&_ol]:list-decimal [&_p]:my-2 [&_pre]:overflow-x-auto [&_pre]:rounded-md [&_pre]:border [&_pre]:border-hairline [&_pre]:bg-fill [&_pre]:p-3 [&_table]:my-2 [&_table]:block [&_table]:max-w-full [&_table]:overflow-x-auto [&_td]:border [&_td]:border-hairline [&_td]:px-2 [&_td]:py-1 [&_th]:border [&_th]:border-hairline [&_th]:px-2 [&_th]:py-1 [&_ul]:list-disc"
             >
               <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.text}</ReactMarkdown>
             </div>
@@ -215,13 +221,13 @@ export function Chat({
         )}
         {waiting && <Thinking />}
         {busy && status && (
-          <p className="animate-pulse text-sm opacity-60">⚙ {status}</p>
+          <p className="animate-pulse text-sm text-muted">⚙ {status}</p>
         )}
         <div ref={bottomRef} className="scroll-mb-24" />
       </div>
 
-      <form onSubmit={send} className="sticky bottom-0 bg-zinc-50 pb-4 pt-2 dark:bg-black">
-        <div className="flex items-end gap-2 rounded-xl border bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900">
+      <form onSubmit={send} className="sticky bottom-0 pb-4 pt-2">
+        <div className="glass flex items-end gap-2 rounded-[1.75rem] py-1.5 pl-4 pr-1.5">
           <textarea
             rows={1}
             value={input}
@@ -232,17 +238,17 @@ export function Chat({
                 e.currentTarget.form?.requestSubmit();
               }
             }}
-            placeholder="Message"
+            placeholder="Ask about your money…"
             maxLength={4000} // keep in sync with MAX_MESSAGE_LENGTH in app/api/chat/route.ts
             // text-base on mobile: <16px inputs trigger iOS zoom-on-focus (#56);
             // field-sizing-content auto-grows without JS (Chrome 123+)
-            className="max-h-40 flex-1 resize-none bg-transparent text-base outline-none field-sizing-content sm:text-sm"
+            className="max-h-40 flex-1 resize-none self-center bg-transparent py-1.5 text-base outline-none field-sizing-content placeholder:text-muted sm:text-sm"
           />
           {busy ? (
             <button
               type="button"
               onClick={stop}
-              className="rounded-md border px-4 py-2 text-sm font-medium dark:border-zinc-700"
+              className="btn"
             >
               Stop
             </button>
@@ -250,7 +256,7 @@ export function Chat({
             <button
               type="submit"
               disabled={input.trim().length === 0}
-              className="rounded-md border px-4 py-2 text-sm font-medium disabled:opacity-50 dark:border-zinc-700"
+              className="btn btn-primary"
             >
               Send
             </button>

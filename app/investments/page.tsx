@@ -1,8 +1,9 @@
-import Link from "next/link";
-import { count, desc, eq } from "drizzle-orm";
+import { count, desc, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { accounts, investmentTransactions } from "@/db/schema";
 import { formatCents } from "@/lib/format";
+import { shortDate } from "@/lib/months";
+import { Card, Empty, Page, Pager, Stat } from "@/app/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +17,7 @@ export default async function InvestmentsPage({
   const params = await searchParams;
   const page = Math.max(1, Number(params.page) || 1);
 
-  const [rows, [{ total }]] = await Promise.all([
+  const [rows, [{ total }], byType] = await Promise.all([
     db
       .select({
         id: investmentTransactions.id,
@@ -38,53 +39,92 @@ export default async function InvestmentsPage({
       .limit(PAGE_SIZE)
       .offset((page - 1) * PAGE_SIZE),
     db.select({ total: count() }).from(investmentTransactions),
+    db
+      .select({
+        type: investmentTransactions.type,
+        n: count(),
+        amount: sql<number>`sum(${investmentTransactions.amount})`,
+        fees: sql<number>`coalesce(sum(${investmentTransactions.fees}), 0)`,
+      })
+      .from(investmentTransactions)
+      .groupBy(investmentTransactions.type),
   ]);
+
+  // Plaid sign convention: positive = money out (buys), negative = money in.
+  const t = (type: string) => byType.find((r) => r.type === type);
+  const totalFees = byType.reduce((s, r) => s + r.fees, 0);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const pageHref = (p: number) => `/investments?page=${p}`;
 
   return (
-    <div className="flex flex-col flex-1 items-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex w-full max-w-3xl flex-col gap-6 px-4 py-8 sm:px-6 sm:py-16">
-        <h1 className="text-3xl font-semibold">Investments</h1>
+    <Page wide title="Investments" subtitle="Buys, sells, dividends, and fees from your brokerage accounts.">
+      {byType.length > 0 ? (
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4 md:gap-5">
+          <Card>
+            <Stat label="Bought" value={formatCents(Math.abs(t("buy")?.amount ?? 0))} sub={`${t("buy")?.n ?? 0} trades`} />
+          </Card>
+          <Card>
+            <Stat label="Sold" value={formatCents(Math.abs(t("sell")?.amount ?? 0))} sub={`${t("sell")?.n ?? 0} trades`} />
+          </Card>
+          <Card>
+            <Stat label="Cash activity" value={formatCents(-(t("cash")?.amount ?? 0))} sub="Dividends, interest, contributions" />
+          </Card>
+          <Card>
+            <Stat label="Fees" value={formatCents(totalFees)} sub="All time" />
+          </Card>
+        </div>
+      ) : null}
 
+      <Card className="p-0 sm:p-0">
         {rows.length === 0 ? (
-          <p className="text-sm opacity-60">No investment activity synced yet.</p>
+          <div className="p-5">
+            <Empty>No investment activity synced yet.</Empty>
+          </div>
         ) : (
-          <div className="overflow-x-auto rounded-lg border">
+          <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b text-left text-xs opacity-60">
-                  <th className="px-3 py-2 font-medium">Date</th>
-                  <th className="px-3 py-2 font-medium">Name</th>
-                  <th className="px-3 py-2 font-medium">Type</th>
-                  <th className="px-3 py-2 font-medium">Security</th>
-                  <th className="px-3 py-2 text-right font-medium">Qty</th>
-                  <th className="px-3 py-2 text-right font-medium">Price</th>
-                  <th className="px-3 py-2 text-right font-medium">Fees</th>
-                  <th className="px-3 py-2 text-right font-medium">Amount</th>
-                  <th className="px-3 py-2 font-medium">Account</th>
+                <tr className="border-b border-hairline text-left text-xs text-muted">
+                  <th className="px-4 py-3 font-medium">Date</th>
+                  <th className="px-4 py-3 font-medium">Name</th>
+                  <th className="px-4 py-3 font-medium">Type</th>
+                  <th className="px-4 py-3 font-medium">Security</th>
+                  <th className="px-4 py-3 text-right font-medium">Qty</th>
+                  <th className="px-4 py-3 text-right font-medium">Price</th>
+                  <th className="px-4 py-3 text-right font-medium">Fees</th>
+                  <th className="px-4 py-3 text-right font-medium">Amount</th>
+                  <th className="px-4 py-3 font-medium">Account</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
+              <tbody className="divide-y divide-hairline">
                 {rows.map((tx) => (
-                  <tr key={tx.id}>
-                    <td className="px-3 py-2 whitespace-nowrap">{tx.date}</td>
-                    <td className="px-3 py-2">{tx.name}</td>
-                    <td className="px-3 py-2 whitespace-nowrap opacity-60">
-                      {tx.subtype && tx.subtype !== tx.type
-                        ? `${tx.type} · ${tx.subtype}`
-                        : tx.type}
+                  <tr key={tx.id} className="hover:bg-fill">
+                    <td className="px-4 py-2.5 whitespace-nowrap text-muted">{shortDate(tx.date)}</td>
+                    <td className="px-4 py-2.5">{tx.name}</td>
+                    <td className="px-4 py-2.5 whitespace-nowrap">
+                      <span className="rounded-full bg-fill px-2.5 py-1 text-xs capitalize">
+                        {tx.subtype && tx.subtype !== tx.type
+                          ? `${tx.type} · ${tx.subtype}`
+                          : tx.type}
+                      </span>
                     </td>
-                    <td className="px-3 py-2 whitespace-nowrap">
-                      {tx.securityName
-                        ? `${tx.securityName}${tx.tickerSymbol ? ` (${tx.tickerSymbol})` : ""}`
-                        : ""}
+                    <td className="px-4 py-2.5 whitespace-nowrap">
+                      {tx.securityName ? (
+                        <>
+                          {tx.tickerSymbol ? (
+                            <span className="mr-1.5 font-mono text-xs font-semibold">{tx.tickerSymbol}</span>
+                          ) : null}
+                          <span className="text-muted">{tx.securityName}</span>
+                        </>
+                      ) : (
+                        ""
+                      )}
                     </td>
-                    <td className="px-3 py-2 text-right whitespace-nowrap">
+                    <td className="px-4 py-2.5 text-right whitespace-nowrap tabular-nums">
                       {tx.quantity ?? ""}
                     </td>
-                    <td className="px-3 py-2 text-right whitespace-nowrap">
+                    <td className="px-4 py-2.5 text-right whitespace-nowrap tabular-nums">
                       {tx.price !== null
                         ? `$${tx.price.toLocaleString(undefined, {
                             minimumFractionDigits: 2,
@@ -92,13 +132,13 @@ export default async function InvestmentsPage({
                           })}`
                         : ""}
                     </td>
-                    <td className="px-3 py-2 text-right whitespace-nowrap">
+                    <td className="px-4 py-2.5 text-right whitespace-nowrap tabular-nums text-muted">
                       {tx.fees !== null ? formatCents(tx.fees) : ""}
                     </td>
-                    <td className="px-3 py-2 text-right font-medium whitespace-nowrap">
+                    <td className="px-4 py-2.5 text-right font-medium whitespace-nowrap tabular-nums">
                       {formatCents(tx.amount)}
                     </td>
-                    <td className="px-3 py-2 whitespace-nowrap opacity-60">
+                    <td className="px-4 py-2.5 whitespace-nowrap text-muted">
                       {tx.accountName}
                     </td>
                   </tr>
@@ -107,17 +147,9 @@ export default async function InvestmentsPage({
             </table>
           </div>
         )}
+      </Card>
 
-        <div className="flex items-center justify-between text-sm">
-          <span className="opacity-60">
-            Page {page} of {totalPages} ({total} transactions)
-          </span>
-          <div className="flex gap-3">
-            {page > 1 && <Link href={pageHref(page - 1)}>Prev</Link>}
-            {page < totalPages && <Link href={pageHref(page + 1)}>Next</Link>}
-          </div>
-        </div>
-      </main>
-    </div>
+      <Pager page={page} totalPages={totalPages} total={total} noun="transactions" href={pageHref} />
+    </Page>
   );
 }

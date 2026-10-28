@@ -3,6 +3,8 @@ import { and, count, desc, eq, gte, lte, or, sql, SQL } from "drizzle-orm";
 import { db } from "@/db";
 import { accounts, transactions } from "@/db/schema";
 import { formatCategory, formatCents } from "@/lib/format";
+import { shortDate } from "@/lib/months";
+import { Card, Empty, Page, Pager } from "@/app/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -42,7 +44,7 @@ export default async function TransactionsPage({
   }
   const where = conditions.length > 0 ? and(...conditions) : undefined;
 
-  const [allAccounts, categoryRows, rows, [{ total }]] = await Promise.all([
+  const [allAccounts, categoryRows, rows, [{ total, moneyIn, moneyOut }]] = await Promise.all([
     db.select().from(accounts),
     db.selectDistinct({ category: transactions.category }).from(transactions),
     db
@@ -63,7 +65,14 @@ export default async function TransactionsPage({
       .orderBy(desc(transactions.date), desc(transactions.id))
       .limit(PAGE_SIZE)
       .offset((page - 1) * PAGE_SIZE),
-    db.select({ total: count() }).from(transactions).where(where),
+    db
+      .select({
+        total: count(),
+        moneyIn: sql<number>`coalesce(sum(case when ${transactions.amount} < 0 then -${transactions.amount} else 0 end), 0)`,
+        moneyOut: sql<number>`coalesce(sum(case when ${transactions.amount} > 0 then ${transactions.amount} else 0 end), 0)`,
+      })
+      .from(transactions)
+      .where(where),
   ]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -82,22 +91,37 @@ export default async function TransactionsPage({
   const pageHref = (p: number) =>
     `/transactions?${new URLSearchParams({ ...baseParams, page: String(p) }).toString()}`;
 
-  return (
-    <div className="flex flex-col flex-1 items-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex w-full max-w-4xl flex-col gap-6 px-4 py-8 sm:px-6 sm:py-16">
-        <h1 className="text-3xl font-semibold">Transactions</h1>
+  const filtered = Object.keys(baseParams).length > 0;
+  const filterHref = (extra: Record<string, string>) =>
+    `/transactions?${new URLSearchParams({ ...baseParams, ...extra }).toString()}`;
 
-        <form
-          method="get"
-          className="flex flex-wrap items-end gap-3 rounded-lg border p-4"
-        >
-          <label className="flex w-full flex-col gap-1 text-sm sm:w-auto">
-            Account
-            <select
-              name="account"
-              defaultValue={params.account ?? ""}
-              className="w-full rounded border px-2 py-2 dark:bg-zinc-900 sm:w-auto sm:py-1"
-            >
+  return (
+    <Page
+      wide
+      title="Transactions"
+      subtitle={
+        <>
+          {total.toLocaleString()} {filtered ? "matching" : "total"} · {formatCents(moneyIn)} in ·{" "}
+          {formatCents(moneyOut)} out
+        </>
+      }
+    >
+      <Card>
+        <form method="get" className="flex flex-wrap items-end gap-3">
+          <label className="flex w-full flex-col gap-1 sm:w-auto sm:min-w-56 sm:flex-1">
+            <span className="eyebrow">Search</span>
+            <input
+              name="q"
+              type="search"
+              placeholder="Merchant or description"
+              defaultValue={params.q ?? ""}
+              className="field sm:w-full"
+            />
+          </label>
+
+          <label className="flex w-full flex-col gap-1 sm:w-auto">
+            <span className="eyebrow">Account</span>
+            <select name="account" defaultValue={params.account ?? ""} className="field">
               <option value="">All accounts</option>
               {allAccounts.map((a) => (
                 <option key={a.id} value={a.id}>
@@ -108,13 +132,9 @@ export default async function TransactionsPage({
             </select>
           </label>
 
-          <label className="flex w-full flex-col gap-1 text-sm sm:w-auto">
-            Category
-            <select
-              name="category"
-              defaultValue={params.category ?? ""}
-              className="w-full rounded border px-2 py-2 dark:bg-zinc-900 sm:w-auto sm:py-1"
-            >
+          <label className="flex w-full flex-col gap-1 sm:w-auto">
+            <span className="eyebrow">Category</span>
+            <select name="category" defaultValue={params.category ?? ""} className="field">
               <option value="">All categories</option>
               {categories.map((c) => (
                 <option key={c} value={c}>
@@ -124,84 +144,85 @@ export default async function TransactionsPage({
             </select>
           </label>
 
-          <label className="flex w-full flex-col gap-1 text-sm sm:w-auto">
-            From
-            <input
-              type="date"
-              name="from"
-              defaultValue={params.from ?? ""}
-              className="w-full rounded border px-2 py-2 dark:bg-zinc-900 sm:w-auto sm:py-1"
-            />
+          <label className="flex w-[calc(50%-0.375rem)] flex-col gap-1 sm:w-auto">
+            <span className="eyebrow">From</span>
+            <input type="date" name="from" defaultValue={params.from ?? ""} className="field" />
           </label>
 
-          <label className="flex w-full flex-col gap-1 text-sm sm:w-auto">
-            To
-            <input
-              type="date"
-              name="to"
-              defaultValue={params.to ?? ""}
-              className="w-full rounded border px-2 py-2 dark:bg-zinc-900 sm:w-auto sm:py-1"
-            />
+          <label className="flex w-[calc(50%-0.375rem)] flex-col gap-1 sm:w-auto">
+            <span className="eyebrow">To</span>
+            <input type="date" name="to" defaultValue={params.to ?? ""} className="field" />
           </label>
 
-          <label className="flex w-full flex-col gap-1 text-sm sm:w-auto">
-            Search
-            <input
-              name="q"
-              placeholder="Search"
-              defaultValue={params.q ?? ""}
-              className="w-full rounded border px-2 py-2 dark:bg-zinc-900 sm:w-auto sm:py-1"
-            />
-          </label>
-
-          <button
-            type="submit"
-            className="w-full rounded bg-zinc-900 px-4 py-2 text-sm font-medium text-white sm:w-auto sm:py-1.5 dark:bg-white dark:text-black"
-          >
-            Filter
-          </button>
+          <div className="flex w-full gap-2 sm:w-auto">
+            <button type="submit" className="btn btn-primary flex-1 sm:flex-none">
+              Apply
+            </button>
+            {filtered ? (
+              <Link href="/transactions" className="btn flex-1 sm:flex-none">
+                Clear
+              </Link>
+            ) : null}
+          </div>
         </form>
+      </Card>
 
+      <Card className="p-0 sm:p-0">
         {rows.length === 0 ? (
-          <p className="text-sm opacity-60">No matching transactions.</p>
+          <div className="p-5">
+            <Empty>No matching transactions.</Empty>
+          </div>
         ) : (
-          <div className="overflow-x-auto rounded-lg border">
+          <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b text-left text-xs opacity-60">
-                  <th className="px-3 py-2 font-medium">Date</th>
-                  <th className="px-3 py-2 font-medium">Name</th>
-                  <th className="px-3 py-2 font-medium">Account</th>
-                  <th className="px-3 py-2 font-medium">Category</th>
-                  <th className="px-3 py-2 text-right font-medium">Amount</th>
+                <tr className="border-b border-hairline text-left text-xs text-muted">
+                  <th className="px-4 py-3 font-medium">Date</th>
+                  <th className="px-4 py-3 font-medium">Name</th>
+                  <th className="hidden px-4 py-3 font-medium sm:table-cell">Account</th>
+                  <th className="hidden px-4 py-3 font-medium sm:table-cell">Category</th>
+                  <th className="px-4 py-3 text-right font-medium">Amount</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
+              <tbody className="divide-y divide-hairline">
                 {rows.map((tx) => {
                   const isCredit = tx.amount < 0;
                   return (
-                    <tr key={tx.id}>
-                      <td className="px-3 py-2 whitespace-nowrap">{tx.date}</td>
-                      <td className="px-3 py-2">
-                        <div className="flex items-center gap-2">
-                          <span>{tx.merchantName ?? tx.name}</span>
+                    <tr key={tx.id} className="hover:bg-fill">
+                      <td className="px-4 py-2.5 whitespace-nowrap text-muted">{shortDate(tx.date)}</td>
+                      <td className="px-4 py-2.5">
+                        <div className="flex flex-wrap items-center gap-x-2">
+                          <span className="font-medium">{tx.merchantName ?? tx.name}</span>
                           {tx.pending && (
-                            <span className="rounded bg-zinc-200 px-1.5 py-0.5 text-[10px] font-medium uppercase dark:bg-zinc-800">
+                            <span className="rounded-full bg-fill-strong px-2 py-0.5 text-[10px] font-medium uppercase text-muted">
                               Pending
                             </span>
                           )}
                         </div>
+                        {/* mobile: account + category fold under the name */}
+                        <div className="text-xs text-muted sm:hidden">
+                          {formatCategory(tx.category)} · {tx.accountName}
+                        </div>
                       </td>
-                      <td className="px-3 py-2 whitespace-nowrap opacity-60">
+                      <td className="hidden px-4 py-2.5 whitespace-nowrap text-muted sm:table-cell">
                         {tx.accountName}
                         {tx.accountMask ? ` ····${tx.accountMask}` : ""}
                       </td>
-                      <td className="px-3 py-2 whitespace-nowrap opacity-60">
-                        {formatCategory(tx.category)}
+                      <td className="hidden px-4 py-2.5 whitespace-nowrap sm:table-cell">
+                        {tx.category ? (
+                          <Link
+                            href={filterHref({ category: tx.category })}
+                            className="rounded-full bg-fill px-2.5 py-1 text-xs hover:bg-fill-strong"
+                          >
+                            {formatCategory(tx.category)}
+                          </Link>
+                        ) : (
+                          <span className="text-xs text-muted">Uncategorized</span>
+                        )}
                       </td>
                       <td
-                        className={`px-3 py-2 text-right font-medium whitespace-nowrap ${
-                          isCredit ? "text-green-600 dark:text-green-500" : ""
+                        className={`px-4 py-2.5 text-right font-medium whitespace-nowrap tabular-nums ${
+                          isCredit ? "text-positive" : ""
                         }`}
                       >
                         {isCredit
@@ -215,17 +236,9 @@ export default async function TransactionsPage({
             </table>
           </div>
         )}
+      </Card>
 
-        <div className="flex items-center justify-between text-sm">
-          <span className="opacity-60">
-            Page {page} of {totalPages} ({total} transactions)
-          </span>
-          <div className="flex gap-3">
-            {page > 1 && <Link href={pageHref(page - 1)}>Prev</Link>}
-            {page < totalPages && <Link href={pageHref(page + 1)}>Next</Link>}
-          </div>
-        </div>
-      </main>
-    </div>
+      <Pager page={page} totalPages={totalPages} total={total} noun="transactions" href={pageHref} />
+    </Page>
   );
 }

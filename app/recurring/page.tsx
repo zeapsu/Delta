@@ -1,57 +1,34 @@
-import { and, eq, gt, isNull, ne, notLike, or } from "drizzle-orm";
-import { db } from "@/db";
-import { recurringRules, transactions } from "@/db/schema";
 import { formatCents } from "@/lib/format";
-import { cadenceFromGap, detectRecurring, partitionSeries } from "@/lib/recurring";
+import { recurringOverview } from "@/lib/insights";
+import { Card, Empty, Page, Stat } from "@/app/ui";
 import { AddRuleForm, RuleRow, SuggestionCard } from "./recurring-form";
 
 export const dynamic = "force-dynamic";
 
 export default async function RecurringPage() {
-  const rows = await db
-    .select({
-      name: transactions.name,
-      merchantName: transactions.merchantName,
-      amount: transactions.amount,
-      date: transactions.date,
-    })
-    .from(transactions)
-    .where(
-      and(
-        gt(transactions.amount, 0),
-        eq(transactions.pending, false),
-        or(
-          isNull(transactions.category),
-          and(
-            notLike(transactions.category, "TRANSFER%"),
-            ne(transactions.category, "INCOME"),
-          ),
-        ),
-      ),
-    );
-
-  const rules = await db.select().from(recurringRules);
-
-  const { suggestions, nextDates } = partitionSeries(detectRecurring(rows), rules);
-  const confirmed = rules
-    .filter((r) => r.status === "confirmed")
-    .sort((a, b) => b.amount - a.amount);
-
-  const estimatedMonthlyTotal = confirmed.reduce((sum, r) => sum + (r.amount * 30) / r.gapDays, 0);
+  const { suggestions, confirmed, monthlyEstimate } = await recurringOverview();
 
   return (
-    <div className="flex flex-col flex-1 items-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex w-full max-w-3xl flex-col gap-8 px-4 py-8 sm:px-6 sm:py-16">
-        <h1 className="text-2xl font-semibold">Recurring</h1>
+    <Page title="Recurring" subtitle="Bills and subscriptions you've confirmed, plus new ones Delta has spotted.">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 md:gap-5">
+        <Card>
+          <Stat label="Per month (est.)" value={formatCents(monthlyEstimate)} />
+        </Card>
+        <Card>
+          <Stat label="Per year (est.)" value={formatCents(Math.round((monthlyEstimate * 365) / 30))} />
+        </Card>
+        <Card className="col-span-2 md:col-span-1">
+          <Stat
+            label="Tracked"
+            value={confirmed.length}
+            sub={suggestions.length > 0 ? `${suggestions.length} waiting for review` : "Nothing to review"}
+          />
+        </Card>
+      </div>
 
-        <div>
-          <span className="text-sm opacity-60">Estimated monthly total</span>
-          <p className="text-2xl font-semibold">{formatCents(Math.round(estimatedMonthlyTotal))}</p>
-        </div>
-
-        {suggestions.length > 0 && (
-          <section className="flex flex-col gap-3">
-            <h2 className="text-lg font-medium">Suggestions</h2>
+      {suggestions.length > 0 && (
+        <Card title={`Review suggestions · ${suggestions.length}`}>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             {suggestions.map((s) => (
               <SuggestionCard
                 key={`${s.matchKey}-${s.amount}`}
@@ -66,30 +43,31 @@ export default async function RecurringPage() {
                 }}
               />
             ))}
-          </section>
-        )}
+          </div>
+        </Card>
+      )}
 
+      <Card title="Confirmed">
         {confirmed.length === 0 ? (
-          <p className="text-sm opacity-60">
-            No confirmed recurring transactions yet. Confirm a suggestion above or add one manually below.
-          </p>
+          <Empty>
+            No confirmed recurring transactions yet. Confirm a suggestion above or add one
+            manually below.
+          </Empty>
         ) : (
           <div className="overflow-x-auto">
-          <table className="w-full min-w-[540px] text-sm">
-            <thead>
-              <tr className="border-b border-zinc-200 text-left opacity-60 dark:border-zinc-800">
-                <th className="py-2 pr-4 font-normal">Name</th>
-                <th className="py-2 pr-4 font-normal">Amount</th>
-                <th className="py-2 pr-4 font-normal">Cadence</th>
-                <th className="py-2 pr-4 font-normal">Last</th>
-                <th className="py-2 pr-4 font-normal">Next expected</th>
-                <th className="py-2 font-normal" />
-              </tr>
-            </thead>
-            <tbody>
-              {confirmed.map((r) => {
-                const dates = nextDates.get(r.id);
-                return (
+            <table className="w-full min-w-[540px] text-sm">
+              <thead>
+                <tr className="border-b border-hairline text-left text-xs text-muted">
+                  <th className="py-2 pr-4 font-medium">Name</th>
+                  <th className="py-2 pr-4 font-medium">Amount</th>
+                  <th className="py-2 pr-4 font-medium">Cadence</th>
+                  <th className="py-2 pr-4 font-medium">Last</th>
+                  <th className="py-2 pr-4 font-medium">Next expected</th>
+                  <th className="py-2 font-medium" />
+                </tr>
+              </thead>
+              <tbody>
+                {confirmed.map((r) => (
                   <RuleRow
                     key={r.id}
                     rule={{
@@ -99,22 +77,20 @@ export default async function RecurringPage() {
                       gapDays: r.gapDays,
                       anchorDate: r.anchorDate,
                     }}
-                    cadence={cadenceFromGap(r.gapDays)}
-                    lastDate={dates?.lastDate}
-                    nextDate={dates?.nextDate}
+                    cadence={r.cadence}
+                    lastDate={r.lastDate}
+                    nextDate={r.nextDate}
                   />
-                );
-              })}
-            </tbody>
-          </table>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
+      </Card>
 
-        <section className="flex flex-col gap-3">
-          <h2 className="text-lg font-medium">Add manually</h2>
-          <AddRuleForm />
-        </section>
-      </main>
-    </div>
+      <Card title="Add manually">
+        <AddRuleForm />
+      </Card>
+    </Page>
   );
 }

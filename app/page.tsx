@@ -1,19 +1,122 @@
+import Link from "next/link";
+import { desc } from "drizzle-orm";
 import { db } from "@/db";
-import { accounts, items } from "@/db/schema";
-import { DEBT_TYPES, formatCents } from "@/lib/format";
+import { accounts, items, transactions } from "@/db/schema";
+import { DEBT_TYPES, formatCategory, formatCents } from "@/lib/format";
 import { getNetWorthData } from "@/lib/networth-data";
-import type { NetWorthRow } from "@/lib/networth";
+import {
+  budgetProgress,
+  budgetTone,
+  categoryTotals,
+  monthlyCashFlow,
+  recurringOverview,
+  spendThroughDay,
+} from "@/lib/insights";
+import {
+  currentMonth,
+  daysAgoISO,
+  daysUntil,
+  recentMonths,
+  shiftMonth,
+  shortDate,
+  shortMonthLabel,
+} from "@/lib/months";
+import { CashFlowChart, TrendArea } from "./charts";
 import PlaidButtons from "./plaid-buttons";
 import ReconnectButton from "./reconnect-button";
+import { Card, Change, Empty, Meter, Page, Stat } from "./ui";
 
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const [allItems, allAccounts, netWorthHistory] = await Promise.all([
+  const month = currentMonth();
+  const day = new Date().getDate();
+  const months = recentMonths(6);
+
+  const [
+    allItems,
+    allAccounts,
+    netWorth,
+    cashFlow,
+    spentSoFar,
+    spentLastMonthSoFar,
+    categories,
+    budgetRows,
+    recurring,
+    recent,
+  ] = await Promise.all([
     db.select().from(items),
     db.select().from(accounts),
-    getNetWorthData().then((d) => d.total),
+    getNetWorthData(),
+    monthlyCashFlow(months),
+    spendThroughDay(month, day),
+    spendThroughDay(shiftMonth(month, -1), day),
+    categoryTotals(month),
+    budgetProgress(month),
+    recurringOverview(),
+    db
+      .select({
+        id: transactions.id,
+        date: transactions.date,
+        name: transactions.name,
+        merchantName: transactions.merchantName,
+        category: transactions.category,
+        amount: transactions.amount,
+        pending: transactions.pending,
+      })
+      .from(transactions)
+      .orderBy(desc(transactions.date), desc(transactions.id))
+      .limit(6),
   ]);
+
+  if (allItems.length === 0) {
+    return (
+      <Page title="Welcome to Delta" subtitle="Your money, in one calm place.">
+        <Card>
+          <p className="text-sm text-muted">
+            Connect a bank, card, or brokerage through Plaid. Delta syncs balances and
+            transactions every six hours and turns them into spending, budgets,
+            recurring charges, and net worth.
+          </p>
+          <PlaidButtons />
+        </Card>
+      </Page>
+    );
+  }
+
+  const signed = (a: { type: string; currentBalance: number | null }) => {
+    const b = a.currentBalance ?? 0;
+    return DEBT_TYPES.has(a.type) ? -b : b;
+  };
+  const assets = allAccounts.filter((a) => !DEBT_TYPES.has(a.type)).reduce((s, a) => s + signed(a), 0);
+  const liabilities = -allAccounts.filter((a) => DEBT_TYPES.has(a.type)).reduce((s, a) => s + signed(a), 0);
+  const net = assets - liabilities;
+
+  // 30-day change from the snapshot history (closest day on/before 30 days ago).
+  const history = netWorth.total;
+  const cutoff = daysAgoISO(30);
+  const baseline = [...history].reverse().find((r) => r.day <= cutoff) ?? history[0];
+  const trend = history.slice(-90).map((r) => ({ label: shortDate(r.day), value: r.net_worth }));
+
+  const spending = categories.filter((c) => c.total > 0);
+  const topCats = spending.slice(0, 5);
+  const topMax = topCats[0]?.total ?? 0;
+
+  const lastSix = cashFlow.map((m) => ({ label: shortMonthLabel(m.month), income: m.income, spending: m.spending }));
+  const completed = cashFlow.slice(0, -1).filter((m) => m.income > 0 || m.spending > 0);
+  const avgNet =
+    completed.length > 0
+      ? completed.reduce((s, m) => s + m.income - m.spending, 0) / completed.length
+      : null;
+
+  const upcoming = recurring.confirmed
+    .filter((r) => r.nextDate && daysUntil(r.nextDate) >= 0 && daysUntil(r.nextDate) <= 30)
+    .sort((a, b) => (a.nextDate! < b.nextDate! ? -1 : 1));
+  const upcomingTotal = upcoming.reduce((s, r) => s + r.amount, 0);
+
+  const budgetsSorted = [...budgetRows].sort((a, b) => b.pct - a.pct);
+  const overCount = budgetRows.filter((b) => b.pct > 100).length;
+  const nearCount = budgetRows.filter((b) => b.pct >= 80 && b.pct <= 100).length;
 
   const institutions = allItems.map((item) => ({
     id: item.id,
@@ -21,115 +124,241 @@ export default async function Home() {
     accounts: allAccounts.filter((a) => a.itemId === item.id),
   }));
 
-  const netWorth = allAccounts.reduce((sum, a) => {
-    const balance = a.currentBalance ?? 0;
-    return sum + (DEBT_TYPES.has(a.type) ? -balance : balance);
-  }, 0);
+  const greeting = (() => {
+    const h = new Date().getHours();
+    return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
+  })();
 
   return (
-    <div className="flex flex-col flex-1 items-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex w-full max-w-3xl flex-col gap-8 px-4 py-8 sm:px-6 sm:py-16">
-        <h1 className="text-3xl font-semibold">Delta</h1>
-
-        <div className="flex items-end justify-between gap-6">
-          <div>
-            <span className="text-sm opacity-60">Net worth</span>
-            <p className="text-2xl font-semibold">{formatCents(netWorth)}</p>
-          </div>
-          {netWorthHistory.length > 1 ? (
-            <Sparkline rows={netWorthHistory} />
-          ) : null}
-        </div>
-
-        <PlaidButtons />
-
-        {institutions.length === 0 ? (
-          <p className="text-sm opacity-60">No accounts connected.</p>
-        ) : (
-          <div className="flex flex-col gap-6">
-            {institutions.map((inst) => {
-              const subtotal = inst.accounts.reduce((sum, a) => {
-                const balance = a.currentBalance ?? 0;
-                return sum + (DEBT_TYPES.has(a.type) ? -balance : balance);
-              }, 0);
-              return (
-                <div key={inst.id} className="rounded-lg border p-4">
-                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                    <h2 className="text-lg font-medium">{inst.name}</h2>
-                    <span className="flex items-start gap-3">
-                      <ReconnectButton itemId={inst.id} />
-                      <span className="text-sm opacity-60">
-                        {formatCents(subtotal)}
-                      </span>
-                    </span>
-                  </div>
-                  {inst.accounts.length === 0 ? (
-                    <p className="text-sm opacity-60">No accounts.</p>
-                  ) : (
-                    <ul className="flex flex-col divide-y divide-zinc-200 dark:divide-zinc-800">
-                      {inst.accounts.map((account) => (
-                        <li
-                          key={account.id}
-                          className="flex items-center justify-between gap-4 py-2"
-                        >
-                          <div className="flex flex-col">
-                            <span className="text-sm font-medium">
-                              {account.name}
-                              {account.mask ? ` ····${account.mask}` : ""}
-                            </span>
-                            <span className="text-xs opacity-60">
-                              {account.subtype ?? account.type}
-                            </span>
-                          </div>
-                          <span className="text-sm font-medium">
-                            {formatCents(account.currentBalance)}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </main>
-    </div>
-  );
-}
-
-// ponytail: static polyline; swap to NetWorthLine if hover is ever wanted.
-function Sparkline({ rows }: { rows: NetWorthRow[] }) {
-  const width = 120;
-  const height = 36;
-  const values = rows.map((r) => r.net_worth);
-  let min = Math.min(...values);
-  let max = Math.max(...values);
-  if (min === max) {
-    min -= 1;
-    max += 1;
-  }
-  const points = rows
-    .map((r, i) => {
-      const x = 2 + (i / (rows.length - 1)) * (width - 4);
-      const y = 2 + (height - 4) - ((r.net_worth - min) / (max - min)) * (height - 4);
-      return `${x},${y}`;
-    })
-    .join(" ");
-  return (
-    <svg
-      viewBox={`0 0 ${width} ${height}`}
-      className="h-9 w-30 shrink-0 opacity-60"
-      aria-label="Net worth trend"
+    <Page
+      wide
+      title={greeting}
+      subtitle={new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
+      actions={<PlaidButtons />}
     >
-      <polyline
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={2}
-        strokeLinejoin="round"
-        strokeLinecap="round"
-        points={points}
-      />
-    </svg>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-5">
+        <Card
+          className="lg:col-span-2"
+          title="Net worth"
+          action={<Link href="/net-worth" className="text-xs text-muted hover:text-foreground">History →</Link>}
+        >
+          <div className="flex flex-wrap items-end gap-x-10 gap-y-4">
+            <Stat
+              size="lg"
+              label="Today"
+              value={formatCents(net)}
+              sub={
+                history.length > 1 && baseline ? (
+                  <Change current={net} previous={baseline.net_worth} suffix="in 30 days" goodWhenUp />
+                ) : (
+                  "Trend appears after a few daily syncs"
+                )
+              }
+            />
+            <Stat label="Assets" value={formatCents(assets)} />
+            <Stat label="Liabilities" value={formatCents(liabilities)} />
+          </div>
+          {trend.length > 1 ? <TrendArea data={trend} height={200} /> : null}
+        </Card>
+
+        <Card
+          title="This month"
+          action={<Link href="/spending" className="text-xs text-muted hover:text-foreground">Breakdown →</Link>}
+        >
+          <Stat
+            size="lg"
+            label={`Spent through ${shortDate(`${month}-${String(day).padStart(2, "0")}`)}`}
+            value={formatCents(spentSoFar)}
+            sub={
+              <Change
+                current={spentSoFar}
+                previous={spentLastMonthSoFar}
+                suffix="vs same point last month"
+                goodWhenUp={false}
+              />
+            }
+          />
+          {topCats.length === 0 ? (
+            <Empty>No spending yet this month.</Empty>
+          ) : (
+            <ul className="flex flex-col gap-3">
+              {topCats.map((c) => (
+                <li key={c.category ?? "null"} className="flex flex-col gap-1.5">
+                  <div className="flex items-center justify-between gap-3 text-sm">
+                    <span className="truncate">{formatCategory(c.category)}</span>
+                    <span className="tabular-nums text-muted">{formatCents(c.total)}</span>
+                  </div>
+                  <Meter value={c.total} max={topMax} label={`${formatCategory(c.category)} spending`} />
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+
+        <Card
+          className="lg:col-span-2"
+          title="Cash flow"
+          action={
+            avgNet !== null ? (
+              <span className="text-xs text-muted">
+                Avg net {formatCents(Math.round(avgNet))}/mo
+              </span>
+            ) : null
+          }
+        >
+          <CashFlowChart data={lastSix} />
+        </Card>
+
+        <Card
+          title="Budgets"
+          action={<Link href="/budgets" className="text-xs text-muted hover:text-foreground">Manage →</Link>}
+        >
+          {budgetRows.length === 0 ? (
+            <Empty href="/budgets" cta="Set a budget">
+              Budgets turn spending into a pace you can keep.
+            </Empty>
+          ) : (
+            <>
+              <p className="text-sm">
+                {overCount > 0
+                  ? `${overCount} over budget`
+                  : nearCount > 0
+                    ? `${nearCount} close to the limit`
+                    : "Everything on track"}
+                <span className="text-muted"> · {budgetRows.length} budgets</span>
+              </p>
+              <ul className="flex flex-col gap-3">
+                {budgetsSorted.slice(0, 4).map((b) => (
+                  <li key={b.category} className="flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between gap-3 text-sm">
+                      <span className="truncate">{formatCategory(b.category)}</span>
+                      <span className="tabular-nums text-muted">
+                        {Math.round(b.pct)}%{b.pct > 100 ? " · over" : ""}
+                      </span>
+                    </div>
+                    <Meter
+                      value={b.spent}
+                      max={b.monthlyAmount}
+                      tone={budgetTone(b.pct)}
+                      label={`${formatCategory(b.category)} budget used`}
+                    />
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </Card>
+
+        <Card
+          title="Upcoming · 30 days"
+          action={<Link href="/recurring" className="text-xs text-muted hover:text-foreground">Recurring →</Link>}
+        >
+          {upcoming.length === 0 ? (
+            <Empty href="/recurring" cta={recurring.suggestions.length > 0 ? `Review ${recurring.suggestions.length} suggestions` : "Add recurring"}>
+              No confirmed bills or subscriptions due soon.
+            </Empty>
+          ) : (
+            <>
+              <Stat label="Due next 30 days" value={formatCents(upcomingTotal)} />
+              <ul className="flex flex-col divide-y divide-hairline">
+                {upcoming.slice(0, 5).map((r) => {
+                  const d = daysUntil(r.nextDate!);
+                  return (
+                    <li key={r.id} className="flex items-center gap-3 py-2 text-sm">
+                      <span className="flex w-11 shrink-0 flex-col items-center rounded-xl bg-fill py-1 text-center leading-tight">
+                        <span className="text-[10px] uppercase text-muted">
+                          {shortMonthLabel(r.nextDate!.slice(0, 7))}
+                        </span>
+                        <span className="font-semibold">{Number(r.nextDate!.slice(8))}</span>
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate">{r.name}</span>
+                        <span className="text-xs text-muted">
+                          {d === 0 ? "Today" : d === 1 ? "Tomorrow" : `In ${d} days`} · {r.cadence}
+                        </span>
+                      </span>
+                      <span className="tabular-nums">{formatCents(r.amount)}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </>
+          )}
+        </Card>
+
+        <Card
+          className="lg:col-span-2"
+          title="Recent activity"
+          action={<Link href="/transactions" className="text-xs text-muted hover:text-foreground">All transactions →</Link>}
+        >
+          {recent.length === 0 ? (
+            <Empty>No transactions synced yet.</Empty>
+          ) : (
+            <ul className="flex flex-col divide-y divide-hairline">
+              {recent.map((tx) => (
+                <li key={tx.id} className="flex items-center gap-3 py-2.5 text-sm">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-fill text-xs font-semibold uppercase">
+                    {(tx.merchantName ?? tx.name).slice(0, 1)}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-medium">{tx.merchantName ?? tx.name}</span>
+                    <span className="text-xs text-muted">
+                      {shortDate(tx.date)} · {formatCategory(tx.category)}
+                      {tx.pending ? " · Pending" : ""}
+                    </span>
+                  </span>
+                  <span className={`tabular-nums font-medium ${tx.amount < 0 ? "text-positive" : ""}`}>
+                    {tx.amount < 0 ? `+${formatCents(-tx.amount)}` : formatCents(tx.amount)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+      </div>
+
+      <h2 className="mt-2 text-lg font-semibold tracking-tight">Accounts</h2>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 lg:gap-5">
+        {institutions.map((inst) => {
+          const subtotal = inst.accounts.reduce((sum, a) => sum + signed(a), 0);
+          return (
+            <Card
+              key={inst.id}
+              title={inst.name}
+              action={<ReconnectButton itemId={inst.id} />}
+            >
+              <span className="-mt-2 text-xl font-semibold tabular-nums">{formatCents(subtotal)}</span>
+              {inst.accounts.length === 0 ? (
+                <Empty>No accounts.</Empty>
+              ) : (
+                <ul className="flex flex-col divide-y divide-hairline">
+                  {inst.accounts.map((account) => (
+                    <li key={account.id} className="flex items-center justify-between gap-4 py-2">
+                      <Link
+                        href={`/transactions?account=${account.id}`}
+                        className="flex min-w-0 flex-col hover:opacity-80"
+                      >
+                        <span className="truncate text-sm font-medium">
+                          {account.name}
+                          {account.mask ? ` ····${account.mask}` : ""}
+                        </span>
+                        <span className="text-xs capitalize text-muted">
+                          {account.subtype ?? account.type}
+                        </span>
+                      </Link>
+                      <span className="text-sm font-medium tabular-nums">
+                        {DEBT_TYPES.has(account.type) && account.currentBalance
+                          ? formatCents(-account.currentBalance)
+                          : formatCents(account.currentBalance)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Card>
+          );
+        })}
+      </div>
+    </Page>
   );
 }
