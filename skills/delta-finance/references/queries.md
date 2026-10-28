@@ -22,7 +22,7 @@ FROM transactions
 WHERE date LIKE :month || '-%'
   AND amount > 0
   AND pending = 0
-  AND (category IS NULL OR (category NOT LIKE 'TRANSFER%' AND category != 'INCOME'))
+  AND (category IS NULL OR (category NOT LIKE 'TRANSFER%' AND category NOT IN ('INCOME', 'LOAN_DISBURSEMENTS')))
   AND (category_detailed IS NULL OR category_detailed != 'LOAN_PAYMENTS_CREDIT_CARD_PAYMENT')
 GROUP BY 1
 HAVING SUM(amount) > 0
@@ -37,7 +37,7 @@ SELECT substr(date, 1, 7) AS month,
        printf('%.2f', SUM(amount) / 100.0) AS spent_usd
 FROM transactions
 WHERE amount > 0
-  AND (category IS NULL OR (category NOT LIKE 'TRANSFER%' AND category != 'INCOME'))
+  AND (category IS NULL OR (category NOT LIKE 'TRANSFER%' AND category NOT IN ('INCOME', 'LOAN_DISBURSEMENTS')))
   AND (category_detailed IS NULL OR category_detailed != 'LOAN_PAYMENTS_CREDIT_CARD_PAYMENT')
 GROUP BY 1
 ORDER BY 1 DESC
@@ -119,7 +119,7 @@ SELECT LOWER(COALESCE(merchant_name, name)) AS merchant,
        ROUND((julianday(MAX(date)) - julianday(MIN(date))) / (COUNT(*) - 1), 1) AS avg_gap_days
 FROM transactions
 WHERE amount > 0 AND pending = 0
-  AND (category IS NULL OR (category NOT LIKE 'TRANSFER%' AND category != 'INCOME'))
+  AND (category IS NULL OR (category NOT LIKE 'TRANSFER%' AND category NOT IN ('INCOME', 'LOAN_DISBURSEMENTS')))
   AND (category_detailed IS NULL OR category_detailed != 'LOAN_PAYMENTS_CREDIT_CARD_PAYMENT')
 GROUP BY 1
 HAVING COUNT(*) >= 3
