@@ -10,7 +10,7 @@ export async function GET() {
     conventions: {
       money: "integer cents",
       transactionSign: "positive = money out, negative = money in",
-      spend: "excludes TRANSFER% and INCOME categories and credit card payments (categoryDetailed LOAN_PAYMENTS_CREDIT_CARD_PAYMENT); includes uncategorized and other loan payments",
+      spend: "excludes TRANSFER%, INCOME and LOAN_DISBURSEMENTS categories and credit card payments (categoryDetailed LOAN_PAYMENTS_CREDIT_CARD_PAYMENT); includes uncategorized and other loan payments",
       debt: "credit/loan balances are positive amounts owed; net worth negates them",
     },
     mcp: {

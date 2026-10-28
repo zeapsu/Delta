@@ -4,16 +4,22 @@ import { db } from "@/db";
 import { budgets, recurringRules, transactions } from "@/db/schema";
 import { cadenceFromGap, detectRecurring, partitionSeries } from "@/lib/recurring";
 
-// Spend = everything except moving money between own accounts, income and
-// credit card payments (same rule as the spending/recurring views). A card
-// payment settles purchases already counted on the card, so counting it too
-// would double the spend; real loan payments (student, auto, mortgage) stay
-// in. Refunds net against spend.
+// Spend = everything except moving money between own accounts, income,
+// loan disbursements and credit card payments (same rule as the
+// spending/recurring views). A card payment settles purchases already
+// counted on the card, so counting it too would double the spend; the card
+// side of it sometimes arrives as LOAN_DISBURSEMENTS (e.g. Chase "Payment
+// Thank You"), which would otherwise subtract from spend. Real loan payments
+// (student, auto, mortgage) stay in. Refunds net against spend.
 export const CARD_PAYMENT = "LOAN_PAYMENTS_CREDIT_CARD_PAYMENT";
 export const isSpend = and(
   or(
     isNull(transactions.category),
-    and(notLike(transactions.category, "TRANSFER%"), ne(transactions.category, "INCOME")),
+    and(
+      notLike(transactions.category, "TRANSFER%"),
+      ne(transactions.category, "INCOME"),
+      ne(transactions.category, "LOAN_DISBURSEMENTS"),
+    ),
   ),
   or(isNull(transactions.categoryDetailed), ne(transactions.categoryDetailed, CARD_PAYMENT)),
 )!;
