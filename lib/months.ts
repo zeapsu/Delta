@@ -59,3 +59,13 @@ export function daysUntil(iso: string, from = todayISO()): number {
 export function daysAgoISO(n: number): string {
   return new Date(Date.now() - n * 86_400_000).toISOString().slice(0, 10);
 }
+
+// "5m ago" / "3h ago" / "2d ago" for a past timestamp.
+export function timeAgo(d: Date): string {
+  const mins = Math.max(0, Math.round((Date.now() - d.getTime()) / 60_000));
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.round(mins / 60);
+  if (hours < 48) return `${hours}h ago`;
+  return `${Math.round(hours / 24)}d ago`;
+}

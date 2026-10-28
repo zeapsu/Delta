@@ -11,6 +11,8 @@ SQLite at `${DATABASE_PATH:-./delta.db}`. Source of truth: `db/schema.ts`. All m
 | access_token | text | **FORBIDDEN — Plaid API secret. Never select this column, never `SELECT *` from this table.** |
 | institution_name | text nullable | |
 | sync_cursor | text nullable | null = never synced |
+| last_error_code | text nullable | Plaid error from the latest sync; null = OK. `ITEM_LOGIN_REQUIRED` & co. mean the user must Reconnect in the app |
+| last_synced_at | integer ms nullable | last successful sync of this connection |
 | created_at | integer ms | |
 
 ## accounts
