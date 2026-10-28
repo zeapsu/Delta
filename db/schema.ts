@@ -151,3 +151,21 @@ export const recurringRules = sqliteTable("recurring_rules", {
     .notNull()
     .default(sql`(unixepoch('now', 'subsec') * 1000)`),
 });
+
+// Per-client API tokens for /api/v1 (agents, the MCP server). Only the
+// sha256 of the token is stored; the plaintext is shown once at creation.
+// scope "read" = GET only; "write" = GET plus the validated write routes.
+// Revoked tokens keep their row (revokedAt set) so the CLI can list them.
+export const apiTokens = sqliteTable("api_tokens", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
+  tokenHash: text("token_hash").notNull().unique(),
+  // First characters of the token, for telling tokens apart in listings.
+  prefix: text("prefix").notNull(),
+  scope: text("scope").notNull(), // "read" | "write"
+  lastUsedAt: integer("last_used_at", { mode: "timestamp_ms" }),
+  revokedAt: integer("revoked_at", { mode: "timestamp_ms" }),
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
+    .notNull()
+    .default(sql`(unixepoch('now', 'subsec') * 1000)`),
+});

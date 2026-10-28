@@ -57,6 +57,13 @@
       "when": 1793171465725,
       "tag": "0007_living_nocturne",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1793173410366,
+      "tag": "0008_tranquil_the_hunter",
+      "breakpoints": true
     }
   ]
 }

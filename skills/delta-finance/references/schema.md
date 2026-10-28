@@ -106,3 +106,18 @@ Writes to this table go through `POST/DELETE /api/budgets` only.
 | updated_at | integer ms | |
 
 The app's detection heuristic only *suggests*; these rows are the truth. Writes go through `POST/PUT/DELETE /api/recurring` only.
+
+## api_tokens — per-client API tokens
+
+Managed by `npm run token`; only a sha256 of each token is stored. Agents have no reason to read this table.
+
+| column | type | notes |
+|---|---|---|
+| id | integer PK | |
+| name | text | client label, e.g. `felix` |
+| token_hash | text | sha256 hex of the token |
+| prefix | text | first 8 chars, for listings |
+| scope | text | `read` or `write` |
+| last_used_at | integer (ms) | touched at most once a minute |
+| revoked_at | integer (ms) | non-null = revoked |
+| created_at | integer (ms) | |
