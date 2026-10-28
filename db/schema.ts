@@ -147,29 +147,3 @@ export const recurringRules = sqliteTable("recurring_rules", {
     .notNull()
     .default(sql`(unixepoch('now', 'subsec') * 1000)`),
 });
-
-// Legacy chat transcripts (Hermes era). The chat tab is gone and nothing
-// writes these any more; the tables stay so existing history isn't dropped.
-export const conversations = sqliteTable("conversations", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  name: text("name").notNull(),
-  createdAt: integer("created_at", { mode: "timestamp_ms" })
-    .notNull()
-    .default(sql`(unixepoch('now', 'subsec') * 1000)`),
-});
-
-export const messages = sqliteTable(
-  "messages",
-  {
-    id: integer("id").primaryKey({ autoIncrement: true }),
-    conversationId: integer("conversation_id")
-      .notNull()
-      .references(() => conversations.id, { onDelete: "cascade" }),
-    role: text("role").notNull(), // "user" | "assistant"
-    text: text("text").notNull(),
-    createdAt: integer("created_at", { mode: "timestamp_ms" })
-      .notNull()
-      .default(sql`(unixepoch('now', 'subsec') * 1000)`),
-  },
-  (table) => [index("messages_conversation_id_idx").on(table.conversationId)],
-);
