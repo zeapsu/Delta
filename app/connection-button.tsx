@@ -138,7 +138,6 @@ export default function ConnectionButton({
           title={`${institution} needs you to log in again`}
           className="btn btn-sm border-transparent bg-red-600 text-white hover:bg-red-600 hover:opacity-90"
         >
-          <span aria-hidden>!</span>
           {working ? "Reconnecting…" : "Reconnect"}
         </button>
       ) : (
