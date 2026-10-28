@@ -44,6 +44,7 @@ SQLite at `${DATABASE_PATH:-./delta.db}`. Source of truth: `db/schema.ts`. All m
 | name | text | raw descriptor, e.g. `Uber 072515 SF**POOL**` |
 | merchant_name | text nullable | cleaner, prefer `COALESCE(merchant_name, name)` |
 | category | text nullable | Plaid primary category, e.g. `FOOD_AND_DRINK`, `TRANSFER_IN`, `INCOME` |
+| category_detailed | text nullable | Plaid detailed category, e.g. `LOAN_PAYMENTS_CREDIT_CARD_PAYMENT` (not spend), `LOAN_PAYMENTS_CAR_PAYMENT` |
 | pending | integer 0/1 | pending rows may change or disappear |
 | created_at | integer ms | |
 

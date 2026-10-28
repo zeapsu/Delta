@@ -56,6 +56,7 @@ export const GET = readRoute(async (sp) => {
         name: transactions.name,
         merchantName: transactions.merchantName,
         category: transactions.category,
+        categoryDetailed: transactions.categoryDetailed,
         amount: transactions.amount,
         pending: transactions.pending,
         accountId: transactions.accountId,

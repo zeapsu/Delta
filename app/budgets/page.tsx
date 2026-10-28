@@ -1,8 +1,8 @@
-import { and, ne, notLike, sql } from "drizzle-orm";
+import { and, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { transactions } from "@/db/schema";
 import { formatCategory, formatCents } from "@/lib/format";
-import { budgetProgress, budgetTone } from "@/lib/insights";
+import { budgetProgress, budgetTone, isSpend } from "@/lib/insights";
 import { currentMonth, recentMonths, shortMonthLabel } from "@/lib/months";
 import { BudgetForm, DeleteBudgetButton } from "./budget-form";
 import { BudgetTrendChart, type BudgetTrendPoint } from "@/app/charts";
@@ -21,12 +21,7 @@ export default async function BudgetsPage() {
     db
       .selectDistinct({ category: transactions.category })
       .from(transactions)
-      .where(
-        and(
-          notLike(transactions.category, "TRANSFER%"),
-          ne(transactions.category, "INCOME"),
-        ),
-      ),
+      .where(isSpend),
     // Month-bucketed spend for the trend charts (same sum convention as the
     // progress bars: all transactions, pending included).
     db
@@ -36,7 +31,7 @@ export default async function BudgetsPage() {
         total: sql<number>`sum(${transactions.amount})`,
       })
       .from(transactions)
-      .where(sql`substr(${transactions.date}, 1, 7) >= ${months[0]}`)
+      .where(and(sql`substr(${transactions.date}, 1, 7) >= ${months[0]}`, isSpend))
       .groupBy(transactions.category, sql`substr(${transactions.date}, 1, 7)`),
   ]);
 

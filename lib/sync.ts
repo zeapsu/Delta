@@ -127,6 +127,7 @@ function applySync(
           name: t.name,
           merchantName: t.merchant_name ?? null,
           category: t.personal_finance_category?.primary ?? null,
+          categoryDetailed: t.personal_finance_category?.detailed ?? null,
           pending: t.pending,
         })
         .onConflictDoUpdate({
@@ -138,6 +139,7 @@ function applySync(
             name: t.name,
             merchantName: t.merchant_name ?? null,
             category: t.personal_finance_category?.primary ?? null,
+            categoryDetailed: t.personal_finance_category?.detailed ?? null,
             pending: t.pending,
           },
         })

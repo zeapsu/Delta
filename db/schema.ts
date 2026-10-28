@@ -60,6 +60,9 @@ export const transactions = sqliteTable(
     name: text("name").notNull(),
     merchantName: text("merchant_name"),
     category: text("category"),
+    // Plaid detailed category, e.g. LOAN_PAYMENTS_CREDIT_CARD_PAYMENT — needed
+    // to tell card payments (not spend) from real loan payments (spend).
+    categoryDetailed: text("category_detailed"),
     pending: integer("pending", { mode: "boolean" }).notNull().default(false),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
