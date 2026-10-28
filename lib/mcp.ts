@@ -25,7 +25,7 @@ export const INSTRUCTIONS = `Delta is the user's personal finance app (bank data
 
 Conventions:
 - Money is in dollars (2 decimals). Transaction and investment amounts use the Plaid sign: positive = money out (spend), negative = money in (income, refunds).
-- "Spend" excludes transfers between the user's own accounts (TRANSFER_IN/TRANSFER_OUT) and INCOME, and includes uncategorized rows. Totals from spending_by_category, cash_flow and get_budgets are computed by Delta and match the dashboard: use them instead of adding up transactions yourself.
+- "Spend" excludes transfers between the user's own accounts (TRANSFER_IN/TRANSFER_OUT), INCOME and credit card payments (categoryDetailed LOAN_PAYMENTS_CREDIT_CARD_PAYMENT: the card purchases are already counted), and includes uncategorized rows. Other LOAN_PAYMENTS (student, auto, mortgage) count as spend. Totals from spending_by_category, cash_flow and get_budgets are computed by Delta and match the dashboard: use them instead of adding up transactions yourself.
 - Credit card and loan balances are positive amounts owed; net worth subtracts them.
 - Pending transactions can still change or disappear.
 - Categories are Plaid's automatic labels (e.g. FOOD_AND_DRINK) and can be wrong; list the transactions behind a surprising number before drawing conclusions.

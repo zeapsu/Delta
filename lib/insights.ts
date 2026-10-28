@@ -4,11 +4,18 @@ import { db } from "@/db";
 import { budgets, recurringRules, transactions } from "@/db/schema";
 import { cadenceFromGap, detectRecurring, partitionSeries } from "@/lib/recurring";
 
-// Spend = everything except moving money between own accounts and income
-// (same rule as the spending/recurring views). Refunds net against spend.
-export const isSpend = or(
-  isNull(transactions.category),
-  and(notLike(transactions.category, "TRANSFER%"), ne(transactions.category, "INCOME")),
+// Spend = everything except moving money between own accounts, income and
+// credit card payments (same rule as the spending/recurring views). A card
+// payment settles purchases already counted on the card, so counting it too
+// would double the spend; real loan payments (student, auto, mortgage) stay
+// in. Refunds net against spend.
+export const CARD_PAYMENT = "LOAN_PAYMENTS_CREDIT_CARD_PAYMENT";
+export const isSpend = and(
+  or(
+    isNull(transactions.category),
+    and(notLike(transactions.category, "TRANSFER%"), ne(transactions.category, "INCOME")),
+  ),
+  or(isNull(transactions.categoryDetailed), ne(transactions.categoryDetailed, CARD_PAYMENT)),
 )!;
 
 const month = sql<string>`substr(${transactions.date}, 1, 7)`;
@@ -126,7 +133,7 @@ export async function budgetProgress(m: string): Promise<BudgetProgress[]> {
     db
       .select({ category: transactions.category, total: sql<number>`sum(${transactions.amount})` })
       .from(transactions)
-      .where(like(transactions.date, `${m}-%`))
+      .where(and(like(transactions.date, `${m}-%`), isSpend))
       .groupBy(transactions.category),
   ]);
   const spent = new Map(spendRows.map((r) => [r.category, r.total]));

@@ -66,7 +66,7 @@ Table and column reference: [references/schema.md](references/schema.md). Canoni
 
 - All money is **integer cents**. Divide by 100 for display.
 - Transaction (and investment) `amount` uses the Plaid sign convention: **positive = money out** (spend), negative = money in (income, refunds).
-- "Spend" **excludes** `category LIKE 'TRANSFER%'` and `category = 'INCOME'` (moving money between own accounts isn't spend) but **includes** rows with `category IS NULL`.
+- "Spend" **excludes** `category LIKE 'TRANSFER%'`, `category = 'INCOME'` (moving money between own accounts isn't spend) and `category_detailed = 'LOAN_PAYMENTS_CREDIT_CARD_PAYMENT'` (a card payment settles purchases already counted on the card) but **includes** rows with `category IS NULL` and other `LOAN_PAYMENTS` (student, auto, mortgage).
 - `credit` and `loan` account balances are **positive amounts owed** — negate them when computing net worth.
 - `transactions.date` is ISO text `yyyy-mm-dd`; slice months with `date LIKE 'YYYY-MM-%'`. Timestamps elsewhere are milliseconds since epoch.
 - `pending = 1` transactions may still change or disappear; exclude them when reconciling against statements.
