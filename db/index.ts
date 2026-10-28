@@ -17,7 +17,13 @@ function createDb() {
   sqlite.pragma("foreign_keys = ON");
 
   const db = drizzle(sqlite, { schema });
-  migrate(db, { migrationsFolder: "./drizzle" });
+  // `next build` imports route modules in parallel workers: migrating there
+  // races (two workers apply the same migration, one fails) and touches the
+  // live DB before the restart. Pages are force-dynamic, so the build never
+  // queries — the server migrates on its first DB access instead.
+  if (process.env.NEXT_PHASE !== "phase-production-build") {
+    migrate(db, { migrationsFolder: "./drizzle" });
+  }
 
   globalForDb.__deltaSqlite = sqlite;
   globalForDb.__deltaDb = db;
