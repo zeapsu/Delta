@@ -12,7 +12,6 @@ const LINKS = [
   { href: "/recurring", label: "Recurring" },
   { href: "/net-worth", label: "Net worth" },
   { href: "/investments", label: "Investments" },
-  { href: "/chat", label: "Chat" },
 ];
 
 // Floating glass tab bar. The header itself is a "scroll edge" fade so content
@@ -40,7 +39,6 @@ export function Nav() {
     href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(href + "/");
 
   return (
-    // h-14 is explicit because the chat sidebar's sticky top-14 / height calc depends on it
     <header className="sticky top-0 z-20 flex h-14 items-center gap-2 bg-linear-to-b from-background via-background/70 to-transparent px-2 sm:px-4">
       <Link
         href="/"

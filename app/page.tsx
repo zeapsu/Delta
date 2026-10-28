@@ -74,7 +74,7 @@ export default async function Home() {
 
   if (allItems.length === 0) {
     return (
-      <Page title="Welcome to Delta" subtitle="Your money, in one calm place.">
+      <Page title="Welcome to Delta" subtitle="Your money, in one calm place." ask={false}>
         <Card>
           <p className="text-sm text-muted">
             Connect a bank, card, or brokerage through Plaid. Delta syncs balances and

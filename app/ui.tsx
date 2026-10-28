@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AskFelix } from "./ask-felix";
 
 // Shared layout primitives for the server pages. Styling lives in the
 // `.surface` / `.glass` / `.btn` / `.field` classes in globals.css.
@@ -8,12 +9,14 @@ export function Page({
   subtitle,
   actions,
   wide,
+  ask = true,
   children,
 }: {
   title: string;
   subtitle?: React.ReactNode;
   actions?: React.ReactNode;
   wide?: boolean;
+  ask?: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -27,30 +30,42 @@ export function Page({
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h1>
           {subtitle ? <p className="mt-1 text-sm text-muted">{subtitle}</p> : null}
         </div>
-        {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
+        {actions || ask ? (
+          <div className="flex flex-wrap items-center gap-2">
+            {actions}
+            {ask ? <AskFelix scope="page" /> : null}
+          </div>
+        ) : null}
       </div>
       {children}
     </main>
   );
 }
 
+// Titled cards get an "Ask" button that copies the card for Felix; pass
+// ask={false} on cards that are forms rather than data.
 export function Card({
   title,
   action,
+  ask = true,
   className = "",
   children,
 }: {
   title?: React.ReactNode;
   action?: React.ReactNode;
+  ask?: boolean;
   className?: string;
   children: React.ReactNode;
 }) {
   return (
     <section className={`surface flex min-w-0 flex-col gap-4 p-4 sm:p-5 ${className}`}>
       {title || action ? (
-        <div className="flex items-center justify-between gap-3">
+        <div data-felix-skip="" className="flex items-center justify-between gap-3">
           {title ? <h2 className="text-sm font-semibold">{title}</h2> : <span />}
-          {action}
+          <div className="flex min-w-0 items-center gap-1">
+            {action}
+            {title && ask ? <AskFelix /> : null}
+          </div>
         </div>
       ) : null}
       {children}
