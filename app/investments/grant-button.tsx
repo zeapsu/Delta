@@ -4,17 +4,15 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { usePlaidLink } from "react-plaid-link";
 
-// Re-authenticates an existing item through Plaid Link update mode (#62). The
-// token is fetched on click (update-mode tokens are per item and short-lived),
-// then Link opens as soon as it is ready. On success the item keeps its
-// access token, so we only need to sync and refresh.
-export default function ReconnectButton({ itemId }: { itemId: number }) {
+// Opens Link update mode asking for investments consent on an existing item
+// (same flow as reconnect-button.tsx, plus `investments: true`). The first
+// investments call after consent often answers PRODUCT_NOT_READY, which the
+// sync skips, so activity may only show up on the following sync.
+export default function GrantInvestmentsButton({ itemId }: { itemId: number }) {
   const router = useRouter();
   const [token, setToken] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  // Clearing the token after success force-exits Link, which may fire onExit
-  // while the sync is still running; this keeps busy set until it finishes.
   const succeeded = useRef(false);
 
   const { open, ready, error: linkError } = usePlaidLink({
@@ -23,15 +21,15 @@ export default function ReconnectButton({ itemId }: { itemId: number }) {
       succeeded.current = true;
       setToken(null);
       fetch("/api/plaid/sync", { method: "POST" })
-        // 502 = some items failed; the body names them (see plaid-buttons.tsx).
         .then((res) => (res.ok || res.status === 502 ? res.json() : Promise.reject()))
-        .then((data) => {
-          const failed = (data.errors ?? []).find(
-            (e: { itemId: number }) => e.itemId === itemId,
-          );
-          setMessage(failed ? `Still failing (${failed.error_code}).` : null);
-        })
-        .catch(() => setMessage("Reconnected, but the sync failed."))
+        .then((data) =>
+          setMessage(
+            data.investments > 0
+              ? null
+              : "Access granted. Plaid can take a few minutes to prepare the data; sync again shortly.",
+          ),
+        )
+        .catch(() => setMessage("Access granted, but the sync failed. Try syncing again."))
         .finally(() => {
           succeeded.current = false;
           setBusy(false);
@@ -45,14 +43,10 @@ export default function ReconnectButton({ itemId }: { itemId: number }) {
     },
   });
 
-  // When the token changes, the hook first hands back the previous (destroyed)
-  // handler, whose open() is a no-op; the next render brings the new one.
   useEffect(() => {
     if (token && ready) open();
   }, [token, ready, open]);
 
-  // The Link script failed to load (offline, blocked): Link will never become
-  // ready, so don't leave the button stuck on "Reconnecting…".
   const loadFailed = Boolean(token && linkError);
   const working = busy && !loadFailed;
   const shown = loadFailed ? "Could not load Plaid Link." : message;
@@ -63,7 +57,7 @@ export default function ReconnectButton({ itemId }: { itemId: number }) {
     fetch("/api/plaid/link-token", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ item_id: itemId }),
+      body: JSON.stringify({ item_id: itemId, investments: true }),
     })
       .then((res) => {
         if (!res.ok) throw new Error("link token failed");
@@ -72,21 +66,16 @@ export default function ReconnectButton({ itemId }: { itemId: number }) {
       .then((data) => setToken(data.link_token))
       .catch(() => {
         setBusy(false);
-        setMessage("Could not start reconnect.");
+        setMessage("Could not start Plaid Link.");
       });
   };
 
   return (
-    <span className="flex flex-col items-end gap-1">
-      <button
-        type="button"
-        onClick={start}
-        disabled={working}
-        className="btn btn-sm"
-      >
-        {working ? "Reconnecting…" : "Reconnect"}
+    <span className="flex flex-col items-start gap-1">
+      <button type="button" onClick={start} disabled={working} className="btn btn-sm btn-primary">
+        {working ? "Opening Plaid…" : "Grant investments access"}
       </button>
-      {shown && <span className="text-xs text-negative">{shown}</span>}
+      {shown && <span className="text-xs text-muted">{shown}</span>}
     </span>
   );
 }

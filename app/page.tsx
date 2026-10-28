@@ -16,6 +16,7 @@ import {
 import {
   currentMonth,
   daysAgoISO,
+  timeAgo,
   daysUntil,
   recentMonths,
   shiftMonth,
@@ -24,7 +25,8 @@ import {
 } from "@/lib/months";
 import { CashFlowChart, TrendArea } from "./charts";
 import PlaidButtons from "./plaid-buttons";
-import ReconnectButton from "./reconnect-button";
+import ConnectionButton from "./connection-button";
+import { REAUTH_ERROR_CODES } from "@/lib/plaid-errors";
 import { Card, Change, Empty, Meter, Page, Stat, Tint } from "./ui";
 
 export const dynamic = "force-dynamic";
@@ -127,7 +129,14 @@ export default async function Home() {
     id: item.id,
     name: item.institutionName ?? "Unknown institution",
     accounts: allAccounts.filter((a) => a.itemId === item.id),
+    needsReauth: item.lastErrorCode !== null && REAUTH_ERROR_CODES.has(item.lastErrorCode),
+    transientError:
+      item.lastErrorCode !== null && !REAUTH_ERROR_CODES.has(item.lastErrorCode)
+        ? item.lastErrorCode
+        : null,
+    syncedLabel: item.lastSyncedAt ? timeAgo(item.lastSyncedAt) : null,
   }));
+  const broken = institutions.filter((i) => i.needsReauth);
 
   const greeting = (() => {
     const h = new Date().getHours();
@@ -141,6 +150,23 @@ export default async function Home() {
       subtitle={new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
       actions={<PlaidButtons />}
     >
+      {broken.length > 0 ? (
+        <a
+          href="#accounts"
+          className="flex items-center gap-3 rounded-2xl border border-red-600/30 bg-red-600/10 px-4 py-3 text-sm"
+        >
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-red-600 text-xs font-bold text-white">
+            !
+          </span>
+          <span>
+            <span className="font-medium">
+              {broken.map((b) => b.name).join(", ")} {broken.length === 1 ? "is" : "are"} disconnected.
+            </span>{" "}
+            <span className="text-muted">Balances there are stale until you reconnect.</span>
+          </span>
+          <span className="ml-auto shrink-0 font-medium text-negative">Fix →</span>
+        </a>
+      ) : null}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-5">
         <Card
           className="lg:col-span-2"
@@ -333,7 +359,7 @@ export default async function Home() {
         </Card>
       </div>
 
-      <h2 className="mt-2 text-lg font-semibold tracking-tight">Accounts</h2>
+      <h2 id="accounts" className="mt-2 scroll-mt-16 text-lg font-semibold tracking-tight">Accounts</h2>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 lg:gap-5">
         {institutions.map((inst) => {
           const subtotal = inst.accounts.reduce((sum, a) => sum + signed(a), 0);
@@ -341,9 +367,28 @@ export default async function Home() {
             <Card
               key={inst.id}
               title={inst.name}
-              action={<ReconnectButton itemId={inst.id} />}
+              action={
+                <ConnectionButton
+                  itemId={inst.id}
+                  institution={inst.name}
+                  needsReauth={inst.needsReauth}
+                  transientError={inst.transientError}
+                  syncedLabel={inst.syncedLabel}
+                />
+              }
             >
-              <span className="-mt-2 text-xl font-semibold tabular-nums">{formatCents(subtotal)}</span>
+              <div className="-mt-2 flex flex-col gap-0.5">
+                <span className="text-xl font-semibold tabular-nums">{formatCents(subtotal)}</span>
+                <span className={`text-xs ${inst.needsReauth ? "text-negative" : "text-muted"}`}>
+                  {inst.needsReauth
+                    ? "Disconnected · log in again to resume syncing"
+                    : inst.transientError
+                      ? `Last sync failed (${inst.transientError}) · will retry`
+                      : inst.syncedLabel
+                        ? `Synced ${inst.syncedLabel}`
+                        : "Not synced yet"}
+                </span>
+              </div>
               {inst.accounts.length === 0 ? (
                 <Empty>No accounts.</Empty>
               ) : (

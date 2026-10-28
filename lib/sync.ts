@@ -352,15 +352,26 @@ export async function syncItem(item: Item): Promise<SyncCounts> {
 let inFlight: Promise<SyncResult> | null = null;
 
 export function syncAll(): Promise<SyncResult> {
-  inFlight ??= runSyncAll().finally(() => {
+  inFlight ??= runSync(db.select().from(items).all()).finally(() => {
+    inFlight = null;
+  });
+  return inFlight;
+}
+
+// One connection (the per-institution refresh / post-Reconnect sync). Joins a
+// running sync rather than overlapping it — a full run covers this item too.
+export async function syncOne(itemId: number): Promise<SyncResult | null> {
+  if (inFlight) return inFlight;
+  const item = db.select().from(items).where(eq(items.id, itemId)).get();
+  if (!item) return null;
+  inFlight = runSync([item]).finally(() => {
     inFlight = null;
   });
   return inFlight;
 }
 
 // One failing item (e.g. ITEM_LOGIN_REQUIRED) must not block the rest.
-async function runSyncAll(): Promise<SyncResult> {
-  const allItems = db.select().from(items).all();
+async function runSync(allItems: Item[]): Promise<SyncResult> {
   const totals: SyncResult = {
     added: 0,
     modified: 0,
@@ -382,8 +393,13 @@ async function runSyncAll(): Promise<SyncResult> {
         institution: item.institutionName,
         error_code: e.error_code,
       });
+      db.update(items).set({ lastErrorCode: e.error_code }).where(eq(items.id, item.id)).run();
       continue;
     }
+    db.update(items)
+      .set({ lastErrorCode: null, lastSyncedAt: new Date() })
+      .where(eq(items.id, item.id))
+      .run();
     totals.added += counts.added;
     totals.modified += counts.modified;
     totals.removed += counts.removed;
