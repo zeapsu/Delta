@@ -153,14 +153,16 @@ function applySync(
 
     // One timestamp per sync run so snapshots group cleanly (net worth over time).
     const snapshotAt = new Date();
+    // A null balance means "unknown", not zero — recording 0 would put a
+    // fake dip in the net-worth history.
     for (const a of accountsPayload) {
       const accountId = accountIdByPlaidId.get(a.account_id);
-      if (accountId == null) continue;
+      if (accountId == null || a.balances.current == null) continue;
       tx
         .insert(balanceSnapshots)
         .values({
           accountId,
-          currentBalance: toCents(a.balances.current ?? 0),
+          currentBalance: toCents(a.balances.current),
           snapshotAt,
         })
         .run();
@@ -344,8 +346,20 @@ export async function syncItem(item: Item): Promise<SyncCounts> {
   return { ...base, investments };
 }
 
+// The 6h timer and the Sync button can overlap; two runs would read the same
+// cursor and double every balance snapshot. A caller that arrives mid-run
+// joins the in-flight run instead. ponytail: module-level, single process.
+let inFlight: Promise<SyncResult> | null = null;
+
+export function syncAll(): Promise<SyncResult> {
+  inFlight ??= runSyncAll().finally(() => {
+    inFlight = null;
+  });
+  return inFlight;
+}
+
 // One failing item (e.g. ITEM_LOGIN_REQUIRED) must not block the rest.
-export async function syncAll(): Promise<SyncResult> {
+async function runSyncAll(): Promise<SyncResult> {
   const allItems = db.select().from(items).all();
   const totals: SyncResult = {
     added: 0,

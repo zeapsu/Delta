@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { items } from "@/db/schema";
 import { getPlaid } from "@/lib/plaid";
-import { syncItem } from "@/lib/sync";
+import { safePlaidError, syncItem } from "@/lib/sync";
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
@@ -14,6 +14,7 @@ export async function POST(req: Request) {
   const institutionName =
     typeof body?.institution_name === "string" ? body.institution_name : null;
 
+  let item: typeof items.$inferSelect | undefined;
   try {
     const exchangeRes = await getPlaid().itemPublicTokenExchange({
       public_token: publicToken,
@@ -26,14 +27,30 @@ export async function POST(req: Request) {
       .onConflictDoNothing({ target: items.plaidItemId })
       .run();
 
-    const item = db.select().from(items).where(eq(items.plaidItemId, plaidItemId)).get();
-    if (item) await syncItem(item);
-
-    return NextResponse.json({ ok: true });
-  } catch {
+    item = db.select().from(items).where(eq(items.plaidItemId, plaidItemId)).get();
+  } catch (err) {
+    const { error_code, request_id } = safePlaidError(err);
+    console.error(
+      `plaid exchange failed: error_code=${error_code} request_id=${request_id}`,
+    );
     return NextResponse.json(
-      { error: "Failed to link account" },
+      { error: "Failed to link account", error_code },
       { status: 500 },
     );
   }
+
+  // The item is saved at this point. A failed first sync (often just
+  // PRODUCT_NOT_READY right after linking) must not report "link failed" —
+  // the user would link again and end up with a duplicate item. The next
+  // timer or manual sync picks it up.
+  try {
+    if (item) await syncItem(item);
+  } catch (err) {
+    const { error_code, request_id } = safePlaidError(err);
+    console.error(
+      `plaid initial sync failed: item=${item?.id} error_code=${error_code} request_id=${request_id}`,
+    );
+    return NextResponse.json({ ok: true, syncError: error_code });
+  }
+  return NextResponse.json({ ok: true });
 }
