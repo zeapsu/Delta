@@ -2,19 +2,19 @@
 
 import { useRef, useState } from "react";
 
-// "Ask Felix": copies what a card (or the whole page) shows, plus where it
-// came from, as a ready-to-paste prompt for the user's agent in OpenBot.
-// Delta has no agent of its own; Felix reads the DB via skills/delta-finance.
+// "Ask Agent": copies what a card (or the whole page) shows, plus where it
+// came from, as a ready-to-paste prompt for whatever agent the user runs.
+// Delta has no agent of its own; agents read the data via MCP or the API.
 
 const MAX_CHARS = 6000;
 
 // Text a card shows, minus its header (title, links, Ask button — marked
-// data-felix-skip) and chart internals (axis ticks read as noise; Felix can
+// data-ask-skip) and chart internals (axis ticks read as noise; the agent can
 // query the series itself). Hiding them for the synchronous innerText read
 // never paints.
 function visibleText(el: HTMLElement): string {
   const hidden = Array.from(
-    el.querySelectorAll<HTMLElement>("[data-felix-skip], .recharts-wrapper"),
+    el.querySelectorAll<HTMLElement>("[data-ask-skip], .recharts-wrapper"),
   );
   const prev = hidden.map((h) => h.style.display);
   hidden.forEach((h) => (h.style.display = "none"));
@@ -85,7 +85,7 @@ async function copy(text: string): Promise<boolean> {
   return ok;
 }
 
-export function AskFelix({ scope = "card" }: { scope?: "card" | "page" }) {
+export function AskAgent({ scope = "card" }: { scope?: "card" | "page" }) {
   const ref = useRef<HTMLButtonElement>(null);
   const [state, setState] = useState<"idle" | "copied" | "failed">("idle");
 
@@ -97,15 +97,15 @@ export function AskFelix({ scope = "card" }: { scope?: "card" | "page" }) {
   }
 
   const label =
-    state === "copied" ? "Copied" : state === "failed" ? "Copy failed" : scope === "page" ? "Ask Felix" : "Ask";
+    state === "copied" ? "Copied" : state === "failed" ? "Copy failed" : scope === "page" ? "Ask Agent" : "Ask";
   return (
     <button
       ref={ref}
       type="button"
-      data-felix-skip=""
+      data-ask-skip=""
       onClick={onClick}
-      title={`Copy this ${scope} as a question for Felix`}
-      aria-label={state === "idle" ? `Copy this ${scope} as a question for Felix` : label}
+      title={`Copy this ${scope} as a question for your agent`}
+      aria-label={state === "idle" ? `Copy this ${scope} as a question for your agent` : label}
       className={
         scope === "page"
           ? "btn btn-sm"
