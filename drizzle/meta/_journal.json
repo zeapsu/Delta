@@ -36,6 +36,13 @@
       "when": 1783656093114,
       "tag": "0004_curly_vampiro",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1793167260612,
+      "tag": "0005_equal_stephen_strange",
+      "breakpoints": true
     }
   ]
 }

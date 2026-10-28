@@ -61,7 +61,11 @@ export const transactions = sqliteTable(
       .notNull()
       .default(sql`(unixepoch('now', 'subsec') * 1000)`),
   },
-  (table) => [index("transactions_account_id_date_idx").on(table.accountId, table.date)],
+  (table) => [
+    index("transactions_account_id_date_idx").on(table.accountId, table.date),
+    // Dashboard queries filter/sort by date across all accounts.
+    index("transactions_date_idx").on(table.date),
+  ],
 );
 
 // Investment activity from /investments/transactions/get (buys/sells/dividends/
