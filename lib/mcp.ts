@@ -220,7 +220,7 @@ export const TOOLS: Tool[] = [
     name: "search_transactions",
     title: "Search transactions",
     description:
-      "Bank and card transactions, newest first, paged. amount is dollars with positive = money out, negative = money in. Use this to find specific charges or to check the transactions behind a total; for totals use spending_by_category or cash_flow instead of adding these up. Investment buys/sells are not here (see investment_activity).",
+      "Bank and card transactions, newest first by posted date, paged. date is the posted date; authorizedDate is when the purchase happened (null when the bank doesn't report it) and can fall in an earlier month near a month boundary. Date filters use the posted date. amount is dollars with positive = money out, negative = money in. Use this to find specific charges or to check the transactions behind a total; for totals use spending_by_category or cash_flow instead of adding these up. Investment buys/sells are not here (see investment_activity).",
     scope: "read",
     props: {
       from: { ...DATE, description: "Earliest date, YYYY-MM-DD" },
@@ -241,9 +241,16 @@ export const TOOLS: Tool[] = [
     name: "spending_by_category",
     title: "Spending by category",
     description:
-      "Spend per category for one month, biggest first, in dollars: posted total and pendingTotal per category plus month totals. Uses Delta's spend rule (no transfers or income; refunds net within a category). Matches the dashboard's spending page.",
+      "Spend per category for one month, biggest first, in dollars: posted total and pendingTotal per category plus month totals. Uses Delta's spend rule (no transfers or income; refunds net within a category). Matches the dashboard's spending page with the default date_basis=posted; date_basis=authorized buckets by purchase date instead (posted date when unknown), e.g. a charge made Oct 31 that posted Nov 2 counts in October.",
     scope: "read",
-    props: { month: { ...MONTH, description: "YYYY-MM, default this month (partial)" } },
+    props: {
+      month: { ...MONTH, description: "YYYY-MM, default this month (partial)" },
+      date_basis: {
+        type: "string",
+        enum: ["posted", "authorized"],
+        description: "posted (default, matches the dashboard) or authorized (purchase date, falling back to posted)",
+      },
+    },
     annotations: READ_HINTS,
     run: read("/api/v1/spending", ["total", "pendingTotal"]),
   },
