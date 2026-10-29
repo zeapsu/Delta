@@ -56,7 +56,10 @@ export const transactions = sqliteTable(
     plaidTransactionId: text("plaid_transaction_id").notNull().unique(),
     // Money stored as integer cents. Plaid convention: positive = money out.
     amount: integer("amount").notNull(),
-    date: text("date").notNull(), // ISO yyyy-mm-dd
+    date: text("date").notNull(), // ISO yyyy-mm-dd, posted date
+    // When the purchase happened (Plaid authorized_date); null when the bank
+    // doesn't report it. Can be days before `date` around a month boundary.
+    authorizedDate: text("authorized_date"), // ISO yyyy-mm-dd
     name: text("name").notNull(),
     merchantName: text("merchant_name"),
     // Effective category: categoryOverride ?? merchant rule ?? plaidCategory.

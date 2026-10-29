@@ -40,7 +40,8 @@ SQLite at `${DATABASE_PATH:-./delta.db}`. Source of truth: `db/schema.ts`. All m
 | account_id | integer FK → accounts.id | |
 | plaid_transaction_id | text unique | |
 | amount | integer cents | Plaid sign: **positive = money out**, negative = money in |
-| date | text `yyyy-mm-dd` | slice months with `date LIKE 'YYYY-MM-%'` |
+| date | text `yyyy-mm-dd` | posted date; slice months with `date LIKE 'YYYY-MM-%'` |
+| authorized_date | text `yyyy-mm-dd` nullable | when the purchase happened (Plaid `authorized_date`); can be days before `date`. To bucket by purchase date use `COALESCE(authorized_date, date)` |
 | name | text | raw descriptor, e.g. `Uber 072515 SF**POOL**` |
 | merchant_name | text nullable | cleaner, prefer `COALESCE(merchant_name, name)` |
 | category | text nullable | Plaid primary category, e.g. `FOOD_AND_DRINK`, `TRANSFER_IN`, `INCOME` |

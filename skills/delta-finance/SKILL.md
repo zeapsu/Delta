@@ -33,9 +33,9 @@ Responses are JSON, keys camelCase, money in **integer cents**. Errors: 400 bad 
 |---|---|---|
 | `GET /api/v1/status` | — | `lastTransaction`, `lastSnapshot`, `lastInvestment` dates + `connections[]` (`institution`, `lastSyncedAt`, `lastErrorCode` — non-null means that connection's last sync failed) |
 | `GET /api/v1/accounts` | — | accounts with `type`, `currentBalance`, `availableBalance`, `institution` |
-| `GET /api/v1/transactions` | `from`, `to` (YYYY-MM-DD), `month` (YYYY-MM), `account_id`, `category` (`UNCATEGORIZED` = none), `q` (name/merchant substring), `pending` (`true`/`false`), `limit` (≤500, default 100), `offset` | `transactions[]` newest first, `total`, `nextOffset` (null on the last page) |
+| `GET /api/v1/transactions` | `from`, `to` (YYYY-MM-DD), `month` (YYYY-MM), `account_id`, `category` (`UNCATEGORIZED` = none), `q` (name/merchant substring), `pending` (`true`/`false`), `limit` (≤500, default 100), `offset` | `transactions[]` newest first by posted `date`, each with `authorizedDate` (purchase date, null if unknown); `total`, `nextOffset` (null on the last page) |
 | `GET /api/v1/cash-flow` | `months` (1–36, default 6), `end` (YYYY-MM) | `months[]` oldest first: posted `income` and `spending` (the app's spend rule) |
-| `GET /api/v1/spending` | `month` (default this month) | `categories[]` biggest first: posted `total` + `pendingTotal`; month `total`/`pendingTotal` |
+| `GET /api/v1/spending` | `month` (default this month), `date_basis` (`posted` default = dashboard; `authorized` = by purchase date, posted date when unknown) | `categories[]` biggest first: posted `total` + `pendingTotal`; month `total`/`pendingTotal` |
 | `GET /api/v1/budgets` | `month` | `budgets[]`: `monthlyAmount`, `net` (refunds netted), `spent` (clamped ≥0), `pct` |
 | `GET /api/v1/recurring` | — | `confirmed[]` (user-reviewed truth, with `cadence`, `nextDate`), `suggestions[]` (unreviewed candidates — never count them), `monthlyEstimate` |
 | `GET /api/v1/investments` | `account_id`, `from`, `to`, `limit`, `offset` | investment activity, newest first, paged like transactions |

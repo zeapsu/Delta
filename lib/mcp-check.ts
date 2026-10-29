@@ -60,6 +60,11 @@ async function main() {
   assert.strictEqual(p.total, 123.45);
   assert.deepStrictEqual(p.categories, [{ category: "FOOD_AND_DRINK", total: 123.45, pendingTotal: 5 }]);
   assert.deepStrictEqual((p.as_of as { warnings: string[] }).warnings, []);
+  // date_basis passes through to the API; anything but posted/authorized is refused.
+  await rpc("tools/call", { name: "spending_by_category", arguments: { month: "2026-10", date_basis: "authorized" } });
+  assert.deepStrictEqual(calls.findLast((x) => x.path === "/api/v1/spending")!.query, { month: "2026-10", date_basis: "authorized" });
+  c = await rpc("tools/call", { name: "spending_by_category", arguments: { date_basis: "purchase" } });
+  assert.strictEqual(c.result!.isError, true);
 
   // Paged tools: amount converted, row count NOT converted, renamed.
   c = await rpc("tools/call", { name: "search_transactions", arguments: { pending: false, limit: 1 } });

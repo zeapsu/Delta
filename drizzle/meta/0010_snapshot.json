@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "a5332567-02ce-480f-a567-256e84e2bfcf",
+  "id": "bd1a14ae-0ec6-493a-95b0-2081b1c8c1d8",
   "prevId": "6582a635-934d-401f-88d0-760fcd24c70d",
   "tables": {
     "accounts": {
@@ -287,53 +287,6 @@
           "name": "budgets_category_unique",
           "columns": [
             "category"
-          ],
-          "isUnique": true
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "category_rules": {
-      "name": "category_rules",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": true
-        },
-        "merchant_key": {
-          "name": "merchant_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "category": {
-          "name": "category",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "(unixepoch('now', 'subsec') * 1000)"
-        }
-      },
-      "indexes": {
-        "category_rules_merchant_key_unique": {
-          "name": "category_rules_merchant_key_unique",
-          "columns": [
-            "merchant_key"
           ],
           "isUnique": true
         }
@@ -678,6 +631,13 @@
           "notNull": true,
           "autoincrement": false
         },
+        "authorized_date": {
+          "name": "authorized_date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "name": {
           "name": "name",
           "type": "text",
@@ -694,20 +654,6 @@
         },
         "category": {
           "name": "category",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "plaid_category": {
-          "name": "plaid_category",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "category_override": {
-          "name": "category_override",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
