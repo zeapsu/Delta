@@ -27,7 +27,7 @@ Conventions:
 - Money is in dollars (2 decimals). Transaction and investment amounts use the Plaid sign: positive = money out (spend), negative = money in (income, refunds).
 - "Spend" excludes transfers between the user's own accounts (TRANSFER_IN/TRANSFER_OUT), INCOME, LOAN_DISBURSEMENTS (loan money in, including some card payment credits) and credit card payments (categoryDetailed LOAN_PAYMENTS_CREDIT_CARD_PAYMENT: the card purchases are already counted), and includes uncategorized rows. Other LOAN_PAYMENTS (student, auto, mortgage) count as spend. Totals from spending_by_category, cash_flow and get_budgets are computed by Delta and match the dashboard: use them instead of adding up transactions yourself.
 - Credit card and loan balances are positive amounts owed; net worth subtracts them.
-- Totals include pending transactions (most go through); pending ones can still change or disappear.
+- Totals include pending transactions (most go through); pending ones can still change or disappear. Transactions carry pending: true until they post: label them as pending to the user, and when a total includes pendingTotal > 0, say how much of it is pending.
 - Categories are Plaid's automatic labels (e.g. FOOD_AND_DRINK) and can be wrong; list the transactions behind a surprising number before drawing conclusions.
 - Recurring: "confirmed" rules are user-reviewed truth; "suggestions" are unreviewed guesses, never count them in totals.
 
@@ -220,7 +220,7 @@ export const TOOLS: Tool[] = [
     name: "search_transactions",
     title: "Search transactions",
     description:
-      "Bank and card transactions, newest first, paged. amount is dollars with positive = money out, negative = money in. Use this to find specific charges or to check the transactions behind a total; for totals use spending_by_category or cash_flow instead of adding these up. Investment buys/sells are not here (see investment_activity).",
+      "Bank and card transactions, newest first, paged. amount is dollars with positive = money out, negative = money in. Each row has pending: true while the charge is still pending (not yet posted); say so when you mention one. Use this to find specific charges or to check the transactions behind a total; for totals use spending_by_category or cash_flow instead of adding these up. Investment buys/sells are not here (see investment_activity).",
     scope: "read",
     props: {
       from: { ...DATE, description: "Earliest date, YYYY-MM-DD" },
