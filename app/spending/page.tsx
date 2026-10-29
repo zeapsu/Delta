@@ -98,7 +98,7 @@ export default async function SpendingPage({
             size="lg"
             label={isCurrent ? "Spent so far" : "Total spent"}
             value={formatCents(grandTotal)}
-            sub={pendingSum > 0 ? `+ ${formatCents(pendingSum)} pending` : undefined}
+            sub={pendingSum > 0 ? `Includes ${formatCents(pendingSum)} pending` : undefined}
           />
           <div className="flex flex-col gap-1 text-xs">
             <Change current={grandTotal} previous={prevTotal} suffix="vs last month" goodWhenUp={false} />

@@ -21,7 +21,6 @@ SELECT COALESCE(category, 'UNCATEGORIZED') AS category,
 FROM transactions
 WHERE date LIKE :month || '-%'
   AND amount > 0
-  AND pending = 0
   AND (category IS NULL OR (category NOT LIKE 'TRANSFER%' AND category NOT IN ('INCOME', 'LOAN_DISBURSEMENTS')))
   AND (category_detailed IS NULL OR category_detailed != 'LOAN_PAYMENTS_CREDIT_CARD_PAYMENT')
 GROUP BY 1

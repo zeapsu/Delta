@@ -117,6 +117,15 @@ function applySync(
     for (const t of addedOrModified) {
       const accountId = accountIdByPlaidId.get(t.account_id);
       if (accountId == null) continue;
+      // Totals count pending rows, so a posted row must replace its pending
+      // one. Plaid also lists the pending id in `removed`, but drop it here
+      // too in case the two land in different syncs.
+      if (!t.pending && t.pending_transaction_id) {
+        tx
+          .delete(transactions)
+          .where(eq(transactions.plaidTransactionId, t.pending_transaction_id))
+          .run();
+      }
       tx
         .insert(transactions)
         .values({

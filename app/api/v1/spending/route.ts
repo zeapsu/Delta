@@ -3,8 +3,8 @@ import { categoryTotals } from "@/lib/insights";
 
 export const dynamic = "force-dynamic";
 
-// Spend per category for a month, biggest first. total = posted, pendingTotal
-// = still pending; refunds net within a category.
+// Spend per category for a month, biggest first. total includes pending,
+// pendingTotal = the part still pending; refunds net within a category.
 export const GET = readRoute(async (sp) => {
   const month = monthParam(sp);
   const categories = await categoryTotals(month);

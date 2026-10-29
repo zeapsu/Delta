@@ -28,7 +28,9 @@ const month = sql<string>`substr(${transactions.date}, 1, 7)`;
 
 export type CashFlowMonth = { month: string; income: number; spending: number };
 
-// Posted income vs spend per month, oldest first, zero-filled.
+// Income vs spend per month, oldest first, zero-filled. Pending rows count:
+// most go through, and Plaid swaps a pending row for its posted one in the
+// same sync, so nothing doubles.
 export async function monthlyCashFlow(months: string[]): Promise<CashFlowMonth[]> {
   const rows = await db
     .select({
@@ -37,7 +39,7 @@ export async function monthlyCashFlow(months: string[]): Promise<CashFlowMonth[]
       spending: sql<number>`coalesce(sum(case when ${isSpend} then ${transactions.amount} else 0 end), 0)`,
     })
     .from(transactions)
-    .where(and(eq(transactions.pending, false), gte(month, months[0])))
+    .where(gte(month, months[0]))
     .groupBy(month);
   const byMonth = new Map(rows.map((r) => [r.month, r]));
   return months.map((m) => ({
@@ -47,7 +49,7 @@ export async function monthlyCashFlow(months: string[]): Promise<CashFlowMonth[]
   }));
 }
 
-// Posted spend in `m` up to and including day-of-month `day` — for an
+// Spend (pending included) in `m` up to and including day-of-month `day` — for an
 // apples-to-apples "this month so far vs last month so far".
 export async function spendThroughDay(m: string, day: number): Promise<number> {
   const [{ total }] = await db
@@ -55,7 +57,6 @@ export async function spendThroughDay(m: string, day: number): Promise<number> {
     .from(transactions)
     .where(
       and(
-        eq(transactions.pending, false),
         isSpend,
         like(transactions.date, `${m}-%`),
         lte(transactions.date, `${m}-${String(day).padStart(2, "0")}`),
@@ -66,18 +67,19 @@ export async function spendThroughDay(m: string, day: number): Promise<number> {
 
 export type CategoryTotal = { category: string | null; total: number; pendingTotal: number };
 
+// total includes pending; pendingTotal is the part of it still pending.
 export async function categoryTotals(m: string): Promise<CategoryTotal[]> {
-  const posted = sql<number>`sum(case when ${transactions.pending} = 0 then ${transactions.amount} else 0 end)`;
+  const total = sql<number>`sum(${transactions.amount})`;
   return db
     .select({
       category: transactions.category,
-      total: posted,
+      total,
       pendingTotal: sql<number>`sum(case when ${transactions.pending} = 1 then ${transactions.amount} else 0 end)`,
     })
     .from(transactions)
     .where(and(like(transactions.date, `${m}-%`), isSpend))
     .groupBy(transactions.category)
-    .orderBy(desc(posted));
+    .orderBy(desc(total));
 }
 
 export type UpcomingCharge = {
