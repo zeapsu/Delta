@@ -87,7 +87,7 @@ export function CategoryPicker({
       <dialog
         ref={dialog}
         onClick={(e) => e.target === dialog.current && dialog.current?.close()}
-        className="glass m-auto w-[calc(100%-2rem)] max-w-sm rounded-3xl p-0 text-foreground backdrop:bg-black/30"
+        className="glass sheet mx-auto mt-auto mb-0 w-full max-w-none rounded-t-3xl rounded-b-none p-0 pb-[env(safe-area-inset-bottom)] text-foreground sm:m-auto sm:w-[calc(100%-2rem)] sm:max-w-sm sm:rounded-3xl sm:pb-0"
       >
         <form
           method="dialog"
@@ -97,7 +97,9 @@ export function CategoryPicker({
             save(choice, allFromMerchant);
           }}
         >
-          <div>
+          {/* Takes the dialog's initial focus so the select doesn't: focusing
+              it on open pops the iOS picker wheel straight away. */}
+          <div tabIndex={-1} className="outline-none">
             <p className="eyebrow">Category</p>
             <p className="truncate text-base font-semibold">{merchant}</p>
             {plaidCategory !== category && (
