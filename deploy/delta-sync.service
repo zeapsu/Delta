@@ -7,4 +7,9 @@ Requisite=delta.service
 [Service]
 Type=oneshot
 User=zeapsu
+# Ask Plaid to re-check the banks first (its own schedule is only 1-4x a
+# day), give it a few minutes, then sync. "-" so a failed refresh still syncs.
+ExecStartPre=-/usr/bin/curl -fsS -X POST http://100.116.56.85:3000/api/plaid/refresh
+ExecStartPre=/bin/sleep 180
 ExecStart=/usr/bin/curl -fsS -X POST http://100.116.56.85:3000/api/plaid/sync
+TimeoutStartSec=15min

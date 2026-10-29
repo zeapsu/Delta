@@ -34,8 +34,8 @@ Responses are JSON, keys camelCase, money in **integer cents**. Errors: 400 bad 
 | `GET /api/v1/status` | — | `lastTransaction`, `lastSnapshot`, `lastInvestment` dates + `connections[]` (`institution`, `lastSyncedAt`, `lastErrorCode` — non-null means that connection's last sync failed) |
 | `GET /api/v1/accounts` | — | accounts with `type`, `currentBalance`, `availableBalance`, `institution` |
 | `GET /api/v1/transactions` | `from`, `to` (YYYY-MM-DD), `month` (YYYY-MM), `account_id`, `category` (`UNCATEGORIZED` = none), `q` (name/merchant substring), `pending` (`true`/`false`), `limit` (≤500, default 100), `offset` | `transactions[]` newest first by posted `date`, each with `authorizedDate` (purchase date, null if unknown); `total`, `nextOffset` (null on the last page) |
-| `GET /api/v1/cash-flow` | `months` (1–36, default 6), `end` (YYYY-MM) | `months[]` oldest first: posted `income` and `spending` (the app's spend rule) |
-| `GET /api/v1/spending` | `month` (default this month), `date_basis` (`posted` default = dashboard; `authorized` = by purchase date, posted date when unknown) | `categories[]` biggest first: posted `total` + `pendingTotal`; month `total`/`pendingTotal` |
+| `GET /api/v1/cash-flow` | `months` (1–36, default 6), `end` (YYYY-MM) | `months[]` oldest first: `income` and `spending` (the app's spend rule, pending included) plus `pendingSpending` (the pending part) |
+| `GET /api/v1/spending` | `month` (default this month), `date_basis` (`posted` default = dashboard; `authorized` = by purchase date, posted date when unknown) | `categories[]` biggest first: `total` (pending included) + `pendingTotal` (the pending part); month `total`/`pendingTotal` |
 | `GET /api/v1/budgets` | `month` | `budgets[]`: `monthlyAmount`, `net` (refunds netted), `spent` (clamped ≥0), `pct` |
 | `GET /api/v1/recurring` | — | `confirmed[]` (user-reviewed truth, with `cadence`, `nextDate`), `suggestions[]` (unreviewed candidates — never count them), `monthlyEstimate` |
 | `GET /api/v1/investments` | `account_id`, `from`, `to`, `limit`, `offset` | investment activity, newest first, paged like transactions |
@@ -69,7 +69,7 @@ Table and column reference: [references/schema.md](references/schema.md). Canoni
 - "Spend" **excludes** `category LIKE 'TRANSFER%'`, `category = 'INCOME'` (moving money between own accounts isn't spend), `category = 'LOAN_DISBURSEMENTS'` (loan money in; some cards file their payment credit here) and `category_detailed = 'LOAN_PAYMENTS_CREDIT_CARD_PAYMENT'` (a card payment settles purchases already counted on the card) but **includes** rows with `category IS NULL` and other `LOAN_PAYMENTS` (student, auto, mortgage).
 - `credit` and `loan` account balances are **positive amounts owed** — negate them when computing net worth.
 - `transactions.date` is ISO text `yyyy-mm-dd`; slice months with `date LIKE 'YYYY-MM-%'`. Timestamps elsewhere are milliseconds since epoch.
-- `pending = 1` transactions may still change or disappear; exclude them when reconciling against statements.
+- `pending = 1` transactions are authorized but not yet posted. The app's spend totals (and the queries file) include them because they almost always post; they may still change or disappear (e.g. a refundable hold), so say which charges are pending when they matter, and exclude them when reconciling against statements.
 - Balance snapshots are per sync run; bucket by day taking the latest per account per day (the queries file does this).
 - Investment buys/sells live in `investment_transactions` (not `transactions`) and are never counted as spend.
 

@@ -26,28 +26,34 @@ export const isSpend = and(
 
 const month = sql<string>`substr(${transactions.date}, 1, 7)`;
 
-export type CashFlowMonth = { month: string; income: number; spending: number };
+export type CashFlowMonth = { month: string; income: number; spending: number; pendingSpending: number };
 
-// Posted income vs spend per month, oldest first, zero-filled.
+// Pending charges almost always post, so spend totals include them; the
+// pending part is reported separately so callers can label it.
+const pendingSpend = sql<number>`coalesce(sum(case when ${transactions.pending} = 1 and ${isSpend} then ${transactions.amount} else 0 end), 0)`;
+
+// Income vs spend per month (spend includes pending), oldest first, zero-filled.
 export async function monthlyCashFlow(months: string[]): Promise<CashFlowMonth[]> {
   const rows = await db
     .select({
       month,
       income: sql<number>`coalesce(sum(case when ${transactions.category} = 'INCOME' then -${transactions.amount} else 0 end), 0)`,
       spending: sql<number>`coalesce(sum(case when ${isSpend} then ${transactions.amount} else 0 end), 0)`,
+      pendingSpending: pendingSpend,
     })
     .from(transactions)
-    .where(and(eq(transactions.pending, false), gte(month, months[0])))
+    .where(gte(month, months[0]))
     .groupBy(month);
   const byMonth = new Map(rows.map((r) => [r.month, r]));
   return months.map((m) => ({
     month: m,
     income: Math.max(byMonth.get(m)?.income ?? 0, 0),
     spending: Math.max(byMonth.get(m)?.spending ?? 0, 0),
+    pendingSpending: Math.max(byMonth.get(m)?.pendingSpending ?? 0, 0),
   }));
 }
 
-// Posted spend in `m` up to and including day-of-month `day` — for an
+// Spend (pending included) in `m` up to and including day-of-month `day` — for an
 // apples-to-apples "this month so far vs last month so far".
 export async function spendThroughDay(m: string, day: number): Promise<number> {
   const [{ total }] = await db
@@ -55,7 +61,6 @@ export async function spendThroughDay(m: string, day: number): Promise<number> {
     .from(transactions)
     .where(
       and(
-        eq(transactions.pending, false),
         isSpend,
         like(transactions.date, `${m}-%`),
         lte(transactions.date, `${m}-${String(day).padStart(2, "0")}`),
@@ -64,6 +69,7 @@ export async function spendThroughDay(m: string, day: number): Promise<number> {
   return total;
 }
 
+// total includes pending; pendingTotal is the pending part of it.
 export type CategoryTotal = { category: string | null; total: number; pendingTotal: number };
 
 // "posted" buckets by the date the bank posted the charge (the dashboard's
@@ -73,17 +79,17 @@ export type DateBasis = "posted" | "authorized";
 
 export async function categoryTotals(m: string, basis: DateBasis = "posted"): Promise<CategoryTotal[]> {
   const day = basis === "authorized" ? sql`coalesce(${transactions.authorizedDate}, ${transactions.date})` : transactions.date;
-  const posted = sql<number>`sum(case when ${transactions.pending} = 0 then ${transactions.amount} else 0 end)`;
+  const total = sql<number>`sum(${transactions.amount})`;
   return db
     .select({
       category: transactions.category,
-      total: posted,
+      total,
       pendingTotal: sql<number>`sum(case when ${transactions.pending} = 1 then ${transactions.amount} else 0 end)`,
     })
     .from(transactions)
     .where(and(like(day, `${m}-%`), isSpend))
     .groupBy(transactions.category)
-    .orderBy(desc(posted));
+    .orderBy(desc(total));
 }
 
 export type UpcomingCharge = {

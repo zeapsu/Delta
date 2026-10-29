@@ -3,9 +3,10 @@ import { categoryTotals } from "@/lib/insights";
 
 export const dynamic = "force-dynamic";
 
-// Spend per category for a month, biggest first. total = posted, pendingTotal
-// = still pending; refunds net within a category. date_basis=authorized buckets
-// by purchase date (posted date when unknown) instead of the posted date.
+// Spend per category for a month, biggest first. total includes pending
+// charges; pendingTotal is the still-pending part; refunds net within a
+// category. date_basis=authorized buckets by purchase date (posted date when
+// unknown) instead of the posted date.
 export const GET = readRoute(async (sp) => {
   const month = monthParam(sp);
   const dateBasis = sp.get("date_basis") ?? "posted";
