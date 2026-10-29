@@ -15,13 +15,14 @@ SELECT (SELECT MAX(date) FROM transactions) AS last_transaction,
 ## 2. Spending by category for a month
 
 ```sql
--- expects: one row per category, biggest spend first; refunds within a category net out
+-- expects: one row per category, biggest spend first; refunds within a category net out;
+-- spent_usd includes pending charges, pending_usd is the still-pending part
 SELECT COALESCE(category, 'UNCATEGORIZED') AS category,
-       printf('%.2f', SUM(amount) / 100.0) AS spent_usd
+       printf('%.2f', SUM(amount) / 100.0) AS spent_usd,
+       printf('%.2f', SUM(CASE WHEN pending = 1 THEN amount ELSE 0 END) / 100.0) AS pending_usd
 FROM transactions
 WHERE date LIKE :month || '-%'
   AND amount > 0
-  AND pending = 0
   AND (category IS NULL OR (category NOT LIKE 'TRANSFER%' AND category NOT IN ('INCOME', 'LOAN_DISBURSEMENTS')))
   AND (category_detailed IS NULL OR category_detailed != 'LOAN_PAYMENTS_CREDIT_CARD_PAYMENT')
 GROUP BY 1

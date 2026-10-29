@@ -27,7 +27,7 @@ Conventions:
 - Money is in dollars (2 decimals). Transaction and investment amounts use the Plaid sign: positive = money out (spend), negative = money in (income, refunds).
 - "Spend" excludes transfers between the user's own accounts (TRANSFER_IN/TRANSFER_OUT), INCOME, LOAN_DISBURSEMENTS (loan money in, including some card payment credits) and credit card payments (categoryDetailed LOAN_PAYMENTS_CREDIT_CARD_PAYMENT: the card purchases are already counted), and includes uncategorized rows. Other LOAN_PAYMENTS (student, auto, mortgage) count as spend. Totals from spending_by_category, cash_flow and get_budgets are computed by Delta and match the dashboard: use them instead of adding up transactions yourself.
 - Credit card and loan balances are positive amounts owed; net worth subtracts them.
-- Pending transactions can still change or disappear.
+- Pending transactions (pending: true in search_transactions) are charges the bank has authorized but not posted. Spend totals (spending_by_category, cash_flow, get_budgets) include them, and pendingTotal / pendingSpending say how much of a total is still pending. Pending amounts can still change or disappear (e.g. a refundable hold), so say which charges are pending when they matter, and leave them out when reconciling against a statement.
 - Categories are Plaid's automatic labels (e.g. FOOD_AND_DRINK) and can be wrong; list the transactions behind a surprising number before drawing conclusions.
 - Recurring: "confirmed" rules are user-reviewed truth; "suggestions" are unreviewed guesses, never count them in totals.
 
@@ -220,7 +220,7 @@ export const TOOLS: Tool[] = [
     name: "search_transactions",
     title: "Search transactions",
     description:
-      "Bank and card transactions, newest first, paged. amount is dollars with positive = money out, negative = money in. Use this to find specific charges or to check the transactions behind a total; for totals use spending_by_category or cash_flow instead of adding these up. Investment buys/sells are not here (see investment_activity).",
+      "Bank and card transactions, newest first, paged. amount is dollars with positive = money out, negative = money in. pending: true marks a charge that has not posted yet and can still change or disappear. Use this to find specific charges or to check the transactions behind a total; for totals use spending_by_category or cash_flow instead of adding these up. Investment buys/sells are not here (see investment_activity).",
     scope: "read",
     props: {
       from: { ...DATE, description: "Earliest date, YYYY-MM-DD" },
@@ -241,7 +241,7 @@ export const TOOLS: Tool[] = [
     name: "spending_by_category",
     title: "Spending by category",
     description:
-      "Spend per category for one month, biggest first, in dollars: posted total and pendingTotal per category plus month totals. Uses Delta's spend rule (no transfers or income; refunds net within a category). Matches the dashboard's spending page.",
+      "Spend per category for one month, biggest first, in dollars: total (pending charges included) and pendingTotal (the still-pending part of total) per category plus month totals. Uses Delta's spend rule (no transfers or income; refunds net within a category). Matches the dashboard's spending page.",
     scope: "read",
     props: { month: { ...MONTH, description: "YYYY-MM, default this month (partial)" } },
     annotations: READ_HINTS,
@@ -251,14 +251,14 @@ export const TOOLS: Tool[] = [
     name: "cash_flow",
     title: "Monthly income vs spending",
     description:
-      "Posted income and spending per month in dollars, oldest first. The current month is partial. Use for trends; call a trend real only with 3+ months of movement.",
+      "Income and spending per month in dollars, oldest first; spending includes pending charges and pendingSpending is the still-pending part. The current month is partial. Use for trends; call a trend real only with 3+ months of movement.",
     scope: "read",
     props: {
       months: { type: "integer", minimum: 1, maximum: 36, description: "How many months, default 6" },
       end: { ...MONTH, description: "Last month, YYYY-MM, default this month" },
     },
     annotations: READ_HINTS,
-    run: read("/api/v1/cash-flow", ["income", "spending"]),
+    run: read("/api/v1/cash-flow", ["income", "spending", "pendingSpending"]),
   },
   {
     name: "get_budgets",
