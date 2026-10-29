@@ -5,10 +5,12 @@ import { db } from "@/db";
 import {
   accounts,
   balanceSnapshots,
+  categoryRules,
   investmentTransactions,
   items,
   transactions,
 } from "@/db/schema";
+import { merchantKey } from "@/lib/categories";
 import { getPlaid, toCents } from "@/lib/plaid";
 import type {
   AccountBase,
@@ -114,9 +116,20 @@ function applySync(
       accountRows.map((r) => [r.plaidAccountId, r.id]),
     );
 
+    // User relabels win over Plaid: a per-transaction override (kept by the
+    // coalesce below), else a merchant rule, else Plaid's category.
+    const rules = new Map(
+      tx.select({ key: categoryRules.merchantKey, category: categoryRules.category })
+        .from(categoryRules)
+        .all()
+        .map((r) => [r.key, r.category]),
+    );
+
     for (const t of addedOrModified) {
       const accountId = accountIdByPlaidId.get(t.account_id);
       if (accountId == null) continue;
+      const plaidCategory = t.personal_finance_category?.primary ?? null;
+      const category = rules.get(merchantKey(t.merchant_name ?? null, t.name)) ?? plaidCategory;
       tx
         .insert(transactions)
         .values({
@@ -127,7 +140,8 @@ function applySync(
           authorizedDate: t.authorized_date ?? null,
           name: t.name,
           merchantName: t.merchant_name ?? null,
-          category: t.personal_finance_category?.primary ?? null,
+          category,
+          plaidCategory,
           categoryDetailed: t.personal_finance_category?.detailed ?? null,
           pending: t.pending,
         })
@@ -140,7 +154,8 @@ function applySync(
             authorizedDate: t.authorized_date ?? null,
             name: t.name,
             merchantName: t.merchant_name ?? null,
-            category: t.personal_finance_category?.primary ?? null,
+            category: sql`coalesce(${transactions.categoryOverride}, ${category})`,
+            plaidCategory,
             categoryDetailed: t.personal_finance_category?.detailed ?? null,
             pending: t.pending,
           },

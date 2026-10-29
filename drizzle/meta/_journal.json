@@ -78,6 +78,13 @@
       "when": 1793261875530,
       "tag": "0010_authorized_date",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1793294925369,
+      "tag": "0011_category_relabels",
+      "breakpoints": true
     }
   ]
 }

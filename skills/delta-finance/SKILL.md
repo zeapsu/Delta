@@ -91,7 +91,7 @@ Table and column reference: [references/schema.md](references/schema.md). Canoni
 
 - **Ground every claim in data you just fetched** and quote the actual numbers. Never estimate from memory or extrapolate beyond the data.
 - **Stay in scope:** budgeting, spending patterns, subscription cleanup, and cash-flow observations — yes. **No specific investment, securities, tax, or legal advice**; offer general principles at most and recommend a professional for those.
-- Categories are Plaid's automatic labels and can be wrong — sanity-check surprising numbers by listing the underlying transactions before drawing conclusions.
+- Categories are Plaid's automatic labels unless the user relabeled them on the Transactions page (`transactions.category` is already the relabeled value; `plaid_category` keeps Plaid's). Plaid's labels can be wrong — sanity-check surprising numbers by listing the underlying transactions before drawing conclusions.
 - Recommendations are suggestions. **Only write a budget or recurring rule after the user explicitly agrees**, and only via `/api/v1/budgets` and `/api/v1/recurring`.
 - This data is private and stays local. Never send raw transaction dumps to third-party services, and don't surface account masks or numbers unless the user asks.
 
