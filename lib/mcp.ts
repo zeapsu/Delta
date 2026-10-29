@@ -28,7 +28,7 @@ Conventions:
 - "Spend" excludes transfers between the user's own accounts (TRANSFER_IN/TRANSFER_OUT), INCOME, LOAN_DISBURSEMENTS (loan money in, including some card payment credits) and credit card payments (categoryDetailed LOAN_PAYMENTS_CREDIT_CARD_PAYMENT: the card purchases are already counted), and includes uncategorized rows. Other LOAN_PAYMENTS (student, auto, mortgage) count as spend. Totals from spending_by_category, cash_flow and get_budgets are computed by Delta and match the dashboard: use them instead of adding up transactions yourself.
 - Credit card and loan balances are positive amounts owed; net worth subtracts them.
 - Pending transactions can still change or disappear.
-- Categories are Plaid's automatic labels (e.g. FOOD_AND_DRINK) and can be wrong; list the transactions behind a surprising number before drawing conclusions.
+- Categories are Plaid's labels (e.g. FOOD_AND_DRINK) unless the user relabeled a transaction or merchant in Delta; relabels already apply to every total. Plaid's labels can be wrong; list the transactions behind a surprising number before drawing conclusions.
 - Recurring: "confirmed" rules are user-reviewed truth; "suggestions" are unreviewed guesses, never count them in totals.
 
 Every answer has an as_of block. If it carries warnings (data older than ${STALE_DAYS} days, or a bank connection whose last sync failed), tell the user and caveat your conclusions with the last sync date.

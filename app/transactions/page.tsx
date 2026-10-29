@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { and, count, desc, eq, gte, lte, or, sql, SQL } from "drizzle-orm";
 import { db } from "@/db";
-import { accounts, transactions } from "@/db/schema";
+import { accounts, categoryRules, transactions } from "@/db/schema";
 import { formatCategory, formatCents } from "@/lib/format";
 import { currentMonth, shortDate } from "@/lib/months";
 import { categoryTotals } from "@/lib/insights";
 import { categoryColor } from "@/lib/colors";
-import { Card, Dot, Empty, Page, Pager } from "@/app/ui";
+import { merchantKey } from "@/lib/categories";
+import { Card, Empty, Page, Pager } from "@/app/ui";
+import { CategoryPicker } from "./category-picker";
 
 export const dynamic = "force-dynamic";
 
@@ -46,7 +48,7 @@ export default async function TransactionsPage({
   }
   const where = conditions.length > 0 ? and(...conditions) : undefined;
 
-  const [allAccounts, categoryRows, rows, [{ total, moneyIn, moneyOut }], monthCats] = await Promise.all([
+  const [allAccounts, categoryRows, rows, [{ total, moneyIn, moneyOut }], monthCats, rules] = await Promise.all([
     db.select().from(accounts),
     db.selectDistinct({ category: transactions.category }).from(transactions),
     db
@@ -56,6 +58,8 @@ export default async function TransactionsPage({
         name: transactions.name,
         merchantName: transactions.merchantName,
         category: transactions.category,
+        plaidCategory: transactions.plaidCategory,
+        categoryOverride: transactions.categoryOverride,
         amount: transactions.amount,
         pending: transactions.pending,
         accountName: accounts.name,
@@ -77,7 +81,9 @@ export default async function TransactionsPage({
       .where(where),
     // this month's top-8 slot assignment, shared with /spending and the overview
     categoryTotals(currentMonth()),
+    db.select({ key: categoryRules.merchantKey, category: categoryRules.category }).from(categoryRules),
   ]);
+  const ruleByMerchant = new Map(rules.map((r) => [r.key, r.category]));
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const categories = categoryRows
@@ -195,6 +201,18 @@ export default async function TransactionsPage({
               <tbody className="divide-y divide-hairline">
                 {rows.map((tx) => {
                   const isCredit = tx.amount < 0;
+                  const picker = (
+                    <CategoryPicker
+                      id={tx.id}
+                      merchant={tx.merchantName ?? tx.name}
+                      category={tx.category}
+                      plaidCategory={tx.plaidCategory}
+                      overridden={tx.categoryOverride !== null}
+                      ruleCategory={ruleByMerchant.get(merchantKey(tx.merchantName, tx.name)) ?? null}
+                      color={tx.category ? categoryColor(tx.category, top8) : "var(--chart-muted)"}
+                      filterHref={tx.category ? filterHref({ category: tx.category }) : null}
+                    />
+                  );
                   return (
                     <tr key={tx.id} className="hover:bg-fill">
                       <td className="px-4 py-2.5 whitespace-nowrap text-muted">{shortDate(tx.date)}</td>
@@ -208,8 +226,9 @@ export default async function TransactionsPage({
                           )}
                         </div>
                         {/* mobile: account + category fold under the name */}
-                        <div className="text-xs text-muted sm:hidden">
-                          {formatCategory(tx.category)} · {tx.accountName}
+                        <div className="mt-1 flex items-center gap-2 text-xs text-muted sm:hidden">
+                          {picker}
+                          <span className="truncate">{tx.accountName}</span>
                         </div>
                       </td>
                       <td className="hidden px-4 py-2.5 whitespace-nowrap text-muted sm:table-cell">
@@ -217,17 +236,7 @@ export default async function TransactionsPage({
                         {tx.accountMask ? ` ····${tx.accountMask}` : ""}
                       </td>
                       <td className="hidden px-4 py-2.5 whitespace-nowrap sm:table-cell">
-                        {tx.category ? (
-                          <Link
-                            href={filterHref({ category: tx.category })}
-                            className="inline-flex items-center gap-1.5 rounded-full bg-fill px-2.5 py-1 text-xs hover:bg-fill-strong"
-                          >
-                            <Dot color={categoryColor(tx.category, top8)} className="h-2 w-2" />
-                            {formatCategory(tx.category)}
-                          </Link>
-                        ) : (
-                          <span className="text-xs text-muted">Uncategorized</span>
-                        )}
+                        {picker}
                       </td>
                       <td
                         className={`px-4 py-2.5 text-right font-medium whitespace-nowrap tabular-nums ${
