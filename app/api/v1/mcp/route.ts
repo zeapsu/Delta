@@ -11,6 +11,7 @@ import * as recurring from "../recurring/route";
 import * as spending from "../spending/route";
 import * as status from "../status/route";
 import * as transactions from "../transactions/route";
+import * as transactionCategory from "../transactions/category/route";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +32,7 @@ const ROUTES: Record<string, Partial<Record<ApiMethod, Handler>>> = {
   "/api/v1/spending": spending,
   "/api/v1/status": status,
   "/api/v1/transactions": transactions,
+  "/api/v1/transactions/category": transactionCategory,
 };
 
 const api: Api = async (method, path, opts = {}) => {

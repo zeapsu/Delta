@@ -12,7 +12,7 @@ Delta is a personal finance app that syncs bank data via Plaid into a local SQLi
 - **Use the API.** `GET ${DELTA_URL}/api/v1/...` with your token is the primary path. Raw SQL (below) is a fallback for an agent that runs on the Delta host and was given file access on purpose; most agents won't have it.
 - **Never expose your API token** in replies, logs, or files you write. If a token leaks, tell the user so they can revoke it.
 - **Never read `items.access_token`** (SQL fallback only). Only ever select `id`, `institution_name`, `created_at` from `items`. Never `SELECT *` from `items`. If anything token-shaped (`access-...`, `dlt_...`) ever appears in output, do not repeat it.
-- **Writes only through the validated budgets and recurring endpoints** (below), and only with a write-scoped token. Never write to the database directly.
+- **Writes only through the validated budgets, recurring and category-relabel endpoints** (below), and only with a write-scoped token. Never write to the database directly.
 - **Never call `/api/plaid/*` endpoints.** They handle credentials and syncing; they are not for agents.
 
 ## Data access (MCP — easiest)
@@ -21,7 +21,7 @@ If your agent has Delta's MCP server connected (tools such as `get_status`, `spe
 
 ## Data access (API — primary)
 
-Base URL `${DELTA_URL:-http://localhost:3000}`. Every request sends `Authorization: Bearer $DELTA_API_TOKEN`. A **read** token can call every GET; a **write** token can also call the budget/recurring writes. The user creates tokens on the Delta host with `npm run token -- create <name> [--scope read|write]` (and `list` / `revoke <id>`).
+Base URL `${DELTA_URL:-http://localhost:3000}`. Every request sends `Authorization: Bearer $DELTA_API_TOKEN`. A **read** token can call every GET; a **write** token can also call the budget, recurring and category-relabel writes. The user creates tokens on the Delta host with `npm run token -- create <name> [--scope read|write]` (and `list` / `revoke <id>`).
 
 ```
 curl -s -H "Authorization: Bearer $DELTA_API_TOKEN" "$DELTA_URL/api/v1/spending?month=2026-10"
@@ -51,6 +51,10 @@ Responses are JSON, keys camelCase, money in **integer cents**. Errors: 400 bad 
 - `POST /api/v1/recurring` with JSON `{"status": "confirmed", "name": "Netflix", "amount": 1549, "gapDays": 30, "anchorDate": "2026-07-08", "matchKey": "netflix"}` — creates a rule. `status` is `"confirmed"` or `"dismissed"` (dismissed suppresses a suggestion); `name` 1–200 chars; `amount` positive integer cents ≤ 100,000,000; `gapDays` integer 1–1000 (days between charges); `anchorDate` ISO `yyyy-mm-dd` (last known/expected charge); `matchKey` optional (the suggestion's group key — omit for manual entries). Returns `{"ok": true}` or 400.
 - `PUT /api/v1/recurring` with JSON `{"id": 3, "name": ..., "amount": ..., "gapDays": ..., "anchorDate": ...}` — edits a rule (404 if absent).
 - `DELETE /api/v1/recurring` with JSON `{"id": 3}` — removes it (this is how a canceled subscription is recorded).
+
+**Write (category relabels)** — fix a wrong bank category. Needs a write token, and only after the user agrees:
+
+- `POST /api/v1/transactions/category` with JSON `{"id": 42, "category": "FOOD_AND_DRINK", "merchant": false}` — relabels transaction 42 (`id` from `GET /api/v1/transactions`). `category` is a Plaid primary (`BANK_FEES`, `ENTERTAINMENT`, `FOOD_AND_DRINK`, `GENERAL_MERCHANDISE`, `GENERAL_SERVICES`, `GOVERNMENT_AND_NON_PROFIT`, `HOME_IMPROVEMENT`, `INCOME`, `LOAN_DISBURSEMENTS`, `LOAN_PAYMENTS`, `MEDICAL`, `OTHER`, `PERSONAL_CARE`, `RENT_AND_UTILITIES`, `TRANSFER_IN`, `TRANSFER_OUT`, `TRANSPORTATION`, `TRAVEL`). `"merchant": true` relabels every transaction from that merchant (matched on `merchantName`, else `name`), now and on future syncs. `"category": null` undoes it (with `"merchant": true`, removes the merchant rule). Returns `{"ok": true, "updated": n}`; 400/404 on bad input. `GET /api/v1/transactions` shows the bank's original as `plaidCategory`.
 
 ## Data access (SQL — fallback)
 
