@@ -26,17 +26,20 @@ export const isSpend = and(
 
 const month = sql<string>`substr(${transactions.date}, 1, 7)`;
 
-export type CashFlowMonth = { month: string; income: number; spending: number };
+export type CashFlowMonth = { month: string; income: number; spending: number; pendingSpending: number };
 
-// Income vs spend per month, oldest first, zero-filled. Pending rows count:
-// most go through, and Plaid swaps a pending row for its posted one in the
-// same sync, so nothing doubles.
+// Pending charges almost always post, so spend totals include them; the
+// pending part is reported separately so callers can label it.
+const pendingSpend = sql<number>`coalesce(sum(case when ${transactions.pending} = 1 and ${isSpend} then ${transactions.amount} else 0 end), 0)`;
+
+// Income vs spend per month (spend includes pending), oldest first, zero-filled.
 export async function monthlyCashFlow(months: string[]): Promise<CashFlowMonth[]> {
   const rows = await db
     .select({
       month,
       income: sql<number>`coalesce(sum(case when ${transactions.category} = 'INCOME' then -${transactions.amount} else 0 end), 0)`,
       spending: sql<number>`coalesce(sum(case when ${isSpend} then ${transactions.amount} else 0 end), 0)`,
+      pendingSpending: pendingSpend,
     })
     .from(transactions)
     .where(gte(month, months[0]))
@@ -46,6 +49,7 @@ export async function monthlyCashFlow(months: string[]): Promise<CashFlowMonth[]
     month: m,
     income: Math.max(byMonth.get(m)?.income ?? 0, 0),
     spending: Math.max(byMonth.get(m)?.spending ?? 0, 0),
+    pendingSpending: Math.max(byMonth.get(m)?.pendingSpending ?? 0, 0),
   }));
 }
 
@@ -65,9 +69,9 @@ export async function spendThroughDay(m: string, day: number): Promise<number> {
   return total;
 }
 
+// total includes pending; pendingTotal is the pending part of it.
 export type CategoryTotal = { category: string | null; total: number; pendingTotal: number };
 
-// total includes pending; pendingTotal is the part of it still pending.
 export async function categoryTotals(m: string): Promise<CategoryTotal[]> {
   const total = sql<number>`sum(${transactions.amount})`;
   return db
