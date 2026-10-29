@@ -418,3 +418,32 @@ async function runSync(allItems: Item[]): Promise<SyncResult> {
   }
   return totals;
 }
+
+export type RefreshResult = {
+  refreshed: number;
+  skipped: { itemId: number; institution: string | null; error_code: string }[];
+};
+
+// Plaid only re-checks a bank for transactions 1-4x a day, while balances
+// are live, so a new charge can move the balance hours before it shows up.
+// /transactions/refresh asks Plaid to check now (free on the Trial plan,
+// billed per call on paid plans). It's async with no webhook here, so the
+// delta-sync timer calls this, waits, then syncs. Some items can't refresh
+// (Capital One credit-only items answer PRODUCTS_NOT_SUPPORTED): skip them,
+// never fail the run and never touch last_error_code — the sync owns that.
+export async function refreshAll(): Promise<RefreshResult> {
+  const result: RefreshResult = { refreshed: 0, skipped: [] };
+  for (const item of db.select().from(items).all()) {
+    try {
+      await getPlaid().transactionsRefresh({ access_token: item.accessToken });
+      result.refreshed++;
+    } catch (err) {
+      const e = safePlaidError(err);
+      console.warn(
+        `plaid refresh skipped: item=${item.id} institution=${JSON.stringify(item.institutionName)} error_code=${e.error_code} request_id=${e.request_id}`,
+      );
+      result.skipped.push({ itemId: item.id, institution: item.institutionName, error_code: e.error_code });
+    }
+  }
+  return result;
+}
