@@ -171,6 +171,57 @@ body {
     backdrop-filter: url(#delta-refract);
   }
 
+  /* Modal sheet (<dialog class="sheet">): slides up from the bottom edge on
+     phones, fades/lifts in centered from sm:. @starting-style animates the
+     open; allow-discrete keeps it on screen while it animates closed. */
+  .sheet {
+    opacity: 0;
+    translate: 0 100%;
+    transition:
+      opacity 0.2s ease,
+      translate 0.32s cubic-bezier(0.2, 0.8, 0.2, 1),
+      overlay 0.32s allow-discrete,
+      display 0.32s allow-discrete;
+  }
+  .sheet[open] {
+    opacity: 1;
+    translate: 0 0;
+  }
+  @starting-style {
+    .sheet[open] {
+      opacity: 0;
+      translate: 0 100%;
+    }
+  }
+  @media (width >= 40rem) {
+    .sheet {
+      translate: 0 0.75rem;
+    }
+    .sheet[open] {
+      translate: 0 0;
+    }
+    @starting-style {
+      .sheet[open] {
+        translate: 0 0.75rem;
+      }
+    }
+  }
+  .sheet::backdrop {
+    background-color: transparent;
+    transition:
+      background-color 0.32s ease,
+      overlay 0.32s allow-discrete,
+      display 0.32s allow-discrete;
+  }
+  .sheet[open]::backdrop {
+    background-color: rgb(0 0 0 / 0.3);
+  }
+  @starting-style {
+    .sheet[open]::backdrop {
+      background-color: transparent;
+    }
+  }
+
   /* Content layer: frosted card without backdrop blur (cheap, legible). */
   .surface {
     background-color: var(--surface);
