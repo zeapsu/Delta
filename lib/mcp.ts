@@ -9,6 +9,7 @@
 // server instructions and tool descriptions (no separate skill install), and
 // money in dollars. The API stays in cents; conversion happens here.
 import type { Scope } from "@/lib/api-auth";
+import { CATEGORIES } from "@/lib/categories";
 
 export const SERVER_INFO = { name: "delta", version: "1.0.0" };
 export const PROTOCOL_VERSIONS = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"];
@@ -28,12 +29,12 @@ Conventions:
 - "Spend" excludes transfers between the user's own accounts (TRANSFER_IN/TRANSFER_OUT), INCOME, LOAN_DISBURSEMENTS (loan money in, including some card payment credits) and credit card payments (categoryDetailed LOAN_PAYMENTS_CREDIT_CARD_PAYMENT: the card purchases are already counted), and includes uncategorized rows. Other LOAN_PAYMENTS (student, auto, mortgage) count as spend. Totals from spending_by_category, cash_flow and get_budgets are computed by Delta and match the dashboard: use them instead of adding up transactions yourself.
 - Credit card and loan balances are positive amounts owed; net worth subtracts them.
 - Pending transactions (pending: true in search_transactions) are charges the bank has authorized but not posted. Spend totals (spending_by_category, cash_flow, get_budgets) include them, and pendingTotal / pendingSpending say how much of a total is still pending. Pending amounts can still change or disappear (e.g. a refundable hold), so say which charges are pending when they matter, and leave them out when reconciling against a statement.
-- Categories are Plaid's labels (e.g. FOOD_AND_DRINK) unless the user relabeled a transaction or merchant in Delta; relabels already apply to every total. Plaid's labels can be wrong; list the transactions behind a surprising number before drawing conclusions.
+- Categories are Plaid's labels (e.g. FOOD_AND_DRINK) unless the user relabeled a transaction or merchant in Delta; relabels already apply to every total, and plaidCategory in search_transactions keeps the bank's label. Plaid's labels can be wrong; list the transactions behind a surprising number before drawing conclusions.
 - Recurring: "confirmed" rules are user-reviewed truth; "suggestions" are unreviewed guesses, never count them in totals.
 
 Every answer has an as_of block. If it carries warnings (data older than ${STALE_DAYS} days, or a bank connection whose last sync failed), tell the user and caveat your conclusions with the last sync date.
 
-Advice: ground every claim in numbers you just fetched. Budgeting, spending patterns, subscriptions and cash flow are in scope; no specific investment, securities, tax or legal advice. Only call a write tool (set_budget, recurring rules) after the user explicitly agrees. Never repeat the API token.`;
+Advice: ground every claim in numbers you just fetched. Budgeting, spending patterns, subscriptions and cash flow are in scope; no specific investment, securities, tax or legal advice. Only call a write tool (set_budget, recurring rules, category relabels) after the user explicitly agrees. Never repeat the API token.`;
 
 // ---------- argument schemas + validation ----------
 
@@ -54,6 +55,16 @@ const CATEGORY = {
   type: "string",
   pattern: "^[A-Z_]{1,64}$",
   description: "Plaid primary category, e.g. FOOD_AND_DRINK, GENERAL_MERCHANDISE, RENT_AND_UTILITIES",
+} as const;
+const RELABEL: Prop = {
+  type: "string",
+  enum: [...CATEGORIES],
+  description: "New Plaid primary category, e.g. FOOD_AND_DRINK",
+};
+const ALL_FROM_MERCHANT = {
+  type: "boolean",
+  description:
+    "true = every transaction from this merchant (matched on merchantName, or name when there is none), including ones from future syncs; default false = only this transaction",
 } as const;
 const DOLLARS = { type: "number", exclusiveMinimum: 0, maximum: 1_000_000 } as const;
 const ID = { type: "integer", minimum: 1 } as const;
@@ -395,6 +406,34 @@ export const TOOLS: Tool[] = [
     required: ["id"],
     annotations: { destructiveHint: true, idempotentHint: true },
     run: async (a, api) => call(api, "DELETE", "/api/v1/recurring", { body: { id: a.id } }),
+  },
+  {
+    name: "set_transaction_category",
+    title: "Relabel a transaction's category",
+    description:
+      "Change a transaction's category (id from search_transactions), e.g. a restaurant the bank filed under PERSONAL_CARE. With all_from_merchant, every transaction from that merchant is relabeled now and on future syncs. Relabels apply to spending, budgets and cash flow everywhere in Delta and survive syncs. Returns updated (rows changed). Only after the user explicitly agrees.",
+    scope: "write",
+    props: { id: { ...ID, description: "Transaction id" }, category: RELABEL, all_from_merchant: ALL_FROM_MERCHANT },
+    required: ["id", "category"],
+    annotations: { idempotentHint: true },
+    run: async (a, api) =>
+      call(api, "POST", "/api/v1/transactions/category", {
+        body: { id: a.id, category: a.category, merchant: a.all_from_merchant ?? false },
+      }),
+  },
+  {
+    name: "reset_transaction_category",
+    title: "Undo a category relabel",
+    description:
+      "Put a transaction back on the bank's category (plaidCategory in search_transactions). If its category comes from a merchant-wide relabel, pass all_from_merchant: true, which removes that merchant rule and resets every transaction from the merchant. Only after the user explicitly agrees.",
+    scope: "write",
+    props: { id: { ...ID, description: "Transaction id" }, all_from_merchant: ALL_FROM_MERCHANT },
+    required: ["id"],
+    annotations: { destructiveHint: true, idempotentHint: true },
+    run: async (a, api) =>
+      call(api, "POST", "/api/v1/transactions/category", {
+        body: { id: a.id, category: null, merchant: a.all_from_merchant ?? false },
+      }),
   },
 ];
 

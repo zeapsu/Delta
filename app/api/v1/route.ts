@@ -27,6 +27,12 @@ export async function GET() {
         params: "from, to (YYYY-MM-DD), month (YYYY-MM), account_id, category, q, pending (true|false), limit (1-500, default 100), offset",
         about: "transactions (posted date + authorizedDate, the purchase date or null), newest first by posted date, paged",
       },
+      {
+        method: "POST",
+        path: "/api/v1/transactions/category",
+        body: '{"id","category" (Plaid primary, or null to undo),"merchant" (true = every transaction from this merchant, now and future)}',
+        about: "relabel a transaction's category (write scope)",
+      },
       { method: "GET", path: "/api/v1/cash-flow", params: "months (1-36, default 6), end (YYYY-MM)", about: "posted income vs spend per month" },
       { method: "GET", path: "/api/v1/spending", params: "month (YYYY-MM, default this month), date_basis (posted|authorized, default posted)", about: "spend per category" },
       { method: "GET", path: "/api/v1/budgets", params: "month", about: "budgets with progress" },

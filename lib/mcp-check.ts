@@ -24,6 +24,7 @@ const api: Api = async (method, path, opts = {}) => {
     return { status: 200, data: { transactions: [{ id: 1, amount: -2500 }], total: 41, nextOffset: 1 } };
   }
   if (path === "/api/v1/budgets" && method === "POST") return { status: 200, data: { ok: true } };
+  if (path === "/api/v1/transactions/category") return { status: 200, data: { ok: true, updated: 3 } };
   if (path === "/api/v1/budgets") return { status: 400, data: { error: "month must be YYYY-MM" } };
   return { status: 404, data: { error: "nope" } };
 };
@@ -79,7 +80,7 @@ async function main() {
     const before = calls.length;
     c = await rpc("tools/call", { name: "search_transactions", arguments: args });
     assert.strictEqual(c.result!.isError, true, JSON.stringify(args));
-    assert.strictEqual(calls.length, before);
+    assert.strictEqual(calls.length, before); // rejected before reaching the API
   }
   assert.throws(() => validateArgs({}, ["x"], {}), /missing required/);
 
@@ -93,6 +94,17 @@ async function main() {
   c = await rpc("tools/call", { name: "set_budget", arguments: { category: "FOOD_AND_DRINK", monthly_amount: 400.1 } }, "write");
   assert.strictEqual(payload(c).ok, true);
   assert.deepStrictEqual(calls.findLast((x) => x.method === "POST")!.body, { category: "FOOD_AND_DRINK", monthlyAmount: 40010 });
+  // Relabels: write-only; merchant flag defaults to false; reset sends null; categories are an enum.
+  assert(!names("read").includes("set_transaction_category"));
+  c = await rpc("tools/call", { name: "set_transaction_category", arguments: { id: 7, category: "FOOD_AND_DRINK" } }, "write");
+  assert.strictEqual(payload(c).updated, 3);
+  assert.deepStrictEqual(calls.findLast((x) => x.path === "/api/v1/transactions/category")!.body, { id: 7, category: "FOOD_AND_DRINK", merchant: false });
+  await rpc("tools/call", { name: "reset_transaction_category", arguments: { id: 7, all_from_merchant: true } }, "write");
+  assert.deepStrictEqual(calls.findLast((x) => x.path === "/api/v1/transactions/category")!.body, { id: 7, category: null, merchant: true });
+  const before = calls.length;
+  c = await rpc("tools/call", { name: "set_transaction_category", arguments: { id: 7, category: "TACOS" } }, "write");
+  assert.strictEqual(c.result!.isError, true);
+  assert.strictEqual(calls.length, before); // rejected before reaching the API
   assert.strictEqual((await rpc("tools/call", { name: "drop_tables" })).error!.code, -32602);
 
   // Helpers.
