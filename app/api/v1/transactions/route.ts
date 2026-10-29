@@ -7,6 +7,8 @@ import { isMonth } from "@/lib/months";
 export const dynamic = "force-dynamic";
 
 // Filters mirror the /transactions page. category=UNCATEGORIZED matches null.
+// Date filters and ordering use the posted date; authorizedDate (when the
+// purchase happened, null if the bank doesn't say) is returned alongside.
 export const GET = readRoute(async (sp) => {
   const conditions: SQL[] = [];
   const from = dateParam(sp, "from");
@@ -53,6 +55,7 @@ export const GET = readRoute(async (sp) => {
       .select({
         id: transactions.id,
         date: transactions.date,
+        authorizedDate: transactions.authorizedDate,
         name: transactions.name,
         merchantName: transactions.merchantName,
         category: transactions.category,

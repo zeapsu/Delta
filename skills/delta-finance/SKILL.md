@@ -33,9 +33,9 @@ Responses are JSON, keys camelCase, money in **integer cents**. Errors: 400 bad 
 |---|---|---|
 | `GET /api/v1/status` | — | `lastTransaction`, `lastSnapshot`, `lastInvestment` dates + `connections[]` (`institution`, `lastSyncedAt`, `lastErrorCode` — non-null means that connection's last sync failed) |
 | `GET /api/v1/accounts` | — | accounts with `type`, `currentBalance`, `availableBalance`, `institution` |
-| `GET /api/v1/transactions` | `from`, `to` (YYYY-MM-DD), `month` (YYYY-MM), `account_id`, `category` (`UNCATEGORIZED` = none), `q` (name/merchant substring), `pending` (`true`/`false`), `limit` (≤500, default 100), `offset` | `transactions[]` newest first, `total`, `nextOffset` (null on the last page) |
+| `GET /api/v1/transactions` | `from`, `to` (YYYY-MM-DD), `month` (YYYY-MM), `account_id`, `category` (`UNCATEGORIZED` = none), `q` (name/merchant substring), `pending` (`true`/`false`), `limit` (≤500, default 100), `offset` | `transactions[]` newest first by posted `date`, each with `authorizedDate` (purchase date, null if unknown); `total`, `nextOffset` (null on the last page) |
 | `GET /api/v1/cash-flow` | `months` (1–36, default 6), `end` (YYYY-MM) | `months[]` oldest first: `income` and `spending` (the app's spend rule, pending included) plus `pendingSpending` (the pending part) |
-| `GET /api/v1/spending` | `month` (default this month) | `categories[]` biggest first: `total` (pending included) + `pendingTotal` (the pending part); month `total`/`pendingTotal` |
+| `GET /api/v1/spending` | `month` (default this month), `date_basis` (`posted` default = dashboard; `authorized` = by purchase date, posted date when unknown) | `categories[]` biggest first: `total` (pending included) + `pendingTotal` (the pending part); month `total`/`pendingTotal` |
 | `GET /api/v1/budgets` | `month` | `budgets[]`: `monthlyAmount`, `net` (refunds netted), `spent` (clamped ≥0), `pct` |
 | `GET /api/v1/recurring` | — | `confirmed[]` (user-reviewed truth, with `cadence`, `nextDate`), `suggestions[]` (unreviewed candidates — never count them), `monthlyEstimate` |
 | `GET /api/v1/investments` | `account_id`, `from`, `to`, `limit`, `offset` | investment activity, newest first, paged like transactions |
@@ -91,7 +91,7 @@ Table and column reference: [references/schema.md](references/schema.md). Canoni
 
 - **Ground every claim in data you just fetched** and quote the actual numbers. Never estimate from memory or extrapolate beyond the data.
 - **Stay in scope:** budgeting, spending patterns, subscription cleanup, and cash-flow observations — yes. **No specific investment, securities, tax, or legal advice**; offer general principles at most and recommend a professional for those.
-- Categories are Plaid's automatic labels and can be wrong — sanity-check surprising numbers by listing the underlying transactions before drawing conclusions.
+- Categories are Plaid's automatic labels unless the user relabeled them on the Transactions page (`transactions.category` is already the relabeled value; `plaid_category` keeps Plaid's). Plaid's labels can be wrong — sanity-check surprising numbers by listing the underlying transactions before drawing conclusions.
 - Recommendations are suggestions. **Only write a budget or recurring rule after the user explicitly agrees**, and only via `/api/v1/budgets` and `/api/v1/recurring`.
 - This data is private and stays local. Never send raw transaction dumps to third-party services, and don't surface account masks or numbers unless the user asks.
 

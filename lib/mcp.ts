@@ -28,7 +28,7 @@ Conventions:
 - "Spend" excludes transfers between the user's own accounts (TRANSFER_IN/TRANSFER_OUT), INCOME, LOAN_DISBURSEMENTS (loan money in, including some card payment credits) and credit card payments (categoryDetailed LOAN_PAYMENTS_CREDIT_CARD_PAYMENT: the card purchases are already counted), and includes uncategorized rows. Other LOAN_PAYMENTS (student, auto, mortgage) count as spend. Totals from spending_by_category, cash_flow and get_budgets are computed by Delta and match the dashboard: use them instead of adding up transactions yourself.
 - Credit card and loan balances are positive amounts owed; net worth subtracts them.
 - Pending transactions (pending: true in search_transactions) are charges the bank has authorized but not posted. Spend totals (spending_by_category, cash_flow, get_budgets) include them, and pendingTotal / pendingSpending say how much of a total is still pending. Pending amounts can still change or disappear (e.g. a refundable hold), so say which charges are pending when they matter, and leave them out when reconciling against a statement.
-- Categories are Plaid's automatic labels (e.g. FOOD_AND_DRINK) and can be wrong; list the transactions behind a surprising number before drawing conclusions.
+- Categories are Plaid's labels (e.g. FOOD_AND_DRINK) unless the user relabeled a transaction or merchant in Delta; relabels already apply to every total. Plaid's labels can be wrong; list the transactions behind a surprising number before drawing conclusions.
 - Recurring: "confirmed" rules are user-reviewed truth; "suggestions" are unreviewed guesses, never count them in totals.
 
 Every answer has an as_of block. If it carries warnings (data older than ${STALE_DAYS} days, or a bank connection whose last sync failed), tell the user and caveat your conclusions with the last sync date.
@@ -220,7 +220,7 @@ export const TOOLS: Tool[] = [
     name: "search_transactions",
     title: "Search transactions",
     description:
-      "Bank and card transactions, newest first, paged. amount is dollars with positive = money out, negative = money in. pending: true marks a charge that has not posted yet and can still change or disappear; call it pending when you mention it. Use this to find specific charges or to check the transactions behind a total; for totals use spending_by_category or cash_flow instead of adding these up. Investment buys/sells are not here (see investment_activity).",
+      "Bank and card transactions, newest first by posted date, paged. date is the posted date; authorizedDate is when the purchase happened (null when the bank doesn't report it) and can fall in an earlier month near a month boundary. Date filters use the posted date. amount is dollars with positive = money out, negative = money in. pending: true marks a charge that has not posted yet and can still change or disappear; call it pending when you mention it. Use this to find specific charges or to check the transactions behind a total; for totals use spending_by_category or cash_flow instead of adding these up. Investment buys/sells are not here (see investment_activity).",
     scope: "read",
     props: {
       from: { ...DATE, description: "Earliest date, YYYY-MM-DD" },
@@ -241,9 +241,16 @@ export const TOOLS: Tool[] = [
     name: "spending_by_category",
     title: "Spending by category",
     description:
-      "Spend per category for one month, biggest first, in dollars: total (pending charges included) and pendingTotal (the still-pending part of total) per category plus month totals. Uses Delta's spend rule (no transfers or income; refunds net within a category). Matches the dashboard's spending page.",
+      "Spend per category for one month, biggest first, in dollars: total (pending charges included) and pendingTotal (the still-pending part of total) per category plus month totals. Uses Delta's spend rule (no transfers or income; refunds net within a category). Matches the dashboard's spending page with the default date_basis=posted; date_basis=authorized buckets by purchase date instead (posted date when unknown), e.g. a charge made Oct 31 that posted Nov 2 counts in October.",
     scope: "read",
-    props: { month: { ...MONTH, description: "YYYY-MM, default this month (partial)" } },
+    props: {
+      month: { ...MONTH, description: "YYYY-MM, default this month (partial)" },
+      date_basis: {
+        type: "string",
+        enum: ["posted", "authorized"],
+        description: "posted (default, matches the dashboard) or authorized (purchase date, falling back to posted)",
+      },
+    },
     annotations: READ_HINTS,
     run: read("/api/v1/spending", ["total", "pendingTotal"]),
   },

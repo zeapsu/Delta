@@ -72,7 +72,13 @@ export async function spendThroughDay(m: string, day: number): Promise<number> {
 // total includes pending; pendingTotal is the pending part of it.
 export type CategoryTotal = { category: string | null; total: number; pendingTotal: number };
 
-export async function categoryTotals(m: string): Promise<CategoryTotal[]> {
+// "posted" buckets by the date the bank posted the charge (the dashboard's
+// rule); "authorized" by when the purchase happened, falling back to the
+// posted date when Plaid has no authorized_date.
+export type DateBasis = "posted" | "authorized";
+
+export async function categoryTotals(m: string, basis: DateBasis = "posted"): Promise<CategoryTotal[]> {
+  const day = basis === "authorized" ? sql`coalesce(${transactions.authorizedDate}, ${transactions.date})` : transactions.date;
   const total = sql<number>`sum(${transactions.amount})`;
   return db
     .select({
@@ -81,7 +87,7 @@ export async function categoryTotals(m: string): Promise<CategoryTotal[]> {
       pendingTotal: sql<number>`sum(case when ${transactions.pending} = 1 then ${transactions.amount} else 0 end)`,
     })
     .from(transactions)
-    .where(and(like(transactions.date, `${m}-%`), isSpend))
+    .where(and(like(day, `${m}-%`), isSpend))
     .groupBy(transactions.category)
     .orderBy(desc(total));
 }

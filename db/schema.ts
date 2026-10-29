@@ -56,10 +56,20 @@ export const transactions = sqliteTable(
     plaidTransactionId: text("plaid_transaction_id").notNull().unique(),
     // Money stored as integer cents. Plaid convention: positive = money out.
     amount: integer("amount").notNull(),
-    date: text("date").notNull(), // ISO yyyy-mm-dd
+    date: text("date").notNull(), // ISO yyyy-mm-dd, posted date
+    // When the purchase happened (Plaid authorized_date); null when the bank
+    // doesn't report it. Can be days before `date` around a month boundary.
+    authorizedDate: text("authorized_date"), // ISO yyyy-mm-dd
     name: text("name").notNull(),
     merchantName: text("merchant_name"),
+    // Effective category: categoryOverride ?? merchant rule ?? plaidCategory.
+    // Kept materialized so every reader (dashboard, API, agent SQL) just uses it.
     category: text("category"),
+    // Plaid's own primary category, kept so a relabel can be undone.
+    plaidCategory: text("plaid_category"),
+    // User relabel of this one transaction; survives syncs. Writes go through
+    // /api/transactions/category only.
+    categoryOverride: text("category_override"),
     // Plaid detailed category, e.g. LOAN_PAYMENTS_CREDIT_CARD_PAYMENT — needed
     // to tell card payments (not spend) from real loan payments (spend).
     categoryDetailed: text("category_detailed"),
@@ -113,6 +123,18 @@ export const investmentTransactions = sqliteTable(
     ),
   ],
 );
+
+// "Every <merchant> is <category>" relabels, applied at sync time to rows
+// without a per-transaction override. merchantKey = merchantKey() in
+// lib/categories.ts. Writes go through /api/transactions/category only.
+export const categoryRules = sqliteTable("category_rules", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  merchantKey: text("merchant_key").notNull().unique(),
+  category: text("category").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
+    .notNull()
+    .default(sql`(unixepoch('now', 'subsec') * 1000)`),
+});
 
 export const balanceSnapshots = sqliteTable("balance_snapshots", {
   id: integer("id").primaryKey({ autoIncrement: true }),
