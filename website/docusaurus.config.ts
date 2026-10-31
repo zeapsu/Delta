@@ -24,13 +24,22 @@ const config: Config = {
 
   i18n: { defaultLocale: "en", locales: ["en"] },
 
+  // Geist, the app's typeface (next/font loads it there).
+  headTags: [
+    { tagName: "link", attributes: { rel: "preconnect", href: "https://fonts.googleapis.com" } },
+    { tagName: "link", attributes: { rel: "preconnect", href: "https://fonts.gstatic.com", crossorigin: "anonymous" } },
+  ],
+  stylesheets: [
+    "https://fonts.googleapis.com/css2?family=Geist:wght@400..700&family=Geist+Mono:wght@400..600&display=swap",
+  ],
+
   presets: [
     [
       "classic",
       {
         docs: {
           path: "../docs",
-          routeBasePath: "/",
+          routeBasePath: "docs",
           sidebarPath: "./sidebars.ts",
           editUrl: "https://github.com/zeapsu/Delta/edit/main/",
         },
@@ -46,18 +55,27 @@ const config: Config = {
       title: "Delta",
       items: [
         { type: "docSidebar", sidebarId: "docs", position: "left", label: "Docs" },
-        { href: "https://github.com/zeapsu/Delta", label: "GitHub", position: "right" },
+        { href: "https://github.com/zeapsu/Delta", label: "GitHub", position: "right", className: "header-github" },
       ],
     },
     footer: {
-      style: "dark",
       links: [
         {
           title: "Docs",
           items: [
-            { label: "Introduction", to: "/" },
-            { label: "Self-hosting", to: "/self-hosting" },
-            { label: "Connect an agent", to: "/agents" },
+            { label: "Introduction", to: "/docs" },
+            { label: "Self-hosting", to: "/docs/self-hosting" },
+            { label: "Plaid Trial setup", to: "/docs/plaid-trial" },
+            { label: "Connect an agent", to: "/docs/agents" },
+          ],
+        },
+        {
+          title: "Reference",
+          items: [
+            { label: "MCP tools", to: "/docs/mcp-tools" },
+            { label: "REST API", to: "/docs/api" },
+            { label: "Architecture", to: "/docs/architecture" },
+            { label: "Troubleshooting", to: "/docs/troubleshooting" },
           ],
         },
         {
@@ -66,13 +84,16 @@ const config: Config = {
             { label: "GitHub", href: "https://github.com/zeapsu/Delta" },
             { label: "Contributing", href: "https://github.com/zeapsu/Delta/blob/main/CONTRIBUTING.md" },
             { label: "Issues", href: "https://github.com/zeapsu/Delta/issues" },
+            { label: "License (AGPL-3.0)", href: "https://github.com/zeapsu/Delta/blob/main/LICENSE.md" },
           ],
         },
       ],
+      copyright: "Delta is free, open source and self-hosted. Your data stays on your machine.",
     },
     prism: {
-      theme: prismThemes.github,
-      darkTheme: prismThemes.dracula,
+      // Code blocks sit on the card's own fill, so the themes' backgrounds go.
+      theme: { ...prismThemes.github, plain: { ...prismThemes.github.plain, backgroundColor: "transparent" } },
+      darkTheme: { ...prismThemes.vsDark, plain: { ...prismThemes.vsDark.plain, backgroundColor: "transparent" } },
       additionalLanguages: ["bash", "json"],
     },
   } satisfies Preset.ThemeConfig,
