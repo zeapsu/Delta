@@ -16,7 +16,7 @@
     "better-sqlite3": "^13.0.3",
     "drizzle-orm": "^0.45.4",
     "next": "16.4.3",
-    "plaid": "^43.0.0",
+    "plaid": "^49.0.0",
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "react-plaid-link": "^4.1.1",
