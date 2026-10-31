@@ -78,12 +78,12 @@ function RuleFields({
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-3 sm:flex-row sm:items-end sm:flex-wrap">
-      <div className="flex flex-col gap-1">
-        <label className="eyebrow">Name</label>
+      <label className="flex flex-col gap-1">
+        <span className="eyebrow">Name</span>
         <input required maxLength={200} value={name} onChange={(e) => setName(e.target.value)} className={inputClass} />
-      </div>
-      <div className="flex flex-col gap-1">
-        <label className="eyebrow">Amount ($)</label>
+      </label>
+      <label className="flex flex-col gap-1">
+        <span className="eyebrow">Amount ($)</span>
         <input
           type="number"
           step="0.01"
@@ -93,9 +93,9 @@ function RuleFields({
           onChange={(e) => setDollars(e.target.value)}
           className={inputClass}
         />
-      </div>
-      <div className="flex flex-col gap-1">
-        <label className="eyebrow">Every (days)</label>
+      </label>
+      <label className="flex flex-col gap-1">
+        <span className="eyebrow">Every (days)</span>
         <input
           type="number"
           min="1"
@@ -105,9 +105,9 @@ function RuleFields({
           onChange={(e) => setGapDays(e.target.value)}
           className={inputClass}
         />
-      </div>
-      <div className="flex flex-col gap-1">
-        <label className="eyebrow">Last charge</label>
+      </label>
+      <label className="flex flex-col gap-1">
+        <span className="eyebrow">Last charge</span>
         <input
           type="date"
           required
@@ -115,7 +115,7 @@ function RuleFields({
           onChange={(e) => setAnchorDate(e.target.value)}
           className={inputClass}
         />
-      </div>
+      </label>
       <button type="submit" disabled={saving} className="btn btn-primary">
         {saving ? "Saving…" : submitLabel}
       </button>

@@ -16,10 +16,13 @@ export function getPlaid(): PlaidApi {
       ? process.env.PLAID_PRODUCTION_SECRET
       : process.env.PLAID_SANDBOX_SECRET;
   if (!secret) throw new Error(`Missing Plaid secret for PLAID_ENV=${env}`);
+  // Test-only: points the client at the e2e mock Plaid server (e2e/plaid-mock.mjs).
+  const mockUrl = process.env.PLAID_MOCK_URL;
+  if (mockUrl && env !== "sandbox") throw new Error("PLAID_MOCK_URL is only allowed with PLAID_ENV=sandbox");
 
   client = new PlaidApi(
     new Configuration({
-      basePath: PlaidEnvironments[env],
+      basePath: mockUrl || PlaidEnvironments[env],
       baseOptions: {
         headers: {
           "PLAID-CLIENT-ID": process.env.PLAID_CLIENT_ID,

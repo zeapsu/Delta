@@ -105,7 +105,8 @@ export function AskAgent({ scope = "card" }: { scope?: "card" | "page" }) {
       data-ask-skip=""
       onClick={onClick}
       title={`Copy this ${scope} as a question for your agent`}
-      aria-label={state === "idle" ? `Copy this ${scope} as a question for your agent` : label}
+      // The accessible name starts with the visible text, so voice control ("click Ask") works.
+      aria-label={state === "idle" ? `${label}: copy this ${scope} as a question for your agent` : label}
       className={
         scope === "page"
           ? "btn btn-sm"
