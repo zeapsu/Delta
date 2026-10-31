@@ -22,8 +22,14 @@ export default function PlaidButtons() {
   }, []);
 
   const onSuccess = useCallback(
-    (public_token: string, metadata: PlaidLinkOnSuccessMetadata) => {
+    (public_token: string | null, metadata: PlaidLinkOnSuccessMetadata) => {
       setError(null);
+      // react-plaid-link 5 allows null for flows that don't create an Item;
+      // linking a bank always creates one, so treat a missing token as a failure.
+      if (!public_token) {
+        setError("Failed to link account.");
+        return;
+      }
       fetch("/api/plaid/exchange", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
