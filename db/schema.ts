@@ -194,3 +194,14 @@ export const apiTokens = sqliteTable("api_tokens", {
     .notNull()
     .default(sql`(unixepoch('now', 'subsec') * 1000)`),
 });
+
+// App settings, one JSON value per key. "analysis" = the thresholds agents use
+// (lib/analysis.ts); no row means the user hasn't set them up (defaults apply).
+// Writes go through /api/settings only.
+export const settings = sqliteTable("settings", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+    .notNull()
+    .default(sql`(unixepoch('now', 'subsec') * 1000)`),
+});

@@ -10,6 +10,7 @@
 // money in dollars. The API stays in cents; conversion happens here.
 import type { Scope } from "@/lib/api-auth";
 import { CATEGORIES } from "@/lib/categories";
+import { ANALYSIS_DEFAULTS, analysisText, withDefaults, type AnalysisSettings } from "@/lib/analysis";
 
 export const SERVER_INFO = { name: "delta", version: "1.0.0" };
 export const PROTOCOL_VERSIONS = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"];
@@ -22,7 +23,8 @@ export type Api = (
   opts?: { query?: Record<string, string | number | boolean | undefined>; body?: unknown },
 ) => Promise<{ status: number; data: unknown }>;
 
-export const INSTRUCTIONS = `Delta is the user's personal finance app (bank data synced from Plaid). These tools read it through Delta's API.
+// {{ANALYSIS}} is filled from the user's analysis settings at initialize.
+const INSTRUCTIONS_TEMPLATE = `Delta is the user's personal finance app (bank data synced from Plaid). These tools read it through Delta's API.
 
 Conventions:
 - Money is in dollars (2 decimals). Transaction and investment amounts use the Plaid sign: positive = money out (spend), negative = money in (income, refunds).
@@ -34,11 +36,15 @@ Conventions:
 
 Every answer has an as_of block. If it carries warnings (data older than ${STALE_DAYS} days, or a bank connection whose last sync failed), tell the user and caveat your conclusions with the last sync date.
 
-Analysis: call get_status first. Compare a month's categories against the prior months (spending_by_category with month=) and flag ones more than 20% above them. Call a trend real only with 3+ months of movement; the current month is partial. Warn when a budget is at 80% or more before month end; over 100% is over budget. Confirmed recurring rules are the subscription list.
+{{ANALYSIS}}
 
 Privacy: this data is private. Never send transaction lists to third-party services, and don't mention account masks or numbers unless the user asks.
 
 Advice: ground every claim in numbers you just fetched. Budgeting, spending patterns, subscriptions and cash flow are in scope; no specific investment, securities, tax or legal advice. Only call a write tool (set_budget, recurring rules, category relabels) after the user explicitly agrees. Never repeat the API token.`;
+
+export function instructions(settings: AnalysisSettings = ANALYSIS_DEFAULTS): string {
+  return INSTRUCTIONS_TEMPLATE.replace("{{ANALYSIS}}", analysisText(settings));
+}
 
 // ---------- argument schemas + validation ----------
 
@@ -273,7 +279,7 @@ export const TOOLS: Tool[] = [
     name: "cash_flow",
     title: "Monthly income vs spending",
     description:
-      "Income and spending per month in dollars, oldest first; spending includes pending charges and pendingSpending is the still-pending part. The current month is partial. Use for trends; call a trend real only with 3+ months of movement.",
+      "Income and spending per month in dollars, oldest first; spending includes pending charges and pendingSpending is the still-pending part. The current month is partial. Use for trends; the instructions say how many months of movement make a trend.",
     scope: "read",
     props: {
       months: { type: "integer", minimum: 1, maximum: 36, description: "How many months, default 6" },
@@ -519,6 +525,17 @@ export async function handleRpc(msg: unknown, scope: Scope, api: Api): Promise<o
   }
 }
 
+// The settings route answers with defaults until the user saves their own;
+// a failure here must not break initialize, so fall back to the defaults.
+async function analysisSettings(api: Api): Promise<AnalysisSettings> {
+  try {
+    const res = await api("GET", "/api/v1/settings");
+    return res.status === 200 ? withDefaults((res.data as { analysis?: unknown }).analysis) : ANALYSIS_DEFAULTS;
+  } catch {
+    return ANALYSIS_DEFAULTS;
+  }
+}
+
 async function dispatch(method: string, params: Record<string, unknown>, scope: Scope, api: Api) {
   switch (method) {
     case "initialize": {
@@ -528,7 +545,7 @@ async function dispatch(method: string, params: Record<string, unknown>, scope: 
           typeof asked === "string" && PROTOCOL_VERSIONS.includes(asked) ? asked : PROTOCOL_VERSIONS[0],
         capabilities: { tools: { listChanged: false } },
         serverInfo: { ...SERVER_INFO, title: "Delta personal finance" },
-        instructions: INSTRUCTIONS,
+        instructions: instructions(await analysisSettings(api)),
       };
     }
     case "ping":

@@ -8,6 +8,7 @@ import * as cashFlow from "../cash-flow/route";
 import * as investments from "../investments/route";
 import * as netWorth from "../net-worth/route";
 import * as recurring from "../recurring/route";
+import * as settings from "../settings/route";
 import * as spending from "../spending/route";
 import * as status from "../status/route";
 import * as transactions from "../transactions/route";
@@ -29,6 +30,7 @@ const ROUTES: Record<string, Partial<Record<ApiMethod, Handler>>> = {
   "/api/v1/investments": investments,
   "/api/v1/net-worth": netWorth,
   "/api/v1/recurring": recurring,
+  "/api/v1/settings": settings,
   "/api/v1/spending": spending,
   "/api/v1/status": status,
   "/api/v1/transactions": transactions,
