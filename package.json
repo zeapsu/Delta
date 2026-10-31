@@ -13,7 +13,7 @@
     "test": "tsx lib/tailnet-check.ts && tsx lib/api-auth-check.ts && tsx lib/recurring-check.ts && tsx lib/networth-check.ts && tsx lib/mcp-check.ts && tsx lib/analysis-check.ts"
   },
   "dependencies": {
-    "better-sqlite3": "^12.11.1",
+    "better-sqlite3": "^13.0.3",
     "drizzle-orm": "^0.45.4",
     "next": "16.4.3",
     "plaid": "^43.0.0",
