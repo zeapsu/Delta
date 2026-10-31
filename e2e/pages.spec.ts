@@ -13,6 +13,7 @@ const PAGES: [string, RegExp][] = [
   ["/recurring", /Recurring/],
   ["/net-worth", /Net worth/],
   ["/investments", /Investments/],
+  ["/settings", /Settings/],
 ];
 
 for (const [path, heading] of PAGES) {

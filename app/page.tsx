@@ -28,6 +28,7 @@ import PlaidButtons from "./plaid-buttons";
 import { checkPlaid } from "@/lib/plaid-config";
 import ConnectionButton from "./connection-button";
 import { REAUTH_ERROR_CODES } from "@/lib/plaid-errors";
+import { getAnalysisSettings } from "@/lib/settings";
 import { Card, Change, Empty, Meter, Page, Stat, Tint } from "./ui";
 
 export const dynamic = "force-dynamic";
@@ -48,6 +49,7 @@ export default async function Home() {
     budgetRows,
     recurring,
     recent,
+    analysisSettings,
   ] = await Promise.all([
     db.select().from(items),
     db.select().from(accounts),
@@ -71,6 +73,7 @@ export default async function Home() {
       .from(transactions)
       .orderBy(desc(transactions.date), desc(transactions.id))
       .limit(6),
+    getAnalysisSettings(),
   ]);
 
   if (allItems.length === 0) {
@@ -180,6 +183,15 @@ export default async function Home() {
           </span>
           <span className="ml-auto shrink-0 font-medium text-negative">Fix →</span>
         </a>
+      ) : null}
+      {!analysisSettings.customized ? (
+        <Link href="/settings" className="surface flex items-center gap-3 px-4 py-3 text-sm">
+          <span>
+            <span className="font-medium">Choose how closely your agent watches spending.</span>{" "}
+            <span className="text-muted">One tap, or keep the recommended setting.</span>
+          </span>
+          <span className="ml-auto shrink-0 font-medium">Choose →</span>
+        </Link>
       ) : null}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-5">
         <Card

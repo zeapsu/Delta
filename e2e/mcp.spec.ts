@@ -31,6 +31,21 @@ test("handshake and tool listing by scope", async ({ baseURL }) => {
   await write.close();
 });
 
+test("initialize carries the user's analysis thresholds", async ({ baseURL, request }) => {
+  const watchful = { baselineMonths: 3, spikePct: 10, spikeMinDollars: 25, trendMonths: 2, budgetWarnPct: 70 };
+  expect((await request.put("/api/settings", { data: { analysis: watchful } })).ok()).toBe(true);
+  try {
+    const client = await connect(baseURL!, tokens().read);
+    expect(client.getInstructions()).toContain("at least 10% and $25 above that average");
+    expect(client.getInstructions()).toContain("budget is 70% or more spent");
+    await client.close();
+  } finally {
+    await request.put("/api/settings", {
+      data: { analysis: { baselineMonths: 3, spikePct: 20, spikeMinDollars: 50, trendMonths: 3, budgetWarnPct: 80 } },
+    });
+  }
+});
+
 test("a bad token cannot connect", async ({ baseURL }) => {
   await expect(connect(baseURL!, "dlt_" + "x".repeat(43))).rejects.toThrow();
 });
