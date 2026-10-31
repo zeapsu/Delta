@@ -77,3 +77,30 @@ export function analysisText(s: AnalysisSettings): string {
   const months = (n: number) => `${n} month${n === 1 ? "" : "s"}`;
   return `Analysis (the user's thresholds): call get_status first. Compare a month's categories against the average of the prior ${months(s.baselineMonths)} (spending_by_category with month=) and flag a category only when it is at least ${s.spikePct}% and $${s.spikeMinDollars} above that average. Call a trend real only with ${months(s.trendMonths)} or more of movement; the current month is partial. Give a heads-up when a budget is ${s.budgetWarnPct}% or more spent; over 100% is over budget. Confirmed recurring rules are the subscription list.`;
 }
+
+// One-tap choices on /settings; Balanced is the defaults. Watchful uses
+// Yodlee's 10% with a lower $25 floor; Relaxed only speaks up for big moves.
+export const ANALYSIS_PRESETS = [
+  {
+    id: "relaxed",
+    label: "Relaxed",
+    blurb: "Only big changes",
+    value: { baselineMonths: 6, spikePct: 35, spikeMinDollars: 100, trendMonths: 4, budgetWarnPct: 90 },
+  },
+  { id: "balanced", label: "Balanced", blurb: "Recommended", value: ANALYSIS_DEFAULTS },
+  {
+    id: "watchful",
+    label: "Watchful",
+    blurb: "Smaller changes too",
+    value: { baselineMonths: 3, spikePct: 10, spikeMinDollars: 25, trendMonths: 2, budgetWarnPct: 70 },
+  },
+] as const satisfies readonly { id: string; label: string; blurb: string; value: AnalysisSettings }[];
+
+export function presetFor(s: AnalysisSettings): (typeof ANALYSIS_PRESETS)[number]["id"] | null {
+  return ANALYSIS_PRESETS.find((p) => KEYS.every((k) => p.value[k] === s[k]))?.id ?? null;
+}
+
+// One plain sentence for the settings page.
+export function analysisSummary(s: AnalysisSettings): string {
+  return `Points out a category when it's ${s.spikePct}% and $${s.spikeMinDollars} over your ${s.baselineMonths}-month average, and warns when a budget is ${s.budgetWarnPct}% spent.`;
+}

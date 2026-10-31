@@ -2,55 +2,26 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ANALYSIS_DEFAULTS, ANALYSIS_LIMITS, type AnalysisSettings } from "@/lib/analysis";
+import {
+  ANALYSIS_LIMITS,
+  ANALYSIS_PRESETS,
+  analysisSummary,
+  presetFor,
+  type AnalysisSettings,
+} from "@/lib/analysis";
 
-const FIELDS: { key: keyof AnalysisSettings; label: string; unit: string; help: string }[] = [
-  {
-    key: "baselineMonths",
-    label: "Compare against",
-    unit: "months",
-    help: "Each month's categories are compared with the average of this many earlier months.",
-  },
-  {
-    key: "spikePct",
-    label: "Flag a category above average by",
-    unit: "%",
-    help: "Both this and the dollar amount below must be exceeded.",
-  },
-  {
-    key: "spikeMinDollars",
-    label: "…and by at least",
-    unit: "$",
-    help: "Keeps small categories from being flagged over a few dollars.",
-  },
-  {
-    key: "trendMonths",
-    label: "Call it a trend after",
-    unit: "months",
-    help: "Fewer months of movement is treated as noise.",
-  },
-  {
-    key: "budgetWarnPct",
-    label: "Budget heads-up at",
-    unit: "% spent",
-    help: "Over 100% is always reported as over budget.",
-  },
-];
-
-const toText = (s: AnalysisSettings) =>
-  Object.fromEntries(FIELDS.map((f) => [f.key, String(s[f.key])])) as Record<keyof AnalysisSettings, string>;
-
+// One tap picks a preset (and saves); the exact numbers sit behind
+// "Customize" as sentences with the numbers inline.
 export function AnalysisForm({ initial }: { initial: AnalysisSettings }) {
   const router = useRouter();
-  const [values, setValues] = useState(() => toText(initial));
-  const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [current, setCurrent] = useState(initial);
+  const [draft, setDraft] = useState(initial);
+  const [open, setOpen] = useState(presetFor(initial) === null);
+  const [status, setStatus] = useState<{ saving?: boolean; saved?: boolean; error?: string }>({});
+  const active = presetFor(current);
 
-  const save = (analysis: Record<string, number>) => {
-    setError(null);
-    setSaved(false);
-    setSaving(true);
+  const save = (analysis: AnalysisSettings) => {
+    setStatus({ saving: true });
     fetch("/api/settings", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -59,56 +30,102 @@ export function AnalysisForm({ initial }: { initial: AnalysisSettings }) {
       .then(async (res) => {
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error ?? "Failed to save");
-        setValues(toText(data.analysis));
-        setSaved(true);
+        setCurrent(data.analysis);
+        setDraft(data.analysis);
+        setStatus({ saved: true });
         router.refresh();
       })
-      .catch((err) => setError(err.message))
-      .finally(() => setSaving(false));
+      .catch((err) => setStatus({ error: err.message }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    save(Object.fromEntries(FIELDS.map((f) => [f.key, Number(values[f.key])])));
-  };
+  const num = (key: keyof AnalysisSettings, label: string, margin = "mx-1") => (
+    <input
+      type="number"
+      step="1"
+      min={ANALYSIS_LIMITS[key].min}
+      max={ANALYSIS_LIMITS[key].max}
+      required
+      inputMode="numeric"
+      aria-label={label}
+      value={Number.isNaN(draft[key]) ? "" : draft[key]}
+      onChange={(e) => setDraft((d) => ({ ...d, [key]: e.target.valueAsNumber }))}
+      className={`field ${margin} inline-block w-20! px-2 py-1 text-center tabular-nums`}
+    />
+  );
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      {FIELDS.map((f) => {
-        const { min, max } = ANALYSIS_LIMITS[f.key];
-        return (
-          <label key={f.key} className="flex flex-col gap-1">
-            <span className="eyebrow">{f.label}</span>
-            <span className="flex items-center gap-2">
-              {f.unit === "$" ? <span className="text-sm text-muted">$</span> : null}
-              <input
-                type="number"
-                step="1"
-                min={min}
-                max={max}
-                required
-                inputMode="numeric"
-                value={values[f.key]}
-                onChange={(e) => setValues((v) => ({ ...v, [f.key]: e.target.value }))}
-                className="field w-28"
-              />
-              {f.unit !== "$" ? <span className="text-sm text-muted">{f.unit}</span> : null}
-              <span className="text-xs text-muted">default {ANALYSIS_DEFAULTS[f.key]}</span>
-            </span>
-            <span className="text-xs text-muted">{f.help}</span>
-          </label>
-        );
-      })}
-      <div className="flex flex-wrap items-center gap-2">
-        <button type="submit" disabled={saving} className="btn btn-primary">
-          {saving ? "Saving…" : "Save"}
-        </button>
-        <button type="button" disabled={saving} onClick={() => save(ANALYSIS_DEFAULTS)} className="btn">
-          Use defaults
-        </button>
-        {saved && <span className="text-sm text-positive">Saved. Agents pick this up when they reconnect.</span>}
-        {error && <span className="text-sm text-negative">{error}</span>}
+    <div className="flex flex-col gap-4">
+      <div role="radiogroup" aria-label="How closely to watch" className="grid grid-cols-3 gap-2">
+        {ANALYSIS_PRESETS.map((p) => {
+          const on = active === p.id;
+          return (
+            <button
+              key={p.id}
+              type="button"
+              role="radio"
+              aria-checked={on}
+              disabled={status.saving}
+              onClick={() => save(p.value)}
+              className={`flex flex-col items-center gap-0.5 rounded-2xl border px-2 py-3 text-center transition-colors ${
+                on ? "border-transparent bg-ink text-ink-foreground" : "border-hairline bg-fill hover:bg-fill-strong"
+              }`}
+            >
+              <span className="text-sm font-semibold">{p.label}</span>
+              <span className={`text-xs ${on ? "opacity-75" : "text-muted"}`}>{p.blurb}</span>
+            </button>
+          );
+        })}
       </div>
-    </form>
+
+      <p className="text-sm">
+        {active === null ? <span className="font-medium">Custom. </span> : null}
+        <span className="text-muted">{analysisSummary(current)}</span>
+      </p>
+
+      <div>
+        <button
+          type="button"
+          aria-expanded={open}
+          onClick={() => setOpen((o) => !o)}
+          className="text-sm font-medium text-muted hover:text-foreground"
+        >
+          {open ? "Hide details" : "Customize"}
+        </button>
+        {open ? (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              save(draft);
+            }}
+            className="mt-3 flex flex-col gap-3 text-sm leading-9"
+          >
+            <p>
+              Point out a category when it&apos;s{" "}
+              <span className="whitespace-nowrap">{num("spikePct", "Percent above average")}%</span> and{" "}
+              <span className="whitespace-nowrap">${num("spikeMinDollars", "Dollars above average", "ml-0.5 mr-1")}</span> over my{" "}
+              <span className="whitespace-nowrap">{num("baselineMonths", "Months to average", "ml-1 mr-0.5")}-month</span> average.
+            </p>
+            <p>
+              Call it a trend after <span className="whitespace-nowrap">{num("trendMonths", "Months for a trend")} months.</span>
+            </p>
+            <p>
+              Warn me when a budget is{" "}
+              <span className="whitespace-nowrap">{num("budgetWarnPct", "Budget warning percent")}% spent.</span>
+            </p>
+            <div>
+              <button type="submit" disabled={status.saving} className="btn btn-primary">
+                Save
+              </button>
+            </div>
+          </form>
+        ) : null}
+      </div>
+
+      {status.saved || status.error ? (
+        <p className={`text-sm ${status.error ? "text-negative" : "text-muted"}`}>
+          {status.error ?? "Saved. Your agent uses this the next time it connects."}
+        </p>
+      ) : null}
+    </div>
   );
 }

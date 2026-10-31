@@ -1,5 +1,5 @@
 import assert from "node:assert";
-import { ANALYSIS_DEFAULTS, analysisText, parseAnalysisSettings, withDefaults } from "./analysis";
+import { ANALYSIS_DEFAULTS, ANALYSIS_PRESETS, analysisText, parseAnalysisSettings, presetFor, withDefaults } from "./analysis";
 
 // Defaults round-trip through validation.
 assert.deepStrictEqual(parseAnalysisSettings(ANALYSIS_DEFAULTS), { ok: true, value: ANALYSIS_DEFAULTS });
@@ -22,5 +22,13 @@ assert.deepStrictEqual(withDefaults({ spikePct: 30, budgetWarnPct: -1 }), { ...A
 
 // Singular month reads right.
 assert.match(analysisText({ ...ANALYSIS_DEFAULTS, baselineMonths: 1 }), /prior 1 month \(/);
+
+// Presets are valid settings and recognized back; anything else is custom.
+for (const p of ANALYSIS_PRESETS) {
+  assert.strictEqual(parseAnalysisSettings(p.value).ok, true, p.id);
+  assert.strictEqual(presetFor(p.value), p.id);
+}
+assert.strictEqual(presetFor(ANALYSIS_DEFAULTS), "balanced");
+assert.strictEqual(presetFor({ ...ANALYSIS_DEFAULTS, spikePct: 21 }), null);
 
 console.log("lib/analysis-check.ts: all assertions passed");
