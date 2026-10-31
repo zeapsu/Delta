@@ -13,30 +13,31 @@
     "test": "tsx lib/tailnet-check.ts && tsx lib/api-auth-check.ts && tsx lib/recurring-check.ts && tsx lib/networth-check.ts && tsx lib/mcp-check.ts && tsx lib/analysis-check.ts"
   },
   "dependencies": {
-    "better-sqlite3": "^12.11.1",
-    "drizzle-orm": "^0.45.2",
-    "next": "16.2.10",
-    "plaid": "^43.0.0",
-    "react": "19.2.4",
-    "react-dom": "19.2.4",
+    "better-sqlite3": "^13.0.3",
+    "drizzle-orm": "^0.45.4",
+    "next": "16.4.3",
+    "plaid": "^49.0.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
     "react-plaid-link": "^4.1.1",
-    "recharts": "^3.9.2",
+    "recharts": "^3.10.1",
     "server-only": "^0.0.1",
-    "tsx": "^4.23.0"
+    "tsx": "^4.23.15"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.14.0",
     "@modelcontextprotocol/sdk": "^1.32.2",
-    "@playwright/test": "^1.63.0",
+    "@playwright/test": "^1.64.1",
     "@tailwindcss/postcss": "^4",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^26",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "drizzle-kit": "^0.31.10",
+    "@typescript/native": "npm:typescript@^7.0.2",
+    "drizzle-kit": "^0.31.11",
     "eslint": "^9",
-    "eslint-config-next": "16.2.10",
+    "eslint-config-next": "16.4.3",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "npm:@typescript/typescript6@^6.0.2"
   }
 }
