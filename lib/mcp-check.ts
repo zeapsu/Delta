@@ -4,6 +4,7 @@ import { asOf, cents, handleRpc, toDollars, toolList, validateArgs, type Api } f
 // Fake API: records calls, answers like the v1 routes (cents).
 const calls: { method: string; path: string; query?: unknown; body?: unknown }[] = [];
 const today = new Date().toISOString().slice(0, 10);
+let settingsReply: { status: number; data: unknown } | null = null;
 const api: Api = async (method, path, opts = {}) => {
   calls.push({ method, path, query: opts.query, body: opts.body });
   if (path === "/api/v1/status") {
@@ -17,6 +18,7 @@ const api: Api = async (method, path, opts = {}) => {
       },
     };
   }
+  if (path === "/api/v1/settings" && settingsReply) return settingsReply;
   if (path === "/api/v1/spending") {
     return { status: 200, data: { month: "2026-10", total: 12345, pendingTotal: 500, categories: [{ category: "FOOD_AND_DRINK", total: 12345, pendingTotal: 500 }] } };
   }
@@ -43,6 +45,20 @@ async function main() {
   r = await rpc("initialize", { protocolVersion: "1999-01-01" });
   assert.strictEqual(r.result!.protocolVersion, "2025-11-25");
   assert.match(r.result!.instructions!, /positive = money out/);
+  // No settings route answer -> defaults; no placeholder left behind.
+  assert.match(r.result!.instructions!, /at least 20% and \$50 above that average/);
+  assert.doesNotMatch(r.result!.instructions!, /\{\{|undefined/);
+  // The user's saved thresholds reach the instructions; bad keys fall back.
+  settingsReply = {
+    status: 200,
+    data: { customized: true, analysis: { baselineMonths: 6, spikePct: 35, spikeMinDollars: 100, trendMonths: 4, budgetWarnPct: 9000 } },
+  };
+  r = await rpc("initialize", {});
+  assert.match(r.result!.instructions!, /prior 6 months/);
+  assert.match(r.result!.instructions!, /at least 35% and \$100 above/);
+  assert.match(r.result!.instructions!, /4 months or more/);
+  assert.match(r.result!.instructions!, /budget is 80% or more spent/);
+  settingsReply = null;
 
   // Notifications get no response; unknown methods are -32601; junk is -32600.
   assert.strictEqual(await handleRpc({ jsonrpc: "2.0", method: "notifications/initialized" }, "read", api), null);
