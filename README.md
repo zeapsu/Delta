@@ -58,4 +58,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the dev setup and conventions, and [d
 
 ## License
 
-See [LICENSE.md](LICENSE.md).
+Delta is free software under the [GNU Affero General Public License v3.0](LICENSE.md). You can run, change and share it; if you run a modified version as a service for other people, you have to offer them its source.
