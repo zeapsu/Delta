@@ -24,7 +24,7 @@ Delta is single-user and **has no login**. The private network you run it on is 
 
 ## Quick start
 
-You need Plaid API keys (free sandbox keys work to start: [dashboard.plaid.com](https://dashboard.plaid.com/signup)) and Docker.
+You need Docker and Plaid API keys. Plaid's free Trial plan covers personal use (up to 10 bank logins); see [Set up Plaid's free Trial plan](docs/plaid-trial.md).
 
 ```bash
 git clone https://github.com/zeapsu/Delta.git delta
