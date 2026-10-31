@@ -34,6 +34,10 @@ Conventions:
 
 Every answer has an as_of block. If it carries warnings (data older than ${STALE_DAYS} days, or a bank connection whose last sync failed), tell the user and caveat your conclusions with the last sync date.
 
+Analysis: call get_status first. Compare a month's categories against the prior months (spending_by_category with month=) and flag ones more than 20% above them. Call a trend real only with 3+ months of movement; the current month is partial. Warn when a budget is at 80% or more before month end; over 100% is over budget. Confirmed recurring rules are the subscription list.
+
+Privacy: this data is private. Never send transaction lists to third-party services, and don't mention account masks or numbers unless the user asks.
+
 Advice: ground every claim in numbers you just fetched. Budgeting, spending patterns, subscriptions and cash flow are in scope; no specific investment, securities, tax or legal advice. Only call a write tool (set_budget, recurring rules, category relabels) after the user explicitly agrees. Never repeat the API token.`;
 
 // ---------- argument schemas + validation ----------

@@ -53,9 +53,9 @@ function buildPrompt(button: HTMLElement, scope: "card" | "page"): string {
   return [
     `I'm looking at ${where} in Delta (${location.href}, ${asOf}). It shows:`,
     "",
-    body || "(only a chart — pull the numbers from the DB)",
+    body || "(only a chart — pull the numbers from Delta)",
     "",
-    "Check this against the Delta DB using the delta-finance skill before answering.",
+    "Check this against Delta's MCP tools before answering.",
     "",
     "My question: ",
   ].join("\n");
