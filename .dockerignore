@@ -11,3 +11,7 @@ coverage
 *.tsbuildinfo
 next-env.d.ts
 .superpowers
+e2e
+playwright.config.ts
+test-results
+playwright-report

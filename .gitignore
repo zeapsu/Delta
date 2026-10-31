@@ -47,4 +47,8 @@ next-env.d.ts
 *.db-shm
 .superpowers/
 backups/
+<<<<<<< HEAD
 !.env.example
+=======
+/e2e/.tmp/
+>>>>>>> origin/main
