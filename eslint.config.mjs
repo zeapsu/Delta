@@ -14,6 +14,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Playwright output (report bundles, traces).
     "e2e/.tmp/**",
+    // Docusaurus doc site has its own toolchain.
+    "website/**",
   ]),
 ]);
 

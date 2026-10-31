@@ -1,0 +1,30 @@
+/* Neutral black/white chrome, like the app. Color is kept for meaning. */
+:root {
+  --ifm-color-primary: #1f2328;
+  --ifm-color-primary-dark: #1c1f24;
+  --ifm-color-primary-darker: #1a1e22;
+  --ifm-color-primary-darkest: #151719;
+  --ifm-color-primary-light: #22272c;
+  --ifm-color-primary-lighter: #24292e;
+  --ifm-color-primary-lightest: #2b3137;
+  --ifm-code-font-size: 95%;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="dark"] {
+  --ifm-color-primary: #e6edf3;
+  --ifm-color-primary-dark: #cfd8e0;
+  --ifm-color-primary-darker: #c3cdd7;
+  --ifm-color-primary-darkest: #a0afbd;
+  --ifm-color-primary-light: #fdfeff;
+  --ifm-color-primary-lighter: #ffffff;
+  --ifm-color-primary-lightest: #ffffff;
+  --docusaurus-highlighted-code-line-bg: rgba(255, 255, 255, 0.1);
+}
+
+/* With neutral link color, underline links in prose so they read as links. */
+.markdown a,
+.footer__link-item {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}

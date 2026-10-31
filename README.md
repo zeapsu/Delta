@@ -1,25 +1,61 @@
 # Delta
 
-A self-hosted personal finance dashboard. Delta links your bank, card and brokerage accounts through Plaid, syncs them every few hours into a local SQLite database, and shows spending, budgets, recurring charges, investments and net worth. Your own agent (Claude or any MCP client) can read and work with the data through Delta's MCP server.
+A self-hosted personal finance dashboard your own agent can talk to.
 
-**Run your own:** see [docs/self-hosting.md](docs/self-hosting.md) for Plaid keys, Tailscale, Docker, backups and connecting an agent. Delta has no login: the private network plus per-agent API tokens is the security model.
+Delta links your bank, card and brokerage accounts through [Plaid](https://plaid.com), syncs them every few hours into a SQLite database on your own machine, and shows spending, budgets, recurring charges, investments and net worth. It has no chatbot of its own: it serves an [MCP](https://modelcontextprotocol.io) server, so the agent you already use (Claude, or any MCP client) can answer questions about your money with the same numbers the dashboard shows.
 
-## Connect an agent (MCP)
+**Docs:** [zeapsu.github.io/Delta](https://zeapsu.github.io/Delta/)
 
-Delta serves an MCP server at `/api/v1/mcp` (Streamable HTTP). Connecting an agent takes two steps on the Delta host:
+## Features
 
-1. `npm run token -- create <agent-name>` (in Docker: `docker compose exec delta npm run token -- create <agent-name>`). Add `--scope write` if the agent may set budgets, recurring rules and category relabels. It prints the token plus ready-to-paste MCP configs (Claude Code command, JSON for most clients, and an `mcp-remote` stdio bridge for clients that only run local servers), pointed at `DELTA_URL` from `.env`.
-2. Paste one of them into the agent.
+- **Overview** with net worth, month-to-date spending, cash flow and the health of each bank connection
+- **Spending** by category, with pending charges called out
+- **Transactions** search, plus category relabels for one transaction or a whole merchant
+- **Budgets** per category with progress
+- **Recurring** charges: Delta suggests subscriptions it detects, you confirm or dismiss them
+- **Investments** activity and **net worth** history
+- **Settings** for how closely your agent watches spending: when a category jump counts as a spike, when to warn about a budget
+- **MCP server and REST API** with per-agent read or write tokens
+- **Ask** buttons on every card that copy what it shows as a prompt for your agent
+- Runs on anything with Docker, including a Raspberry Pi or other arm64 board
 
-The tools carry Delta's finance conventions in their descriptions, return dollars, and attach an `as_of` block with stale-data warnings, so there is nothing else to install. The agent's machine must be on the tailnet.
+## Security model
+
+Delta is single-user and **has no login**. The private network you run it on is the boundary ([Tailscale](https://tailscale.com) is recommended), API routes only answer loopback and allowed networks, and agents need a revocable token. Plaid access tokens never leave the database. Never expose Delta to the public internet. Details in the [self-hosting guide](docs/self-hosting.md#security-model-read-this-first).
+
+## Quick start
+
+You need Docker and Plaid API keys. Plaid's free Trial plan covers personal use (up to 10 bank logins); see [Set up Plaid's free Trial plan](docs/plaid-trial.md).
+
+```bash
+git clone https://github.com/zeapsu/Delta.git delta
+cd delta
+cp .env.example .env      # add PLAID_CLIENT_ID and PLAID_SANDBOX_SECRET, set DELTA_BIND and DELTA_URL
+docker compose up -d --build
+```
+
+Open `DELTA_URL`, click **Connect account**, and in sandbox sign in to any bank with `user_good` / `pass_good`. The [self-hosting guide](docs/self-hosting.md) covers Tailscale, production Plaid access, backups and updates.
+
+## Connect an agent
+
+```bash
+docker compose exec delta npm run token -- create my-agent   # add --scope write to allow budget/recurring/category edits
+```
+
+It prints a token and ready-to-paste MCP configs for Claude Code, JSON-configured clients (Claude Desktop, Cursor, ...) and stdio-only clients. Paste one into your agent. See [Connect an agent](docs/agents.md) and the [MCP tools](docs/mcp-tools.md).
 
 ## Development
 
 ```bash
 npm ci
-npm run dev    # http://localhost:3000, sandbox Plaid
-npm test       # pure-logic self-checks
+cp .env.example .env   # sandbox keys
+npm run dev            # http://localhost:3000
+npm test               # pure-logic self-checks
 npm run lint
 ```
 
-Put `PLAID_CLIENT_ID` and `PLAID_SANDBOX_SECRET` in `.env` (see `.env.example`). Contributor conventions live in [AGENTS.md](AGENTS.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the dev setup and conventions, and [docs/architecture.md](docs/architecture.md) for how it fits together. The doc site lives in `website/` (Docusaurus) and builds from `docs/`.
+
+## License
+
+Delta is free software under the [GNU Affero General Public License v3.0](LICENSE.md). You can run, change and share it; if you run a modified version as a service for other people, you have to offer them its source.

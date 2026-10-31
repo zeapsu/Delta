@@ -19,14 +19,16 @@ Never port-forward Delta to the public internet, and never put it behind a publi
 
 Delta talks to banks through [Plaid](https://plaid.com).
 
+For personal use, Plaid's free **Trial plan** connects up to 10 real bank logins. [Set up Plaid's free Trial plan](plaid-trial.md) walks through signing up, the limits, and switching from sandbox to your real accounts. The short version:
+
 1. Sign up at [dashboard.plaid.com/signup](https://dashboard.plaid.com/signup). Pick the free tier when asked; you're a developer building for yourself.
 2. Open **Developers → Keys** ([dashboard.plaid.com/developers/keys](https://dashboard.plaid.com/developers/keys)). Copy your `client_id` and your **Sandbox** secret. (The Production secret appears once production access is granted.)
 
 ### Sandbox vs production
 
 - **Sandbox** (`PLAID_ENV=sandbox`) uses fake banks. Sign in to any institution with `user_good` / `pass_good`. It's free and needs no approval, so start here to check your setup.
-- **Production** (`PLAID_ENV=production`) links your real accounts. In the Plaid dashboard, request production access (the "Get production access" flow). Plaid asks what you're building and reviews it. For a personal tool, say so: you're the only user, connecting your own accounts. Some products and institutions (notably the big banks that use OAuth) need extra approval steps in the dashboard before they'll appear in Link.
-- Plaid bills per connected item on paid plans. The free/trial tier covers a handful of personal connections. Check your plan in the dashboard.
+- **Production** (`PLAID_ENV=production`) links your real accounts. New US and Canadian accounts get it through the free Trial plan (up to 10 Items, usually approved automatically). Big OAuth banks such as Chase can take 6 to 24 hours after approval to appear in Link. See [the Trial guide](plaid-trial.md).
+- Paid plans bill per connected Item; you only need one past 10 connections. Check your plan in the dashboard.
 - Don't switch an existing database between sandbox and production. Sandbox items don't work against production and the fake data would mix with your real data. Start production with a fresh volume (or a fresh `DATABASE_PATH`).
 
 Delta uses the `transactions` product and, optionally, `investments`. Both need to be enabled for your Plaid account.
