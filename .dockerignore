@@ -11,3 +11,5 @@ coverage
 *.tsbuildinfo
 next-env.d.ts
 .superpowers
+website
+docs
