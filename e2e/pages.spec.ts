@@ -1,3 +1,4 @@
+import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 
 // Visual QA smoke: every page renders with data, without server or browser
@@ -41,6 +42,11 @@ for (const [path, heading] of PAGES) {
       contentType: "image/png",
     });
     expect(errors).toEqual([]);
+
+    // Accessibility (WCAG 2.1 A/AA rules axe can check automatically).
+    const axe = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+    const found = axe.violations.map((v) => `${v.id} (${v.impact}): ${v.nodes.length}x ${v.help} e.g. ${v.nodes.slice(0, 3).map((n) => n.html.slice(0, 160)).join(' | ')}`);
+    expect(found).toEqual([]);
   });
 }
 

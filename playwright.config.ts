@@ -32,7 +32,7 @@ export default defineConfig({
   use: { baseURL: `http://127.0.0.1:${PORT}`, trace: "retain-on-failure" },
   projects: [
     { name: "setup", testMatch: /setup\.spec\.ts/ },
-    { name: "api", testMatch: /(api|mcp)\.spec\.ts/, dependencies: ["setup"] },
+    { name: "api", testMatch: /(api|mcp|reauth)\.spec\.ts/, dependencies: ["setup"] },
     {
       name: "desktop",
       testMatch: /pages\.spec\.ts/,

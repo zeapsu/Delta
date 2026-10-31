@@ -92,6 +92,10 @@ const routes = {
   "/investments/transactions/get": () => "ADDITIONAL_CONSENT_REQUIRED",
 };
 
+// Test control: POST /__mock/fail {"code": "ITEM_LOGIN_REQUIRED"} makes the
+// item's syncs fail with that Plaid error until {"code": null}.
+let failCode = null;
+
 http
   .createServer((req, res) => {
     let raw = "";
@@ -99,11 +103,16 @@ http
     req.on("end", () => {
       const body = raw ? JSON.parse(raw) : {};
       if (req.url === "/health") return send(res, 200, { ok: true });
+      if (req.url === "/__mock/fail") {
+        failCode = body.code ?? null;
+        return send(res, 200, { failCode });
+      }
       const route = routes[req.url];
       if (!route) return plaidError(res, "NOT_FOUND", 404);
       if (req.url !== "/link/token/create" && req.url !== "/item/public_token/exchange" && body.access_token !== ACCESS_TOKEN) {
         return plaidError(res, "INVALID_ACCESS_TOKEN");
       }
+      if (failCode && req.url === "/transactions/sync") return plaidError(res, failCode);
       const out = route(body);
       if (typeof out === "string") return plaidError(res, out);
       send(res, 200, { ...out, request_id: "mock-request" });

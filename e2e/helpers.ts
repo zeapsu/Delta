@@ -9,3 +9,4 @@ export const THIS_MONTH = new Date().toISOString().slice(0, 7);
 export const SPEND_THIS_MONTH_CENTS = 15_49 + 82_40 + 4_50; // Netflix + groceries + pending coffee
 export const PENDING_THIS_MONTH_CENTS = 4_50;
 export const MOCK_ACCESS_TOKEN = "access-sandbox-mock-1";
+export const MOCK_PLAID_URL = "http://127.0.0.1:4010";
