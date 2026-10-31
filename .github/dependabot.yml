@@ -1,4 +1,5 @@
 # Weekly dependency PRs; each must pass CI (Checks + E2E) before merge.
+# Patch/minor PRs auto-merge when green (workflows/dependabot-automerge.yml).
 version: 2
 updates:
   - package-ecosystem: npm
