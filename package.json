@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "e2e": "playwright test",
     "lint": "eslint",
     "backup": "node scripts/backup-db.mjs",
     "token": "tsx scripts/api-token.ts",
@@ -23,6 +24,9 @@
     "server-only": "^0.0.1"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "^4",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20",
