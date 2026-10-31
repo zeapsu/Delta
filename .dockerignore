@@ -6,10 +6,13 @@ node_modules
 *.db-*
 backups
 deploy
-skills
 coverage
 *.tsbuildinfo
 next-env.d.ts
 .superpowers
+e2e
+playwright.config.ts
+test-results
+playwright-report
 website
 docs

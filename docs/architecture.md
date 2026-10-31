@@ -19,12 +19,12 @@ Delta is one Next.js app (App Router, TypeScript, Tailwind) with a SQLite databa
 | `app/` | Pages (async server components that query the DB directly), client islands (charts, forms, the Ask button) and API routes |
 | `app/api/plaid/` | Link token, public token exchange, refresh and sync. Not for agents |
 | `app/api/v1/` | Token-authenticated agent API and the MCP endpoint |
-| `lib/` | Shared logic: sync engine (`sync.ts`), dashboard queries (`insights.ts`), recurring detection (`recurring.ts`), MCP protocol and tools (`mcp.ts`), API auth (`api-auth.ts`, `api-tokens.ts`), network guard (`tailnet.ts`) |
+| `lib/` | Shared logic: sync engine (`sync.ts`), dashboard queries (`insights.ts`), recurring detection (`recurring.ts`), MCP protocol and tools (`mcp.ts`), analysis settings (`analysis.ts`, `settings.ts`), API auth (`api-auth.ts`, `api-tokens.ts`), network guard (`tailnet.ts`) |
 | `db/` | Drizzle schema (`schema.ts`) and the DB singleton, which applies migrations on first import |
 | `drizzle/` | Generated SQL migrations. Commit them with the schema change |
 | `proxy.ts` | Runs on every `/api/*` request: network allowlist, cross-site write refusal, and bearer tokens for `/api/v1` |
-| `scripts/` | Token CLI, backups, the Docker `jobs` loop, the skill check |
-| `skills/delta-finance/` | Provider-agnostic agent skill for the REST API |
+| `scripts/` | Token CLI, backups, the Docker `jobs` loop |
+| `e2e/` | Playwright end-to-end tests against a mock Plaid server (API, MCP and pages) |
 | `docs/` | These docs. `website/` builds them with Docusaurus |
 | `deploy/` | systemd units for a bare-metal install (edit before use) |
 

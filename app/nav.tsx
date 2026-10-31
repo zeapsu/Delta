@@ -12,6 +12,7 @@ const LINKS = [
   { href: "/recurring", label: "Recurring" },
   { href: "/net-worth", label: "Net worth" },
   { href: "/investments", label: "Investments" },
+  { href: "/settings", label: "Settings" },
 ];
 
 // Floating glass tab bar. The header itself is a "scroll edge" fade so content

@@ -39,6 +39,7 @@ curl -s -H "Authorization: Bearer $DELTA_API_TOKEN" "$DELTA_URL/api/v1/spending?
 | `GET /api/v1/recurring` | | Confirmed recurring charges and unreviewed suggestions |
 | `GET /api/v1/investments` | `account_id`, `from`, `to`, `limit`, `offset` | Investment activity |
 | `GET /api/v1/net-worth` | `from` | Net worth now and daily history |
+| `GET /api/v1/settings` | | Your analysis thresholds (`customized: false` means the defaults), edited on `/settings` |
 
 ## Write endpoints
 

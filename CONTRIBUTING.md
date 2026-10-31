@@ -27,7 +27,7 @@ To try the agent API locally: `npm run token -- create dev --scope write`, then 
 
 ## Checks
 
-Run these before you push. CI runs the Docker build and the docs build.
+Run these before you push. CI runs these plus the end-to-end tests, the Docker build and the docs build.
 
 ```bash
 npm test              # pure-logic self-checks (lib/*-check.ts)
@@ -36,7 +36,9 @@ npx tsc --noEmit
 npx tsx db/check.ts   # DB smoke test on a throwaway database
 ```
 
-If you changed `skills/delta-finance/`, also run `bash scripts/skill-check.sh`. If you changed `docs/` or `website/`, run `cd website && npm ci && npm run build` (it fails on broken links).
+CI also runs the end-to-end suite, which drives the built app against a mock Plaid server (no keys needed): `npm run build && npx playwright install chromium && npm run e2e`. Run it when you change pages, API routes or MCP tools. If you change `db/schema.ts`, CI fails unless the matching `drizzle/` migration is committed.
+
+If you changed `docs/` or `website/`, run `cd website && npm ci && npm run build` (it fails on broken links).
 
 ## Project layout
 
@@ -58,7 +60,7 @@ These are the ones that bite. [`AGENTS.md`](AGENTS.md) has the full list, writte
 - New `/api/*` routes are covered by `proxy.ts` automatically. Don't bypass it.
 
 **Agent API**
-- When you add a `/api/v1` route an agent should use, add an MCP tool for it in `lib/mcp.ts` (and its route to `ROUTES` in `app/api/v1/mcp/route.ts`), and cover it in `lib/mcp-check.ts`.
+- When you add a `/api/v1` route an agent should use, add an MCP tool for it in `lib/mcp.ts` (and its route to `ROUTES` in `app/api/v1/mcp/route.ts`), and cover it in `lib/mcp-check.ts` and `e2e/mcp.spec.ts`.
 - Keep everything agent-agnostic: no provider or product names in the UI, code or tool descriptions.
 
 **UI**

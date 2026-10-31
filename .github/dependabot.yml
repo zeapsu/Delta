@@ -1,0 +1,25 @@
+# Weekly dependency PRs; each must pass CI (Checks + E2E) before merge.
+# Patch/minor PRs auto-merge when green (workflows/dependabot-automerge.yml).
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    # `typescript` is aliased to @typescript/typescript6 for typescript-eslint
+    # and Next (TS 7 has no API yet); TS 7 itself is `@typescript/native`.
+    ignore:
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
+    groups:
+      # One PR for all minor/patch bumps; majors arrive one at a time.
+      minor-and-patch:
+        update-types: [minor, patch]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]

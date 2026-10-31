@@ -48,3 +48,4 @@ next-env.d.ts
 .superpowers/
 backups/
 !.env.example
+/e2e/.tmp/

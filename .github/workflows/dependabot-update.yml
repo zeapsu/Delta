@@ -1,0 +1,48 @@
+# Keeps auto-merging Dependabot PRs up to date with main. The main ruleset
+# requires up-to-date branches, so once one Dependabot PR merges the others sit
+# "behind" until someone clicks Update branch. A push made with GITHUB_TOKEN
+# doesn't trigger pull_request workflows, so CI is dispatched on the updated
+# branch by hand; its Checks/E2E runs report on the new head commit.
+# Auto-merges are also GITHUB_TOKEN pushes (no push event), hence the schedule.
+name: Dependabot branch update
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: dependabot-update
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Update behind Dependabot PRs and rerun CI
+        run: |
+          gh pr list --author app/dependabot --state open \
+            --json number,headRefName,headRefOid,mergeStateStatus,autoMergeRequest \
+            --jq '.[] | select(.autoMergeRequest != null and .mergeStateStatus == "BEHIND") | [.number, .headRefName, .headRefOid] | @tsv' |
+          while IFS=$'\t' read -r number branch old_sha; do
+            echo "Updating #$number ($branch)"
+            gh api -X PUT "repos/$GH_REPO/pulls/$number/update-branch" -f expected_head_sha="$old_sha" ||
+              { echo "::warning::could not update #$number"; continue; }
+            # update-branch is async; wait for the new head before dispatching CI.
+            for _ in $(seq 30); do
+              [ "$(gh pr view "$number" --json headRefOid --jq .headRefOid)" != "$old_sha" ] && break
+              sleep 2
+            done
+            gh workflow run ci.yml --ref "$branch"
+          done

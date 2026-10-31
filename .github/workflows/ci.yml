@@ -1,0 +1,73 @@
+# Required before merge (branch protection on main): "Checks" and "E2E".
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  # dependabot-update.yml dispatches CI after updating a branch, since its
+  # GITHUB_TOKEN push doesn't trigger pull_request runs.
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: Checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Types
+        run: npx tsc --noEmit
+      - name: Self-checks
+        run: npm test
+      - name: DB smoke test
+        run: npx tsx db/check.ts
+      - name: Migrations match the schema
+        run: |
+          npx drizzle-kit generate
+          if [ -n "$(git status --porcelain drizzle)" ]; then
+            echo "::error::db/schema.ts changed without a migration. Run npx drizzle-kit generate and commit drizzle/."
+            git status --porcelain drizzle
+            exit 1
+          fi
+
+  e2e:
+    name: E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      TZ: UTC
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Build
+        run: npm run build
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: API, MCP and page tests (mock Plaid)
+        run: npm run e2e
+      - name: Upload report and screenshots
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-report
+          path: e2e/.tmp/report
+          retention-days: 14

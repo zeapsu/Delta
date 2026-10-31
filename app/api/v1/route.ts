@@ -20,6 +20,7 @@ export async function GET() {
     },
     endpoints: [
       { method: "GET", path: "/api/v1/status", about: "data freshness and per-connection sync health" },
+      { method: "GET", path: "/api/v1/settings", about: "the user's analysis thresholds (customized false = defaults); edited on /settings in the app" },
       { method: "GET", path: "/api/v1/accounts", about: "accounts with current balances" },
       {
         method: "GET",

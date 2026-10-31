@@ -13,6 +13,7 @@ Delta is a self-hosted personal finance dashboard. It links your bank, card and 
 - **Budgets**: monthly budgets per category with progress.
 - **Recurring**: subscriptions and bills. Delta suggests series it detects and you confirm or dismiss them.
 - **Investments** and **Net worth**: brokerage activity and balance history.
+- **Settings**: how closely your agent watches your spending (Relaxed, Balanced or Watchful, or your own thresholds).
 
 ## Your agent, your data
 

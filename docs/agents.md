@@ -36,7 +36,7 @@ The agent's machine must be able to reach `DELTA_URL`, which normally means it's
 - **Tools** for status, accounts, transactions, spending, cash flow, budgets, recurring charges, net worth and investments, plus write tools for write tokens. See [MCP tools](mcp-tools.md).
 - **Dollars**, not cents, with the Plaid sign convention (positive = money out).
 - **An `as_of` block** on every answer, with warnings when data is more than 3 days old or a bank connection's last sync failed.
-- **Instructions** that carry Delta's conventions (what counts as spend, pending charges, confirmed vs suggested recurring charges) and advice guidelines: ground every claim in fetched numbers, no investment, tax or legal advice, and only write after you explicitly agree.
+- **Instructions** that carry Delta's conventions (what counts as spend, pending charges, confirmed vs suggested recurring charges) and advice guidelines, plus your analysis settings from the **Settings** page (how big a category jump counts as a spike, how many months make a trend, when to warn about a budget): ground every claim in fetched numbers, no investment, tax or legal advice, and only write after you explicitly agree.
 
 You don't need to install a skill or give the agent database access.
 
@@ -55,4 +55,4 @@ Every card in the dashboard has an **Ask** button, and every page header has **A
 
 ## Without MCP
 
-The same token works on the REST API: `curl -H "Authorization: Bearer dlt_..." $DELTA_URL/api/v1` lists every endpoint. See [REST API](api.md). The repo also ships a provider-agnostic agent skill in [`skills/delta-finance/`](https://github.com/zeapsu/Delta/tree/main/skills/delta-finance) with analysis recipes for agents that use the REST API.
+The same token works on the REST API: `curl -H "Authorization: Bearer dlt_..." $DELTA_URL/api/v1` lists every endpoint. See [REST API](api.md).

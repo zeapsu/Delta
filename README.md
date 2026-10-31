@@ -14,6 +14,7 @@ Delta links your bank, card and brokerage accounts through [Plaid](https://plaid
 - **Budgets** per category with progress
 - **Recurring** charges: Delta suggests subscriptions it detects, you confirm or dismiss them
 - **Investments** activity and **net worth** history
+- **Settings** for how closely your agent watches spending: when a category jump counts as a spike, when to warn about a budget
 - **MCP server and REST API** with per-agent read or write tokens
 - **Ask** buttons on every card that copy what it shows as a prompt for your agent
 - Runs on anything with Docker, including a Raspberry Pi or other arm64 board
