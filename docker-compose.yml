@@ -1,0 +1,33 @@
+# Self-hosted Delta. Setup: docs/self-hosting.md. In short:
+#   cp .env.example .env   # add Plaid keys, set DELTA_BIND / DELTA_URL
+#   docker compose up -d
+services:
+  delta:
+    image: ghcr.io/zeapsu/delta:latest
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    # Publish only on the private interface (your Tailscale IP). The default,
+    # 127.0.0.1, is reachable from this machine only. Pages have no login:
+    # anyone who can reach this port sees your finances.
+    ports:
+      - "${DELTA_BIND:-127.0.0.1}:${DELTA_PORT:-3000}:3000"
+    volumes:
+      - delta-data:/data
+
+  # Plaid refresh + sync every 6h and a daily DB backup (the systemd timers'
+  # job on bare metal). Shares delta's network namespace so its requests
+  # arrive on loopback.
+  jobs:
+    image: ghcr.io/zeapsu/delta:latest
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    network_mode: "service:delta"
+    depends_on: [delta]
+    command: ["node", "scripts/jobs.mjs"]
+    volumes:
+      - delta-data:/data
+
+volumes:
+  delta-data:

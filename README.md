@@ -1,45 +1,25 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Delta
+
+A self-hosted personal finance dashboard. Delta links your bank, card and brokerage accounts through Plaid, syncs them every few hours into a local SQLite database, and shows spending, budgets, recurring charges, investments and net worth. Your own agent (Claude or any MCP client) can read and work with the data through Delta's MCP server.
+
+**Run your own:** see [docs/self-hosting.md](docs/self-hosting.md) for Plaid keys, Tailscale, Docker, backups and connecting an agent. Delta has no login: the private network plus per-agent API tokens is the security model.
 
 ## Connect an agent (MCP)
 
 Delta serves an MCP server at `/api/v1/mcp` (Streamable HTTP). Connecting an agent takes two steps on the Delta host:
 
-1. `npm run token -- create <agent-name>` (add `--scope write` if the agent may set budgets, recurring rules and category relabels). It prints the token plus ready-to-paste MCP configs (Claude Code command, JSON for most clients, and an `mcp-remote` stdio bridge for clients that only run local servers), pointed at `DELTA_URL` from `.env`.
+1. `npm run token -- create <agent-name>` (in Docker: `docker compose exec delta npm run token -- create <agent-name>`). Add `--scope write` if the agent may set budgets, recurring rules and category relabels. It prints the token plus ready-to-paste MCP configs (Claude Code command, JSON for most clients, and an `mcp-remote` stdio bridge for clients that only run local servers), pointed at `DELTA_URL` from `.env`.
 2. Paste one of them into the agent.
 
 The tools carry Delta's finance conventions in their descriptions, return dollars, and attach an `as_of` block with stale-data warnings, so there is nothing else to install. The agent's machine must be on the tailnet.
 
-## Getting Started
-
-First, run the development server:
+## Development
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm ci
+npm run dev    # http://localhost:3000, sandbox Plaid
+npm test       # pure-logic self-checks
+npm run lint
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Put `PLAID_CLIENT_ID` and `PLAID_SANDBOX_SECRET` in `.env` (see `.env.example`). Contributor conventions live in [AGENTS.md](AGENTS.md).

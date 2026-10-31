@@ -70,6 +70,8 @@ function send(res, status, body) {
 }
 
 const routes = {
+  // The first-run key check (lib/plaid-config.ts).
+  "/institutions/get": () => ({ institutions: [], total: 0 }),
   "/link/token/create": () => ({ link_token: "link-sandbox-mock", expiration: new Date(Date.now() + 3600e3).toISOString() }),
   "/item/public_token/exchange": () => ({ access_token: ACCESS_TOKEN, item_id: "mock-item-1" }),
   "/transactions/refresh": () => ({}),
@@ -109,7 +111,7 @@ http
       }
       const route = routes[req.url];
       if (!route) return plaidError(res, "NOT_FOUND", 404);
-      if (req.url !== "/link/token/create" && req.url !== "/item/public_token/exchange" && body.access_token !== ACCESS_TOKEN) {
+      if (req.url !== "/link/token/create" && req.url !== "/item/public_token/exchange" && req.url !== "/institutions/get" && body.access_token !== ACCESS_TOKEN) {
         return plaidError(res, "INVALID_ACCESS_TOKEN");
       }
       if (failCode && req.url === "/transactions/sync") return plaidError(res, failCode);

@@ -1,0 +1,16 @@
+node_modules
+.next
+.git
+.env*
+*.db
+*.db-*
+backups
+deploy
+coverage
+*.tsbuildinfo
+next-env.d.ts
+.superpowers
+e2e
+playwright.config.ts
+test-results
+playwright-report

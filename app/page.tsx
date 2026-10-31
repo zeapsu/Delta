@@ -25,6 +25,7 @@ import {
 } from "@/lib/months";
 import { CashFlowChart, TrendArea } from "./charts";
 import PlaidButtons from "./plaid-buttons";
+import { checkPlaid } from "@/lib/plaid-config";
 import ConnectionButton from "./connection-button";
 import { REAUTH_ERROR_CODES } from "@/lib/plaid-errors";
 import { getAnalysisSettings } from "@/lib/settings";
@@ -76,6 +77,7 @@ export default async function Home() {
   ]);
 
   if (allItems.length === 0) {
+    const plaid = await checkPlaid();
     return (
       <Page title="Welcome to Delta" subtitle="Your money, in one calm place." ask={false}>
         <Card>
@@ -84,6 +86,18 @@ export default async function Home() {
             transactions every six hours and turns them into spending, budgets,
             recurring charges, and net worth.
           </p>
+          {plaid.ok ? (
+            <p className="mt-3 text-xs text-muted">Plaid {plaid.env}: keys OK</p>
+          ) : (
+            <div className="mt-3 text-sm text-negative">
+              <p className="font-medium">Plaid {plaid.env} isn&apos;t ready. Fix .env and restart:</p>
+              <ul className="mt-1 list-disc pl-5">
+                {plaid.problems.map((p) => (
+                  <li key={p}>{p}</li>
+                ))}
+              </ul>
+            </div>
+          )}
           <PlaidButtons />
         </Card>
       </Page>
