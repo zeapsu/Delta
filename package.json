@@ -13,13 +13,13 @@
     "test": "tsx lib/tailnet-check.ts && tsx lib/api-auth-check.ts && tsx lib/recurring-check.ts && tsx lib/networth-check.ts && tsx lib/mcp-check.ts && tsx lib/analysis-check.ts"
   },
   "dependencies": {
-    "better-sqlite3": "^12.11.1",
+    "better-sqlite3": "^13.0.3",
     "drizzle-orm": "^0.45.4",
     "next": "16.4.3",
-    "plaid": "^43.0.0",
+    "plaid": "^49.0.0",
     "react": "19.3.1",
     "react-dom": "19.3.1",
-    "react-plaid-link": "^4.1.1",
+    "react-plaid-link": "^5.0.0",
     "recharts": "^3.10.1",
     "server-only": "^0.0.1"
   },
@@ -34,7 +34,7 @@
     "@types/react-dom": "^19",
     "@typescript/native": "npm:typescript@^7.0.2",
     "drizzle-kit": "^0.31.11",
-    "eslint": "^9",
+    "eslint": "^10",
     "eslint-config-next": "16.4.3",
     "tailwindcss": "^4",
     "tsx": "^4.23.15",
