@@ -33,21 +33,21 @@ const uber = [
   { name: "Uber 081215", merchantName: null, amount: 21_75, date: "2026-07-09" },
 ];
 
-// Gym with a signup charge the day before the first monthly bill (seen in
-// production): the single off-amount txn must not veto the series.
+// Gym with a signup charge the day before the first monthly bill: the
+// single off-amount txn must not veto the series.
 const gymSignup = [
-  { name: "IRONWORKS GYM", merchantName: "Ironworks Gym", amount: 59_99, date: "2026-04-28" },
-  { name: "IRONWORKS GYM", merchantName: "Ironworks Gym", amount: 34_99, date: "2026-04-29" },
-  { name: "IRONWORKS GYM", merchantName: "Ironworks Gym", amount: 34_99, date: "2026-05-29" },
-  { name: "IRONWORKS GYM", merchantName: "Ironworks Gym", amount: 34_99, date: "2026-06-29" },
+  { name: "IRONWORKS GYM", merchantName: "Ironworks Gym", amount: 49_00, date: "2026-04-28" },
+  { name: "IRONWORKS GYM", merchantName: "Ironworks Gym", amount: 29_00, date: "2026-04-29" },
+  { name: "IRONWORKS GYM", merchantName: "Ironworks Gym", amount: 29_00, date: "2026-05-29" },
+  { name: "IRONWORKS GYM", merchantName: "Ironworks Gym", amount: 29_00, date: "2026-06-29" },
 ];
 
-// Loan payment with real-world jitter (seen in production): identical
-// amounts, gaps of 39 and 22 days around a monthly cadence.
+// Loan payment with real-world jitter: identical amounts, gaps of 39 and
+// 22 days around a monthly cadence.
 const loanJitter = [
-  { name: "LOANSERV", merchantName: "LOANSERV", amount: 251_07, date: "2026-05-08" },
-  { name: "LOANSERV", merchantName: "LOANSERV", amount: 251_07, date: "2026-06-16" },
-  { name: "LOANSERV", merchantName: "LOANSERV", amount: 251_07, date: "2026-07-08" },
+  { name: "LOANSERV", merchantName: "LOANSERV", amount: 180_00, date: "2026-05-08" },
+  { name: "LOANSERV", merchantName: "LOANSERV", amount: 180_00, date: "2026-06-16" },
+  { name: "LOANSERV", merchantName: "LOANSERV", amount: 180_00, date: "2026-07-08" },
 ];
 
 // Rent via bank transfer (seen in production): each payment embeds a unique
@@ -101,7 +101,7 @@ assert.strictEqual(uberResult.count, 3, "Uber group should have 3 txns");
 const gymSignupResult = results.find((r) => r.merchant === "Ironworks Gym");
 assert(gymSignupResult, "gym with signup charge should be detected despite the outlier");
 assert.strictEqual(gymSignupResult.cadence, "monthly", "gym should be monthly");
-assert.strictEqual(gymSignupResult.amount, 34_99, "gym amount should be the regular charge");
+assert.strictEqual(gymSignupResult.amount, 29_00, "gym amount should be the regular charge");
 assert.strictEqual(gymSignupResult.count, 3, "gym count should exclude the dropped outlier");
 
 const loanJitterResult = results.find((r) => r.merchant === "LOANSERV");
