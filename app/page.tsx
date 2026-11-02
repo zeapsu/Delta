@@ -86,11 +86,26 @@ export default async function Home() {
             transactions every six hours and turns them into spending, budgets,
             recurring charges, and net worth.
           </p>
-          {plaid.ok ? (
+          {plaid.missing ? (
+            <div>
+              <Link href="/setup" className="btn btn-primary">
+                Set up Plaid
+              </Link>
+            </div>
+          ) : plaid.ok ? (
             <p className="mt-3 text-xs text-muted">Plaid {plaid.env}: keys OK</p>
           ) : (
             <div className="mt-3 text-sm text-negative">
-              <p className="font-medium">Plaid {plaid.env} isn&apos;t ready. Fix .env and restart:</p>
+              <p className="font-medium">
+                Plaid {plaid.env} isn&apos;t ready.{" "}
+                {plaid.source === "env" ? (
+                  "Fix .env and restart:"
+                ) : (
+                  <>
+                    Check your keys on the <Link href="/setup" className="underline">setup page</Link>:
+                  </>
+                )}
+              </p>
               <ul className="mt-1 list-disc pl-5">
                 {plaid.problems.map((p) => (
                   <li key={p}>{p}</li>
@@ -98,7 +113,7 @@ export default async function Home() {
               </ul>
             </div>
           )}
-          <PlaidButtons />
+          {plaid.missing ? null : <PlaidButtons />}
         </Card>
       </Page>
     );

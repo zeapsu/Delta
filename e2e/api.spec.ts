@@ -77,3 +77,13 @@ test("sync is idempotent and refresh works against Plaid", async ({ request }) =
   const after = (await (await request.get("/api/v1/transactions?limit=1", { headers: h })).json()).total;
   expect(after).toBe(before);
 });
+
+test("Plaid keys from .env can't be replaced from the browser", async ({ request }) => {
+  const status = await (await request.get("/api/settings/plaid")).json();
+  expect(status).toEqual({ source: "env", env: "sandbox", clientId: "mock…ient", configured: true });
+  expect(JSON.stringify(status)).not.toContain("mock-secret");
+  const res = await request.put("/api/settings/plaid", {
+    data: { env: "sandbox", clientId: "test-client-id-0001", secret: "test-secret-value-0001" },
+  });
+  expect(res.status()).toBe(409);
+});

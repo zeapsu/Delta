@@ -20,6 +20,12 @@ const env = {
 // The token CLI (e2e/setup.spec.ts) and the server must share the DB.
 Object.assign(process.env, env);
 
+// A second server like a one-click install: no Plaid keys in its environment
+// (they get pasted on /setup) and its own empty DB. Blank, not omitted:
+// webServer env is merged over process.env, which carries the keys above.
+export const FRESH_PORT = 3101;
+const freshEnv = { ...env, PLAID_CLIENT_ID: "", PLAID_SANDBOX_SECRET: "" };
+
 export default defineConfig({
   testDir: "e2e",
   outputDir: "e2e/.tmp/results",
@@ -34,6 +40,7 @@ export default defineConfig({
   projects: [
     { name: "setup", testMatch: /setup\.spec\.ts/ },
     { name: "api", testMatch: /(api|mcp|reauth)\.spec\.ts/, dependencies: ["setup"] },
+    { name: "first-run", testMatch: /first-run\.spec\.ts/, use: { baseURL: `http://127.0.0.1:${FRESH_PORT}` } },
     {
       name: "desktop",
       testMatch: /pages\.spec\.ts/,
@@ -58,6 +65,13 @@ export default defineConfig({
       command: `rm -rf e2e/.tmp/delta-e2e.db* && mkdir -p e2e/.tmp && npx next start -H 127.0.0.1 -p ${PORT}`,
       url: `http://127.0.0.1:${PORT}/`,
       env,
+      reuseExistingServer: false,
+      timeout: 60_000,
+    },
+    {
+      command: `rm -rf e2e/.tmp/fresh.db* && mkdir -p e2e/.tmp && npx next start -H 127.0.0.1 -p ${FRESH_PORT}`,
+      url: `http://127.0.0.1:${FRESH_PORT}/`,
+      env: { ...freshEnv, DATABASE_PATH: "e2e/.tmp/fresh.db", DELTA_URL: `http://127.0.0.1:${FRESH_PORT}` },
       reuseExistingServer: false,
       timeout: 60_000,
     },

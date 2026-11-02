@@ -110,6 +110,8 @@ http
         failCode = body.code ?? null;
         return send(res, 200, { failCode });
       }
+      // Any keys work except this secret, so the setup page's rejection shows.
+      if (req.headers["plaid-secret"] === "rejected-secret") return plaidError(res, "INVALID_API_KEYS");
       const route = routes[req.url];
       if (!route) return plaidError(res, "NOT_FOUND", 404);
       if (req.url !== "/link/token/create" && req.url !== "/item/public_token/exchange" && req.url !== "/institutions/get" && body.access_token !== ACCESS_TOKEN) {

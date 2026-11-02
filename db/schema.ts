@@ -197,7 +197,9 @@ export const apiTokens = sqliteTable("api_tokens", {
 
 // App settings, one JSON value per key. "analysis" = the thresholds agents use
 // (lib/analysis.ts); no row means the user hasn't set them up (defaults apply).
-// Writes go through /api/settings only.
+// "plaid" = Plaid keys saved on /setup (lib/plaid-keys.ts), used only when
+// the environment has none; never returned by any route.
+// Writes go through /api/settings and /api/settings/plaid only.
 export const settings = sqliteTable("settings", {
   key: text("key").primaryKey(),
   value: text("value").notNull(),
