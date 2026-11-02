@@ -103,4 +103,4 @@ jobs:
             $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
             $(printf "$IMAGE@sha256:%s " *)
       - name: Inspect
-        run: docker buildx imagetools inspect "$IMAGE:$(jq -r '.version' <<< "$DOCKER_METADATA_OUTPUT_JSON")"
+        run: docker buildx imagetools inspect "$(jq -r '.tags[0]' <<< "$DOCKER_METADATA_OUTPUT_JSON")"
