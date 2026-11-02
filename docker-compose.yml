@@ -3,7 +3,7 @@
 #   docker compose up -d
 services:
   delta:
-    image: ghcr.io/zeapsu/delta:latest
+    image: ghcr.io/zeapsu/delta:${DELTA_TAG:-latest}
     build: .
     restart: unless-stopped
     env_file: .env
@@ -21,7 +21,7 @@ services:
   # job on bare metal). Shares delta's network namespace so its requests
   # arrive on loopback.
   jobs:
-    image: ghcr.io/zeapsu/delta:latest
+    image: ghcr.io/zeapsu/delta:${DELTA_TAG:-latest}
     build: .
     restart: unless-stopped
     env_file: .env

@@ -28,13 +28,19 @@ Delta is single-user and **has no login**. The private network you run it on is 
 You need Docker and Plaid API keys. Plaid's free Trial plan covers personal use (up to 10 bank logins); see [Set up Plaid's free Trial plan](docs/plaid-trial.md).
 
 ```bash
+curl -fsSL https://raw.githubusercontent.com/zeapsu/Delta/main/delta.sh | bash -s install
+```
+
+It clones Delta into `./delta`, asks for your Plaid keys, writes `.env` (using your Tailscale IP if Tailscale is running) and starts it. Later, from that folder, `./delta.sh update` backs up and moves to the latest version, and `./delta.sh uninstall` disconnects your banks at Plaid and removes everything. To do it by hand:
+
+```bash
 git clone https://github.com/zeapsu/Delta.git delta
 cd delta
 cp .env.example .env      # add PLAID_CLIENT_ID and PLAID_SANDBOX_SECRET, set DELTA_BIND and DELTA_URL
 docker compose up -d --build
 ```
 
-Open `DELTA_URL`, click **Connect account**, and in sandbox sign in to any bank with `user_good` / `pass_good`. The [self-hosting guide](docs/self-hosting.md) covers Tailscale, production Plaid access, backups and updates. On Linux with Tailscale, turn on host networking first ([why](docs/self-hosting.md#linux-with-tailscale-use-host-networking)).
+Open `DELTA_URL`, click **Connect account**, and in sandbox sign in to any bank with `user_good` / `pass_good`. The [self-hosting guide](docs/self-hosting.md) covers Tailscale, production Plaid access and backups. The [update](docs/updating.md) and [uninstall](docs/uninstalling.md) guides cover what the script does, and rolling back. Setting it up by hand on Linux with Tailscale, turn on host networking first ([why](docs/self-hosting.md#linux-with-tailscale-use-host-networking)).
 
 ## Connect an agent
 

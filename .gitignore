@@ -49,3 +49,6 @@ next-env.d.ts
 backups/
 !.env.example
 /e2e/.tmp/
+
+# delta.sh / docs: backups copied out of the Docker volume (hold Plaid tokens)
+/delta-backups/

@@ -75,6 +75,7 @@ const routes = {
   "/link/token/create": () => ({ link_token: "link-sandbox-mock", expiration: new Date(Date.now() + 3600e3).toISOString() }),
   "/item/public_token/exchange": () => ({ access_token: ACCESS_TOKEN, item_id: "mock-item-1" }),
   "/transactions/refresh": () => ({}),
+  "/item/remove": () => ({ request_id: "mock" }),
   "/accounts/balance/get": () => ({ accounts, item: { item_id: "mock-item-1" } }),
   "/transactions/sync": (body) =>
     body.cursor === "cursor-1"
