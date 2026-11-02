@@ -46,6 +46,8 @@ set_env() {
 
 # Prefer the published image; build from this checkout if it can't be pulled.
 start() {
+  # Baked into a local build so the in-app update notice knows its version.
+  DELTA_COMMIT=$(git rev-parse HEAD 2>/dev/null || true); export DELTA_COMMIT
   if docker compose pull -q 2>/dev/null; then docker compose up -d
   else say "No image to pull, building from source (a few minutes)"; docker compose up -d --build; fi
 }

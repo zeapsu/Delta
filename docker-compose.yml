@@ -4,7 +4,10 @@
 services:
   delta:
     image: ghcr.io/zeapsu/delta:${DELTA_TAG:-latest}
-    build: .
+    build:
+      context: .
+      # Lets the in-app update notice compare against main (delta.sh sets it).
+      args: { DELTA_COMMIT: "${DELTA_COMMIT:-}" }
     restart: unless-stopped
     env_file: .env
     # Publish only on the private interface (your Tailscale IP). The default,
@@ -22,7 +25,9 @@ services:
   # arrive on loopback.
   jobs:
     image: ghcr.io/zeapsu/delta:${DELTA_TAG:-latest}
-    build: .
+    build:
+      context: .
+      args: { DELTA_COMMIT: "${DELTA_COMMIT:-}" }
     restart: unless-stopped
     env_file: .env
     network_mode: "service:delta"

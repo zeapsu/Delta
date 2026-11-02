@@ -194,6 +194,7 @@ All settings go in `.env`.
 | `DELTA_PORT` | `3000` | Docker: host port |
 | `COMPOSE_FILE` | | Docker: set to `docker-compose.yml:docker-compose.tailscale.yml` for [host networking on Linux](#linux-with-tailscale-use-host-networking) |
 | `DELTA_TAG` | `latest` | Docker: image tag to run; pin a release or `sha-<commit>` to [roll back](updating.md#roll-back) |
+| `DELTA_UPDATE_CHECK` | on | Set to `off` to stop the twice-daily GitHub check behind the [Update pill](updating.md) |
 | `SYNC_INTERVAL_HOURS` | `6` | Docker: how often `jobs` refreshes and syncs |
 | `REFRESH_WAIT_SECONDS` | `180` | Docker: wait between the refresh request and the sync |
 | `BACKUP_INTERVAL_HOURS` | `24` | Docker: how often `jobs` backs up |

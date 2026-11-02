@@ -17,7 +17,7 @@ const LINKS = [
 
 // Floating glass tab bar. The header itself is a "scroll edge" fade so content
 // passing beneath the pill stays out of the way of its labels.
-export function Nav() {
+export function Nav({ extra }: { extra?: React.ReactNode }) {
   const pathname = usePathname();
   const navRef = useRef<HTMLElement>(null);
 
@@ -71,6 +71,7 @@ export function Nav() {
           );
         })}
       </nav>
+      {extra}
     </header>
   );
 }
