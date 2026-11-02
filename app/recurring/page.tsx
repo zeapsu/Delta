@@ -9,7 +9,7 @@ export default async function RecurringPage() {
   const { suggestions, confirmed, monthlyEstimate } = await recurringOverview();
 
   return (
-    <Page title="Recurring" subtitle="Bills and subscriptions you've confirmed, plus new ones Delta has spotted.">
+    <Page title="Recurring" subtitle="Bills and subscriptions.">
       <div className="grid grid-cols-2 gap-4 md:grid-cols-3 md:gap-5">
         <Card>
           <Stat label="Per month (est.)" value={formatCents(monthlyEstimate)} />
@@ -21,13 +21,13 @@ export default async function RecurringPage() {
           <Stat
             label="Tracked"
             value={confirmed.length}
-            sub={suggestions.length > 0 ? `${suggestions.length} waiting for review` : "Nothing to review"}
+            sub={suggestions.length > 0 ? `${suggestions.length} to review` : "All reviewed"}
           />
         </Card>
       </div>
 
       {suggestions.length > 0 && (
-        <Card title={`Review suggestions · ${suggestions.length}`}>
+        <Card title={`Spotted by Delta · ${suggestions.length}`}>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             {suggestions.map((s) => (
               <SuggestionCard
@@ -50,8 +50,7 @@ export default async function RecurringPage() {
       <Card title="Confirmed">
         {confirmed.length === 0 ? (
           <Empty>
-            No confirmed recurring transactions yet. Confirm a suggestion above or add one
-            manually below.
+            None yet. Confirm a suggestion or add one below.
           </Empty>
         ) : (
           <div className="overflow-x-auto">

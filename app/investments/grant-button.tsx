@@ -26,10 +26,10 @@ export default function GrantInvestmentsButton({ itemId }: { itemId: number }) {
           setMessage(
             data.investments > 0
               ? null
-              : "Access granted. Plaid can take a few minutes to prepare the data; sync again shortly.",
+              : "Granted · data can take a few minutes, sync again soon",
           ),
         )
-        .catch(() => setMessage("Access granted, but the sync failed. Try syncing again."))
+        .catch(() => setMessage("Granted · sync failed, try again"))
         .finally(() => {
           succeeded.current = false;
           setBusy(false);

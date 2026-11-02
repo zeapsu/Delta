@@ -29,7 +29,7 @@ import { checkPlaid } from "@/lib/plaid-config";
 import ConnectionButton from "./connection-button";
 import { REAUTH_ERROR_CODES } from "@/lib/plaid-errors";
 import { getAnalysisSettings } from "@/lib/settings";
-import { Card, Change, Empty, Meter, Page, Stat, Tint } from "./ui";
+import { Card, Change, Empty, Meter, Page, Stat, Steps, Tint } from "./ui";
 
 export const dynamic = "force-dynamic";
 
@@ -78,27 +78,40 @@ export default async function Home() {
 
   if (allItems.length === 0) {
     const plaid = await checkPlaid();
+    const keysState = plaid.ok ? "done" : plaid.missing ? "todo" : "error";
     return (
       <Page title="Welcome to Delta" subtitle="Your money, in one calm place." ask={false}>
         <Card>
-          <p className="text-sm text-muted">
-            Connect a bank, card, or brokerage through Plaid. Delta syncs balances and
-            transactions every six hours and turns them into spending, budgets,
-            recurring charges, and net worth.
-          </p>
-          {plaid.ok ? (
-            <p className="mt-3 text-xs text-muted">Plaid {plaid.env}: keys OK</p>
-          ) : (
-            <div className="mt-3 text-sm text-negative">
-              <p className="font-medium">Plaid {plaid.env} isn&apos;t ready. Fix .env and restart:</p>
-              <ul className="mt-1 list-disc pl-5">
-                {plaid.problems.map((p) => (
-                  <li key={p}>{p}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-          <PlaidButtons />
+          <Steps
+            steps={[
+              {
+                title: "Add Plaid keys",
+                state: keysState,
+                action: plaid.ok ? (
+                  <span className="text-xs text-muted">{plaid.env === "production" ? "Production" : "Sandbox"} · OK</span>
+                ) : plaid.source === "env" ? null : (
+                  <Link href="/setup" className={`btn btn-sm ${plaid.missing ? "btn-primary" : ""}`}>
+                    {plaid.missing ? "Set up" : "Fix keys"}
+                  </Link>
+                ),
+                detail: keysState === "error" ? (
+                  <ul className="text-negative">
+                    {plaid.problems.map((p) => (
+                      <li key={p}>{p}</li>
+                    ))}
+                    {plaid.source === "env" ? <li>Fix .env and restart Delta.</li> : null}
+                  </ul>
+                ) : undefined,
+              },
+              {
+                title: "Connect a bank, card or brokerage",
+                state: "todo",
+                action: plaid.ok ? <PlaidButtons connectOnly /> : null,
+                detail: plaid.ok && plaid.env !== "production" ? "Sandbox login: user_good / pass_good" : undefined,
+              },
+              { title: "Delta syncs every 6 hours", state: "todo" },
+            ]}
+          />
         </Card>
       </Page>
     );
@@ -177,18 +190,16 @@ export default async function Home() {
           </span>
           <span>
             <span className="font-medium">
-              {broken.map((b) => b.name).join(", ")} {broken.length === 1 ? "is" : "are"} disconnected.
-            </span>{" "}
-            <span className="text-muted">Balances there are stale until you reconnect.</span>
+              {broken.map((b) => b.name).join(", ")} disconnected
+            </span>
           </span>
-          <span className="ml-auto shrink-0 font-medium text-negative">Fix →</span>
+          <span className="ml-auto shrink-0 font-medium text-negative">Reconnect →</span>
         </a>
       ) : null}
       {!analysisSettings.customized ? (
         <Link href="/settings" className="surface flex items-center gap-3 px-4 py-3 text-sm">
           <span>
-            <span className="font-medium">Choose how closely your agent watches spending.</span>{" "}
-            <span className="text-muted">One tap, or keep the recommended setting.</span>
+            <span className="font-medium">How closely should your agent watch spending?</span>
           </span>
           <span className="ml-auto shrink-0 font-medium">Choose →</span>
         </Link>
@@ -208,7 +219,7 @@ export default async function Home() {
                 history.length > 1 && baseline ? (
                   <Change current={net} previous={baseline.net_worth} suffix="in 30 days" goodWhenUp />
                 ) : (
-                  "Trend appears after a few daily syncs"
+                  "Trend after a few syncs"
                 )
               }
             />
@@ -236,7 +247,7 @@ export default async function Home() {
               <Change
                 current={spentSoFar}
                 previous={spentLastMonthSoFar}
-                suffix="vs same point last month"
+                suffix="vs same day last month"
                 goodWhenUp={false}
               />
             }
@@ -283,7 +294,7 @@ export default async function Home() {
         >
           {budgetRows.length === 0 ? (
             <Empty href="/budgets" cta="Set a budget">
-              Budgets turn spending into a pace you can keep.
+              No budgets yet.
             </Empty>
           ) : (
             <>
@@ -323,7 +334,7 @@ export default async function Home() {
         >
           {upcoming.length === 0 ? (
             <Empty href="/recurring" cta={recurring.suggestions.length > 0 ? `Review ${recurring.suggestions.length} suggestions` : "Add recurring"}>
-              No confirmed bills or subscriptions due soon.
+              Nothing due.
             </Empty>
           ) : (
             <>
@@ -360,7 +371,7 @@ export default async function Home() {
           action={<Link href="/transactions" className="text-xs text-muted hover:text-foreground">All transactions →</Link>}
         >
           {recent.length === 0 ? (
-            <Empty>No transactions synced yet.</Empty>
+            <Empty>No transactions yet.</Empty>
           ) : (
             <ul className="flex flex-col divide-y divide-hairline">
               {recent.map((tx) => (
@@ -407,9 +418,9 @@ export default async function Home() {
                 <span className="text-xl font-semibold tabular-nums">{formatCents(subtotal)}</span>
                 <span className={`text-xs ${inst.needsReauth ? "text-negative" : "text-muted"}`}>
                   {inst.needsReauth
-                    ? "Disconnected · log in again to resume syncing"
+                    ? "Disconnected · sign in again"
                     : inst.transientError
-                      ? `Last sync failed (${inst.transientError}) · will retry`
+                      ? `Sync failed (${inst.transientError}) · retrying`
                       : inst.syncedLabel
                         ? `Synced ${inst.syncedLabel}`
                         : "Not synced yet"}

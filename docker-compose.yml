@@ -1,6 +1,8 @@
 # Self-hosted Delta. Setup: docs/self-hosting.md. In short:
 #   cp .env.example .env   # add Plaid keys, set DELTA_BIND / DELTA_URL
 #   docker compose up -d
+# No .env is fine too: open Delta and paste the Plaid keys on /setup.
+# For Portainer, CasaOS, Dockge and other app panels: one-click/compose.yaml.
 services:
   delta:
     image: ghcr.io/zeapsu/delta:${DELTA_TAG:-latest}
@@ -9,7 +11,9 @@ services:
       # Lets the in-app update notice compare against main (delta.sh sets it).
       args: { DELTA_COMMIT: "${DELTA_COMMIT:-}" }
     restart: unless-stopped
-    env_file: .env
+    env_file:
+      - path: .env
+        required: false
     # Publish only on the private interface (your Tailscale IP). The default,
     # 127.0.0.1, is reachable from this machine only. Pages have no login:
     # anyone who can reach this port sees your finances. On Linux with
@@ -29,7 +33,9 @@ services:
       context: .
       args: { DELTA_COMMIT: "${DELTA_COMMIT:-}" }
     restart: unless-stopped
-    env_file: .env
+    env_file:
+      - path: .env
+        required: false
     network_mode: "service:delta"
     depends_on: [delta]
     command: ["node", "scripts/jobs.mjs"]

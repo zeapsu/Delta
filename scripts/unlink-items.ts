@@ -7,23 +7,31 @@
 // Rows stay in the database so you keep your history until you delete it.
 
 // .env first (DATABASE_PATH, Plaid keys); values already in the environment win.
+// Keys saved on the setup page are used when .env has none.
 try {
   process.loadEnvFile();
 } catch {}
 
 import { Configuration, PlaidApi, PlaidEnvironments } from "plaid";
 
-function plaid(): PlaidApi {
-  // Same selection as lib/plaid.ts, which is server-only and can't load here.
-  const env = process.env.PLAID_ENV ?? "sandbox";
+// Same selection as lib/plaid.ts (server-only, can't load here): the
+// environment's keys, else the ones saved on the setup page.
+async function plaid(): Promise<PlaidApi> {
+  const { eq } = await import("drizzle-orm");
+  const { db } = await import("../db");
+  const { settings } = await import("../db/schema");
+  const { parseStoredKeys, resolvePlaidKeys, SETTINGS_KEY } = await import("../lib/plaid-keys");
+  const row = db.select({ value: settings.value }).from(settings).where(eq(settings.key, SETTINGS_KEY)).get();
+  const keys = resolvePlaidKeys(process.env, parseStoredKeys(row?.value));
+  const env = keys.env;
   if (env !== "sandbox" && env !== "production") throw new Error(`PLAID_ENV must be "sandbox" or "production", got "${env}"`);
-  const secret = env === "production" ? process.env.PLAID_PRODUCTION_SECRET : process.env.PLAID_SANDBOX_SECRET;
-  if (!secret) throw new Error(`Missing Plaid secret for PLAID_ENV=${env}`);
+  if (!keys.clientId) throw new Error("No Plaid keys (not in .env, not saved on the setup page)");
+  if (!keys.secret) throw new Error(`Missing Plaid secret for PLAID_ENV=${env}`);
   const mockUrl = env === "sandbox" ? process.env.PLAID_MOCK_URL : undefined;
   return new PlaidApi(
     new Configuration({
       basePath: mockUrl || PlaidEnvironments[env],
-      baseOptions: { headers: { "PLAID-CLIENT-ID": process.env.PLAID_CLIENT_ID, "PLAID-SECRET": secret } },
+      baseOptions: { headers: { "PLAID-CLIENT-ID": keys.clientId, "PLAID-SECRET": keys.secret } },
     }),
   );
 }
@@ -39,7 +47,7 @@ async function main() {
     for (const r of rows) console.log(`${r.id}\t${r.name ?? "(unnamed)"}`);
     return console.log(`\n${rows.length} linked. Run again with --yes to remove them at Plaid.`);
   }
-  const client = plaid();
+  const client = await plaid();
   let failed = 0;
   for (const r of rows) {
     try {

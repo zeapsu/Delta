@@ -243,3 +243,51 @@ export function Pager({
     </div>
   );
 }
+
+// A short numbered checklist: the state is the circle (done = check, error =
+// "!", otherwise the step number), so the words can stay short.
+export type StepState = "done" | "error" | "todo";
+export function Steps({
+  steps,
+}: {
+  steps: { title: string; state: StepState; detail?: React.ReactNode; action?: React.ReactNode }[];
+}) {
+  return (
+    <ol className="flex flex-col">
+      {steps.map((s, i) => (
+        <li key={s.title} className="relative flex gap-3 pb-5 last:pb-0">
+          {i < steps.length - 1 ? (
+            <span aria-hidden className="absolute bottom-0 left-3 top-7 w-px -translate-x-1/2 bg-hairline" />
+          ) : null}
+          <span
+            className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
+              s.state === "done"
+                ? "bg-ink text-ink-foreground"
+                : s.state === "error"
+                  ? "bg-[var(--negative)] text-white"
+                  : "border border-hairline bg-fill text-muted"
+            }`}
+          >
+            {s.state === "done" ? (
+              <svg aria-hidden viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.2">
+                <path d="M3.5 8.5l3 3 6-7" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            ) : s.state === "error" ? (
+              "!"
+            ) : (
+              i + 1
+            )}
+            <span className="sr-only">{s.state === "done" ? " (done)" : s.state === "error" ? " (needs attention)" : ""}</span>
+          </span>
+          <div className="flex min-w-0 flex-1 flex-col gap-2 pt-0.5">
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+              <span className={`text-sm font-medium ${s.state === "done" ? "text-muted" : ""}`}>{s.title}</span>
+              {s.action}
+            </div>
+            {s.detail ? <div className="text-xs text-muted">{s.detail}</div> : null}
+          </div>
+        </li>
+      ))}
+    </ol>
+  );
+}

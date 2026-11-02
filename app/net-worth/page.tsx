@@ -61,7 +61,7 @@ export default async function NetWorthPage() {
   const scale = Math.max(assets, debts, 1);
 
   return (
-    <Page title="Net worth" subtitle="Assets minus what you owe, from daily balance snapshots.">
+    <Page title="Net worth" subtitle="Assets minus debts.">
       <Card>
         <div className="flex flex-wrap items-end gap-x-10 gap-y-4">
           <Stat
@@ -77,7 +77,7 @@ export default async function NetWorthPage() {
           {high !== null && rows.length > 1 ? <Stat label="All-time high" value={formatCents(high)} /> : null}
         </div>
         {rows.length === 0 ? (
-          <Empty>Sync to start tracking net worth.</Empty>
+          <Empty>Appears after the first sync.</Empty>
         ) : rows.length === 1 ? (
           <Empty>
             First snapshot recorded — the history chart appears once there&apos;s more than

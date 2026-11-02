@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # One-command install, update and uninstall for a Docker-hosted Delta.
-#   ./delta.sh install     ask for Plaid keys, write .env, start Delta
+#   ./delta.sh install     ask for Plaid keys (or skip: paste them on /setup), write .env, start Delta
 #   ./delta.sh update      back up, pull the new version, restart
 #   ./delta.sh uninstall   disconnect banks at Plaid, back up, remove everything
 #   ./delta.sh backup      back up and copy the backups out to ./delta-backups
@@ -97,12 +97,15 @@ cmd_install() {
   else
     cp .env.example .env
     echo "Plaid keys are at https://dashboard.plaid.com/developers/keys"
+    echo "(Press Enter to skip and paste them in your browser on Delta's setup page instead.)"
     local id secret ip
     id=$(ask "Plaid client id: ")
-    secret=$(ask_secret "Plaid sandbox secret (hidden): ")
-    [ -n "$id" ] && [ -n "$secret" ] || die "both Plaid values are required"
-    set_env PLAID_CLIENT_ID "$id"
-    set_env PLAID_SANDBOX_SECRET "$secret"
+    if [ -n "$id" ]; then
+      secret=$(ask_secret "Plaid sandbox secret (hidden): ")
+      [ -n "$secret" ] || die "the sandbox secret is required with a client id"
+      set_env PLAID_CLIENT_ID "$id"
+      set_env PLAID_SANDBOX_SECRET "$secret"
+    fi
 
     ip=$(tailscale ip -4 2>/dev/null | head -1 || true)
     if [ -n "$ip" ]; then
@@ -128,7 +131,11 @@ cmd_install() {
   wait_ready || true
   local url; url=$(grep -E '^DELTA_URL=' .env | cut -d= -f2-)
   say "Delta is running at $url"
-  echo "Open it, click Connect account, and in sandbox sign in with user_good / pass_good."
+  if grep -qE '^PLAID_CLIENT_ID=.+' .env; then
+    echo "Open it, click Connect account, and in sandbox sign in with user_good / pass_good."
+  else
+    echo "Open it and paste your Plaid keys on the setup page, then click Connect account."
+  fi
   echo "Connect an agent: docker compose exec delta npm run token -- create my-agent"
 }
 

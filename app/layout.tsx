@@ -41,7 +41,7 @@ export default function RootLayout({
     >
       <body className="flex min-h-full flex-col">
         <RefractionFilter />
-        <Nav extra={update && <UpdatePill behindBy={update.behindBy} />} />
+        <Nav extra={update && <UpdatePill behindBy={update.behindBy} stack={process.env.DELTA_INSTALL === "stack"} />} />
         {children}
       </body>
     </html>

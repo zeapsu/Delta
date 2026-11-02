@@ -2,45 +2,49 @@
 
 A self-hosted personal finance dashboard your own agent can talk to.
 
-Delta links your bank, card and brokerage accounts through [Plaid](https://plaid.com), syncs them every few hours into a SQLite database on your own machine, and shows spending, budgets, recurring charges, investments and net worth. It has no chatbot of its own: it serves an [MCP](https://modelcontextprotocol.io) server, so the agent you already use (Claude, or any MCP client) can answer questions about your money with the same numbers the dashboard shows.
+Delta syncs your banks, cards and brokerage through [Plaid](https://plaid.com) into a SQLite file on your own machine, and shows spending, budgets, recurring charges, investments and net worth. No built-in chatbot: its [MCP](https://modelcontextprotocol.io) server gives the agent you already use the same numbers the dashboard shows.
 
 **Docs:** [zeapsu.github.io/Delta](https://zeapsu.github.io/Delta/)
 
 ## Features
 
-- **Overview** with net worth, month-to-date spending, cash flow and the health of each bank connection
-- **Spending** by category, with pending charges called out
-- **Transactions** search, plus category relabels for one transaction or a whole merchant
-- **Budgets** per category with progress
-- **Recurring** charges: Delta suggests subscriptions it detects, you confirm or dismiss them
-- **Investments** activity and **net worth** history
-- **Settings** for how closely your agent watches spending: when a category jump counts as a spike, when to warn about a budget
-- **MCP server and REST API** with per-agent read or write tokens
-- **Ask** buttons on every card that copy what it shows as a prompt for your agent
-- Runs on anything with Docker, including a Raspberry Pi or other arm64 board
+- **Overview:** net worth, spending so far, cash flow, connection health
+- **Spending** by category, pending charges included
+- **Transactions:** search, relabel one or a whole merchant
+- **Budgets** per category
+- **Recurring:** Delta spots subscriptions, you confirm them
+- **Investments** and **net worth** history
+- **Settings:** how closely your agent watches spending
+- **MCP server and REST API** with read or write tokens
+- **Ask** on every card copies it as a prompt
+- Runs anywhere Docker does, including a Raspberry Pi
 
 ## Security model
 
-Delta is single-user and **has no login**. The private network you run it on is the boundary ([Tailscale](https://tailscale.com) is recommended), API routes only answer loopback and allowed networks, and agents need a revocable token. Plaid access tokens never leave the database. Never expose Delta to the public internet. Details in the [self-hosting guide](docs/self-hosting.md#security-model-read-this-first).
+**No login.** Your private network is the boundary ([Tailscale](https://tailscale.com) recommended). The API only answers allowed networks, agents need a revocable token, and Plaid access tokens never leave the database. Never expose Delta to the internet. [Details](docs/self-hosting.md#security-model-read-this-first).
 
 ## Quick start
 
-You need Docker and Plaid API keys. Plaid's free Trial plan covers personal use (up to 10 bank logins); see [Set up Plaid's free Trial plan](docs/plaid-trial.md).
+You need Docker and Plaid keys ([free for personal use](docs/plaid-trial.md)).
+
+**App panel** (Portainer, CasaOS, Dockge, Synology, Unraid): paste [`one-click/compose.yaml`](one-click/compose.yaml), open port 3000, add your Plaid keys in the browser. [Guide](docs/one-click-install.md).
+
+**Terminal:**
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/zeapsu/Delta/main/delta.sh | bash -s install
 ```
 
-It clones Delta into `./delta`, asks for your Plaid keys, writes `.env` (using your Tailscale IP if Tailscale is running) and starts it. Later, from that folder, `./delta.sh update` backs up and moves to the latest version, and `./delta.sh uninstall` disconnects your banks at Plaid and removes everything. To do it by hand:
+It clones into `./delta`, asks for Plaid keys (Enter skips to the browser), writes `.env` with your Tailscale IP and starts Delta. Later: `./delta.sh update` or `./delta.sh uninstall`. By hand:
 
 ```bash
 git clone https://github.com/zeapsu/Delta.git delta
 cd delta
-cp .env.example .env      # add PLAID_CLIENT_ID and PLAID_SANDBOX_SECRET, set DELTA_BIND and DELTA_URL
+cp .env.example .env      # set DELTA_BIND and DELTA_URL; add Plaid keys here or on the setup page
 docker compose up -d --build
 ```
 
-Open `DELTA_URL`, click **Connect account**, and in sandbox sign in to any bank with `user_good` / `pass_good`. The [self-hosting guide](docs/self-hosting.md) covers Tailscale, production Plaid access and backups. The [update](docs/updating.md) and [uninstall](docs/uninstalling.md) guides cover what the script does, and rolling back. Setting it up by hand on Linux with Tailscale, turn on host networking first ([why](docs/self-hosting.md#linux-with-tailscale-use-host-networking)).
+Open `DELTA_URL` and click **Connect account** (sandbox login: `user_good` / `pass_good`). On Linux with Tailscale, turn on [host networking](docs/self-hosting.md#linux-with-tailscale-use-host-networking) first. More: [self-hosting](docs/self-hosting.md), [update](docs/updating.md), [uninstall](docs/uninstalling.md).
 
 ## Connect an agent
 

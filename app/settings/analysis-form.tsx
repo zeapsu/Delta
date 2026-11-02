@@ -123,7 +123,7 @@ export function AnalysisForm({ initial }: { initial: AnalysisSettings }) {
 
       {status.saved || status.error ? (
         <p className={`text-sm ${status.error ? "text-negative" : "text-muted"}`}>
-          {status.error ?? "Saved. Your agent uses this the next time it connects."}
+          {status.error ?? "Saved · applies next time your agent connects"}
         </p>
       ) : null}
     </div>
