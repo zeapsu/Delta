@@ -22,10 +22,14 @@ The bank wants you to sign in again (for example after a password change or an e
 
 The connection was linked without investments consent. Click **Grant investments access** to add it in Plaid Link; you don't need to re-link.
 
+## "Could not start Plaid Link" or "Sync failed" from my phone
+
+Pages load but every action fails: the API is refusing your requests as coming from outside the allowed networks. On Linux with Tailscale this is usually Docker NATing tailnet traffic so it no longer arrives from your device's `100.x` address. Switch to host networking, see [Linux with Tailscale](self-hosting.md#linux-with-tailscale-use-host-networking). On Docker Desktop for macOS, see [the macOS note](self-hosting.md#docker-desktop-on-macos).
+
 ## My agent gets 401 or 403
 
 - `401`: the token is missing, mistyped or revoked. Run `npm run token -- list` and create a new one if needed.
-- `403`: either the token is read-only and the agent tried to write (create one with `--scope write`), or the request came from outside the allowed networks. Check that the agent's machine is on your tailnet, or add its network to `DELTA_ALLOWED_NETWORKS`. On Docker Desktop for macOS, see the note in [Self-hosting](self-hosting.md#docker-desktop-on-macos).
+- `403`: either the token is read-only and the agent tried to write (create one with `--scope write`), or the request came from outside the allowed networks. Check that the agent's machine is on your tailnet, or add its network to `DELTA_ALLOWED_NETWORKS`. On Docker, see [Linux with Tailscale](self-hosting.md#linux-with-tailscale-use-host-networking) or, on macOS, [the Docker Desktop note](self-hosting.md#docker-desktop-on-macos).
 
 ## The data looks stale
 
