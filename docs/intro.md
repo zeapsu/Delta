@@ -29,6 +29,7 @@ Agents get a per-agent token. Read tokens can only look; write tokens can also s
 
 ## Where to go next
 
+- [One-click install](one-click-install.md): Portainer, CasaOS, Dockge, Synology or Unraid, no terminal.
 - [Self-hosting](self-hosting.md): Plaid keys, Tailscale, Docker, backups.
 - [Connect an agent](agents.md): create a token and paste the MCP config.
 - [MCP tools](mcp-tools.md) and [REST API](api.md): what agents can do.

@@ -27,16 +27,20 @@ Delta is single-user and **has no login**. The private network you run it on is 
 
 You need Docker and Plaid API keys. Plaid's free Trial plan covers personal use (up to 10 bank logins); see [Set up Plaid's free Trial plan](docs/plaid-trial.md).
 
+**No terminal?** If your server runs an app panel (Portainer, CasaOS, Dockge, Synology Container Manager, Unraid), paste [`one-click/compose.yaml`](one-click/compose.yaml) into it, open Delta at port 3000 and paste your Plaid keys on its setup page. Step by step: [One-click install](docs/one-click-install.md).
+
+**With a terminal**, one command:
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/zeapsu/Delta/main/delta.sh | bash -s install
 ```
 
-It clones Delta into `./delta`, asks for your Plaid keys, writes `.env` (using your Tailscale IP if Tailscale is running) and starts it. Later, from that folder, `./delta.sh update` backs up and moves to the latest version, and `./delta.sh uninstall` disconnects your banks at Plaid and removes everything. To do it by hand:
+It clones Delta into `./delta`, asks for your Plaid keys (or press Enter and paste them in the browser), writes `.env` (using your Tailscale IP if Tailscale is running) and starts it. Later, from that folder, `./delta.sh update` backs up and moves to the latest version, and `./delta.sh uninstall` disconnects your banks at Plaid and removes everything. To do it by hand:
 
 ```bash
 git clone https://github.com/zeapsu/Delta.git delta
 cd delta
-cp .env.example .env      # add PLAID_CLIENT_ID and PLAID_SANDBOX_SECRET, set DELTA_BIND and DELTA_URL
+cp .env.example .env      # set DELTA_BIND and DELTA_URL; add Plaid keys here or on the setup page
 docker compose up -d --build
 ```
 

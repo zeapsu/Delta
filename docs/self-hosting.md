@@ -47,13 +47,15 @@ Not using Tailscale? Any private network works. Set `DELTA_ALLOWED_NETWORKS` to 
 
 You need Docker with the compose plugin, on Linux (amd64 or arm64, so a Raspberry Pi 4/5 or a Jetson works) or macOS.
 
+Using an app panel such as Portainer, CasaOS, Dockge, Synology Container Manager or Unraid? Follow the [one-click install](one-click-install.md) instead: no terminal, and the Plaid keys go in through the browser.
+
 ### The short way
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/zeapsu/Delta/main/delta.sh | bash -s install
 ```
 
-This clones Delta into `./delta`, asks for your Plaid client id and sandbox secret, writes `.env` (with your Tailscale IP as `DELTA_BIND`/`DELTA_URL` if Tailscale is running, plus [host networking](#linux-with-tailscale-use-host-networking) on Linux or the [Docker Desktop setting](#docker-desktop-on-macos) on macOS), starts the containers and waits for the Plaid key check. Already cloned? Run `./delta.sh install` in the folder instead. The same script later runs [`update`](updating.md) and [`uninstall`](uninstalling.md). To see or change what it set up, read on.
+This clones Delta into `./delta`, asks for your Plaid client id and sandbox secret (press Enter to skip and paste them on Delta's setup page instead), writes `.env` (with your Tailscale IP as `DELTA_BIND`/`DELTA_URL` if Tailscale is running, plus [host networking](#linux-with-tailscale-use-host-networking) on Linux or the [Docker Desktop setting](#docker-desktop-on-macos) on macOS), starts the containers and waits for the Plaid key check. Already cloned? Run `./delta.sh install` in the folder instead. The same script later runs [`update`](updating.md) and [`uninstall`](uninstalling.md). To see or change what it set up, read on.
 
 ### By hand
 
@@ -63,7 +65,7 @@ cd delta
 cp .env.example .env
 ```
 
-Edit `.env`:
+Edit `.env` (the Plaid lines can stay empty: Delta then asks for the keys on its setup page, `/setup`):
 
 ```bash
 PLAID_CLIENT_ID=your-client-id
@@ -118,6 +120,10 @@ To check it worked, open Delta from your phone and click **Connect account**. If
 ### First-run check
 
 At startup Delta logs which Plaid environment is active and whether the keys work (it makes one cheap authenticated call to Plaid). The welcome page shows the same thing before you've linked anything. If it says the keys are missing or rejected, fix `.env` and run `docker compose up -d` again.
+
+### Plaid keys from the browser
+
+If `.env` has no `PLAID_CLIENT_ID`, the welcome page offers **Set up Plaid**: paste the client id and a secret, pick sandbox or production, and Delta checks them with Plaid before saving them in its database (the same database that holds your Plaid access tokens, so it's in your backups too). They're never shown again; **Settings → Plaid → Replace keys** swaps them, and the environment can't change once a bank is linked. Keys in `.env` always win, and the setup page only shows them.
 
 ### Boot order with Tailscale
 
@@ -180,7 +186,7 @@ See [Update Delta](updating.md) (back up, pull the new version, roll back if nee
 
 ## Configuration reference
 
-All settings go in `.env`.
+All settings go in `.env`. The Plaid keys can instead be entered on the setup page ([above](#plaid-keys-from-the-browser)); `.env` wins when both are set.
 
 | Variable | Default | What it does |
 | --- | --- | --- |

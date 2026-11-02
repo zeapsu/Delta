@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "@docusaurus/Link";
+import useBrokenLinks from "@docusaurus/useBrokenLinks";
 import Layout from "@theme/Layout";
 import CodeBlock from "@theme/CodeBlock";
 import styles from "./index.module.css";
@@ -24,9 +25,9 @@ function Hero() {
     <header className={styles.hero}>
       <div className={styles.grid} aria-hidden />
       <div className={styles.heroInner}>
-        <Link to="/docs/mcp-tools" className={styles.badge}>
+        <Link to="/docs/one-click-install" className={styles.badge}>
           <span className={styles.badgeTag}>New</span>
-          MCP server for any agent
+          One-click install, no terminal
           <span aria-hidden>→</span>
         </Link>
         <p className={styles.platforms}>Self-hosted · Docker on amd64 and arm64 · AGPL-3.0</p>
@@ -39,7 +40,7 @@ function Hero() {
           Delta links your banks, cards and brokerage through Plaid, keeps everything in a SQLite file on hardware you own, and lets the agent you already use read the same numbers the dashboard shows.
         </p>
         <div className={styles.actions}>
-          <Link className="btn btn-primary" to="/docs/self-hosting">
+          <Link className="btn btn-primary" to="/#install">
             Get started
           </Link>
           <Link className="btn" to="/docs">
@@ -240,9 +241,88 @@ function HostVisual() {
   );
 }
 
+const PANELS = ["Portainer", "CasaOS", "Dockge", "Synology", "Unraid"];
+const INSTALL_CMD = "curl -fsSL https://raw.githubusercontent.com/zeapsu/Delta/main/delta.sh | bash -s install";
+
+// A miniature of the app's /setup page: the step a panel install ends with.
+function SetupVisual() {
+  return (
+    <div className={`surface ${styles.card} ${styles.setupMock}`} aria-hidden>
+      <span className={styles.cardTitle}>Set up Delta</span>
+      <span className={styles.segment}>
+        <span className={styles.segmentOn}>Sandbox</span>
+        <span className={styles.segmentOff}>Production</span>
+      </span>
+      <span className={styles.mockField}>
+        <span className={styles.eyebrow}>client_id</span>
+        <span className={styles.mockInput}>5f3e…a91c</span>
+      </span>
+      <span className={styles.mockField}>
+        <span className={styles.eyebrow}>Sandbox secret</span>
+        <span className={styles.mockInput}>••••••••••••••••</span>
+      </span>
+      <span className={styles.mockRow}>
+        <span className={styles.chipInk}>Check and save</span>
+        <span className={styles.mockOk}>
+          <span className={styles.statusDot} style={{ background: "var(--positive)" }} />
+          Plaid accepted the keys
+        </span>
+      </span>
+    </div>
+  );
+}
+
+function Install() {
+  // A plain section id; tell the broken-anchor check it exists.
+  useBrokenLinks().collectAnchor("install");
+  return (
+    <section id="install" className={styles.section}>
+      <h2 className={styles.sectionTitle}>Install it your way</h2>
+      <div className={styles.installGrid}>
+        <div className={`surface ${styles.installCard}`}>
+          <span className={styles.eyebrow}>No terminal</span>
+          <h3>One click in your app panel</h3>
+          <p>
+            Paste one compose file into your server&apos;s app panel, open Delta, and enter your Plaid keys in the browser. Nothing to edit by hand.
+          </p>
+          <span className={styles.chips}>
+            {PANELS.map((p) => (
+              <span key={p} className={styles.chip}>
+                {p}
+              </span>
+            ))}
+          </span>
+          <SetupVisual />
+          <Link className={styles.installLink} to="/docs/one-click-install">
+            One-click install guide <span aria-hidden>→</span>
+          </Link>
+        </div>
+        <div className={`surface ${styles.installCard}`}>
+          <span className={styles.eyebrow}>Terminal</span>
+          <h3>One command</h3>
+          <p>
+            Downloads Delta, asks for your Plaid keys (or skip them and use the browser), finds your Tailscale address and starts it. The same script updates and uninstalls.
+          </p>
+          <div className={styles.stack}>
+            <CodeBlock language="bash" title="On your server">
+              {INSTALL_CMD}
+            </CodeBlock>
+            <CodeBlock language="bash" title="Later, from the delta folder">
+              {"./delta.sh update\n./delta.sh uninstall"}
+            </CodeBlock>
+          </div>
+          <Link className={styles.installLink} to="/docs/self-hosting">
+            Self-hosting guide <span aria-hidden>→</span>
+          </Link>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 const STEPS = [
   { title: "Get Plaid keys", body: "Plaid's free Trial plan connects real US and Canadian accounts.", to: "/docs/plaid-trial" },
-  { title: "Run Delta", body: "One Docker Compose file, on any always-on machine on your tailnet.", to: "/docs/self-hosting" },
+  { title: "Run Delta", body: "One click in your app panel, or one command in a terminal, on any always-on machine.", to: "/#install" },
   { title: "Link your accounts", body: "Plaid Link in your browser. Sync runs on its own every 6 hours.", to: "/docs/self-hosting#4-link-your-accounts" },
   { title: "Connect your agent", body: "Create a token, paste the printed MCP config, start asking.", to: "/docs/agents" },
 ];
@@ -283,6 +363,8 @@ export default function Home(): ReactNode {
           </p>
         </section>
 
+        <Install />
+
         <section className={styles.section}>
           <h2 className={styles.sectionTitle}>Up and running in four steps</h2>
           <ol className={styles.steps}>
@@ -303,7 +385,10 @@ export default function Home(): ReactNode {
         <section className={`${styles.section} ${styles.cta}`}>
           <h2 className={styles.ctaTitle}>Run your own Delta</h2>
           <div className={styles.actions}>
-            <Link className="btn btn-primary" to="/docs/self-hosting">
+            <Link className="btn btn-primary" to="/docs/one-click-install">
+              One-click install
+            </Link>
+            <Link className="btn" to="/docs/self-hosting">
               Self-hosting guide
             </Link>
             <Link className="btn" href="https://github.com/zeapsu/Delta">
