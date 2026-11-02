@@ -3,8 +3,11 @@
 #   docker compose up -d
 services:
   delta:
-    image: ghcr.io/zeapsu/delta:latest
-    build: .
+    image: ghcr.io/zeapsu/delta:${DELTA_TAG:-latest}
+    build:
+      context: .
+      # Lets the in-app update notice compare against main (delta.sh sets it).
+      args: { DELTA_COMMIT: "${DELTA_COMMIT:-}" }
     restart: unless-stopped
     env_file: .env
     # Publish only on the private interface (your Tailscale IP). The default,
@@ -21,8 +24,10 @@ services:
   # job on bare metal). Shares delta's network namespace so its requests
   # arrive on loopback.
   jobs:
-    image: ghcr.io/zeapsu/delta:latest
-    build: .
+    image: ghcr.io/zeapsu/delta:${DELTA_TAG:-latest}
+    build:
+      context: .
+      args: { DELTA_COMMIT: "${DELTA_COMMIT:-}" }
     restart: unless-stopped
     env_file: .env
     network_mode: "service:delta"

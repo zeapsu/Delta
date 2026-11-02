@@ -47,6 +47,16 @@ Not using Tailscale? Any private network works. Set `DELTA_ALLOWED_NETWORKS` to 
 
 You need Docker with the compose plugin, on Linux (amd64 or arm64, so a Raspberry Pi 4/5 or a Jetson works) or macOS.
 
+### The short way
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/zeapsu/Delta/main/delta.sh | bash -s install
+```
+
+This clones Delta into `./delta`, asks for your Plaid client id and sandbox secret, writes `.env` (with your Tailscale IP as `DELTA_BIND`/`DELTA_URL` if Tailscale is running, plus [host networking](#linux-with-tailscale-use-host-networking) on Linux or the [Docker Desktop setting](#docker-desktop-on-macos) on macOS), starts the containers and waits for the Plaid key check. Already cloned? Run `./delta.sh install` in the folder instead. The same script later runs [`update`](updating.md) and [`uninstall`](uninstalling.md). To see or change what it set up, read on.
+
+### By hand
+
 ```bash
 git clone https://github.com/zeapsu/Delta.git delta
 cd delta
@@ -148,7 +158,7 @@ Prefer plain HTTP? The same token works on the REST API: `curl -H "Authorization
 The `jobs` container writes a backup to `/data/backups/` once a day and keeps the last 7. Those backups sit in the same volume as the database, so they protect against a bad migration or a mistake, not against losing the disk. Copy them off the machine regularly:
 
 ```bash
-docker compose cp delta:/data/backups ./delta-backups
+docker compose cp delta:/data/backups/. ./delta-backups/
 ```
 
 Each backup is a self-contained SQLite file (`sqlite3 delta-2026-10-31.db` opens it directly). The database holds your Plaid access tokens, so store backups somewhere private.
@@ -164,14 +174,9 @@ docker compose start
 
 This deletes the old write-ahead log first, so it can't be replayed onto the restored file, and hands the file to the `node` user the app runs as. (A plain `docker compose cp` into the container leaves a root-owned file the app can't write to.)
 
-## Updating
+## Updating and uninstalling
 
-```bash
-git pull
-docker compose up -d --build
-```
-
-Migrations apply on start. Take a backup first if you're nervous: `docker compose exec delta npm run backup`.
+See [Update Delta](updating.md) (back up, pull the new version, roll back if needed) and [Uninstall Delta](uninstalling.md) (disconnect your banks at Plaid first, then remove the containers and data).
 
 ## Configuration reference
 
@@ -188,6 +193,8 @@ All settings go in `.env`.
 | `DELTA_BIND` | `127.0.0.1` | Docker: host interface the port is published on |
 | `DELTA_PORT` | `3000` | Docker: host port |
 | `COMPOSE_FILE` | | Docker: set to `docker-compose.yml:docker-compose.tailscale.yml` for [host networking on Linux](#linux-with-tailscale-use-host-networking) |
+| `DELTA_TAG` | `latest` | Docker: image tag to run; pin a release or `sha-<commit>` to [roll back](updating.md#roll-back) |
+| `DELTA_UPDATE_CHECK` | on | Set to `off` to stop the twice-daily GitHub check behind the [Update pill](updating.md) |
 | `SYNC_INTERVAL_HOURS` | `6` | Docker: how often `jobs` refreshes and syncs |
 | `REFRESH_WAIT_SECONDS` | `180` | Docker: wait between the refresh request and the sync |
 | `BACKUP_INTERVAL_HOURS` | `24` | Docker: how often `jobs` backs up |

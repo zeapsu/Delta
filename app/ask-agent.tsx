@@ -63,7 +63,7 @@ function buildPrompt(button: HTMLElement, scope: "card" | "page"): string {
 
 // navigator.clipboard needs a secure context, and Delta is served over plain
 // http on the tailnet IP — so fall back to the legacy execCommand path.
-async function copy(text: string): Promise<boolean> {
+export async function copy(text: string): Promise<boolean> {
   if (window.isSecureContext && navigator.clipboard) {
     try {
       await navigator.clipboard.writeText(text);

@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Nav } from "./nav";
 import { RefractionFilter } from "./refraction";
+import { UpdatePill } from "./update-pill";
+import { updateStatus } from "@/lib/update-check";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -31,6 +33,7 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const update = updateStatus();
   return (
     <html
       lang="en"
@@ -38,7 +41,7 @@ export default function RootLayout({
     >
       <body className="flex min-h-full flex-col">
         <RefractionFilter />
-        <Nav />
+        <Nav extra={update && <UpdatePill behindBy={update.behindBy} />} />
         {children}
       </body>
     </html>

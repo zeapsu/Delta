@@ -11,6 +11,7 @@
     "lint": "eslint",
     "backup": "node scripts/backup-db.mjs",
     "token": "tsx scripts/api-token.ts",
+    "unlink": "tsx scripts/unlink-items.ts",
     "test": "tsx lib/tailnet-check.ts && tsx lib/api-auth-check.ts && tsx lib/recurring-check.ts && tsx lib/networth-check.ts && tsx lib/mcp-check.ts && tsx lib/analysis-check.ts"
   },
   "dependencies": {

@@ -14,6 +14,8 @@ FROM build-tools AS build
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
+# The commit being built, for the in-app update notice (next.config.ts).
+ARG DELTA_COMMIT=""
 RUN npm run build
 
 # Production deps only. tsx is one: `npm run token` runs in the container.
