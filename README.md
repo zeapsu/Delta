@@ -34,7 +34,7 @@ cp .env.example .env      # add PLAID_CLIENT_ID and PLAID_SANDBOX_SECRET, set DE
 docker compose up -d --build
 ```
 
-Open `DELTA_URL`, click **Connect account**, and in sandbox sign in to any bank with `user_good` / `pass_good`. The [self-hosting guide](docs/self-hosting.md) covers Tailscale, production Plaid access, backups and updates.
+Open `DELTA_URL`, click **Connect account**, and in sandbox sign in to any bank with `user_good` / `pass_good`. The [self-hosting guide](docs/self-hosting.md) covers Tailscale, production Plaid access, backups and updates. On Linux with Tailscale, turn on host networking first ([why](docs/self-hosting.md#linux-with-tailscale-use-host-networking)).
 
 ## Connect an agent
 

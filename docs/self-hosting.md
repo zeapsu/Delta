@@ -85,17 +85,37 @@ docker compose logs jobs
 
 Open `http://100.x.y.z:3000` from a device on your tailnet.
 
+### Linux with Tailscale: use host networking
+
+On Linux, publishing the port can hide where a request really came from: Docker may NAT your phone's tailnet traffic so it reaches the container from a Docker-internal address instead of its `100.x.y.z` address. Pages still load, but every API call is refused as coming from outside the tailnet, so you see **Could not start Plaid Link** or **Sync failed**.
+
+The fix is to run Delta on the host network, listening only on your Tailscale IP. The repo ships an override for it, `docker-compose.tailscale.yml`. Turn it on by adding one line to `.env`, which makes every `docker compose` command use it:
+
+```bash
+COMPOSE_FILE=docker-compose.yml:docker-compose.tailscale.yml
+```
+
+Then recreate the containers:
+
+```bash
+docker compose up -d --build
+```
+
+With the override, `delta` drops the published port and runs `next start -H $DELTA_BIND`, so it answers on your Tailscale IP only (not on your LAN or the public interface), and `jobs` reaches it on that IP instead of loopback. `DELTA_BIND` must be your Tailscale IP. It needs Docker Compose 2.24 or newer (`docker compose version`).
+
+To check it worked, open Delta from your phone and click **Connect account**. If Plaid Link opens, the API sees your real tailnet address.
+
 ### First-run check
 
 At startup Delta logs which Plaid environment is active and whether the keys work (it makes one cheap authenticated call to Plaid). The welcome page shows the same thing before you've linked anything. If it says the keys are missing or rejected, fix `.env` and run `docker compose up -d` again.
 
 ### Boot order with Tailscale
 
-When `DELTA_BIND` is a Tailscale IP, Docker can only publish the port once Tailscale has brought that IP up. If Docker wins the race at boot, the `delta` container fails to start; `docker compose up -d` fixes it. To make it hands-off, have Docker start after Tailscale (`sudo systemctl edit docker.service`, then add `After=tailscaled.service` and `Wants=tailscaled.service` under `[Unit]`).
+When `DELTA_BIND` is a Tailscale IP, Docker can only publish the port (or, with host networking, Delta can only listen) once Tailscale has brought that IP up. If Docker wins the race at boot, the `delta` container fails to start; `docker compose up -d` fixes it. To make it hands-off, have Docker start after Tailscale (`sudo systemctl edit docker.service`, then add `After=tailscaled.service` and `Wants=tailscaled.service` under `[Unit]`).
 
 ### Docker Desktop on macOS
 
-Docker Desktop rewrites the source address of incoming connections, so API requests from your tailnet arrive from a Docker-internal address and get refused. Set `DELTA_ALLOWED_NETWORKS=0.0.0.0/0` there and rely on `DELTA_BIND` (your Tailscale IP) to keep the port private.
+Docker Desktop rewrites the source address of incoming connections, so API requests from your tailnet arrive from a Docker-internal address and get refused. Host networking doesn't help there (Docker Desktop runs containers in a VM), so set `DELTA_ALLOWED_NETWORKS=0.0.0.0/0` instead and rely on `DELTA_BIND` (your Tailscale IP) to keep the port private.
 
 ## 4. Link your accounts
 
@@ -133,13 +153,16 @@ docker compose cp delta:/data/backups ./delta-backups
 
 Each backup is a self-contained SQLite file (`sqlite3 delta-2026-10-31.db` opens it directly). The database holds your Plaid access tokens, so store backups somewhere private.
 
-To restore, stop Delta, copy a backup over the database, and start again:
+To restore, stop Delta, swap the backup in with a one-off container, and start again. Run this from the folder that holds the backup file:
 
 ```bash
 docker compose stop
-docker compose cp ./delta-2026-10-31.db delta:/data/delta.db
+docker compose run --rm --no-deps --user root -v "$PWD:/restore:ro" --entrypoint sh delta -c \
+  'rm -f /data/delta.db-wal /data/delta.db-shm && cp /restore/delta-2026-10-31.db /data/delta.db && chown node:node /data/delta.db'
 docker compose start
 ```
+
+This deletes the old write-ahead log first, so it can't be replayed onto the restored file, and hands the file to the `node` user the app runs as. (A plain `docker compose cp` into the container leaves a root-owned file the app can't write to.)
 
 ## Updating
 
@@ -164,6 +187,7 @@ All settings go in `.env`.
 | `DELTA_ALLOWED_NETWORKS` | `100.64.0.0/10` | Comma-separated IPv4 CIDRs allowed to call `/api`. Loopback is always allowed |
 | `DELTA_BIND` | `127.0.0.1` | Docker: host interface the port is published on |
 | `DELTA_PORT` | `3000` | Docker: host port |
+| `COMPOSE_FILE` | | Docker: set to `docker-compose.yml:docker-compose.tailscale.yml` for [host networking on Linux](#linux-with-tailscale-use-host-networking) |
 | `SYNC_INTERVAL_HOURS` | `6` | Docker: how often `jobs` refreshes and syncs |
 | `REFRESH_WAIT_SECONDS` | `180` | Docker: wait between the refresh request and the sync |
 | `BACKUP_INTERVAL_HOURS` | `24` | Docker: how often `jobs` backs up |

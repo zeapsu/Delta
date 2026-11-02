@@ -1,0 +1,24 @@
+# Linux + Tailscale: run Delta on the host network, listening only on your
+# Tailscale IP. Setup: docs/self-hosting.md ("Linux with Tailscale"). Enable it
+# by adding this line to .env, so every `docker compose` command picks it up:
+#   COMPOSE_FILE=docker-compose.yml:docker-compose.tailscale.yml
+#
+# Why: with published ports, Docker on Linux can NAT tailnet traffic so it
+# reaches the container from a Docker-internal address instead of your
+# phone's 100.x address. The API guard then refuses it as outside the tailnet
+# ("Could not start Plaid Link", "Sync failed"). On the host network Delta
+# sees the real client address. Needs Docker Compose 2.24+ (for !reset).
+services:
+  delta:
+    network_mode: host
+    ports: !reset []
+    # Listen on the Tailscale IP only (next start binds 0.0.0.0 otherwise,
+    # which on the host network means every interface).
+    command: ["node", "node_modules/next/dist/bin/next", "start", "-H", "${DELTA_BIND:?set DELTA_BIND to your Tailscale IP}", "-p", "${DELTA_PORT:-3000}"]
+
+  jobs:
+    # Still shares delta's network (now the host's), but the app no longer
+    # listens on loopback, so reach it on the Tailscale IP. That address is
+    # inside 100.64.0.0/10, so the API guard allows it.
+    environment:
+      DELTA_INTERNAL_URL: "http://${DELTA_BIND}:${DELTA_PORT:-3000}"
