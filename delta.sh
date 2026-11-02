@@ -48,27 +48,37 @@ set_env() {
 start() {
   # Baked into a local build so the in-app update notice knows its version.
   DELTA_COMMIT=$(git rev-parse HEAD 2>/dev/null || true); export DELTA_COMMIT
-  if docker compose pull -q 2>/dev/null; then docker compose up -d
-  else say "No image to pull, building from source (a few minutes)"; docker compose up -d --build; fi
+  local err
+  if err=$(docker compose pull -q 2>&1); then docker compose up -d
+  else
+    printf '%s\n' "$err" >&2
+    say "Couldn't pull the image (see above), building from source (a few minutes)"
+    docker compose up -d --build
+  fi
 }
 
 wait_ready() {
   say "Waiting for Delta to start"
   for _ in $(seq 1 60); do
-    if docker compose logs delta 2>/dev/null | grep -q '\[delta\] Plaid'; then
+    # Not grep -q: exiting early can SIGPIPE compose, which pipefail reads as no match.
+    if docker compose logs delta 2>/dev/null | grep '\[delta\] Plaid' >/dev/null; then
       docker compose logs delta | grep '\[delta\] Plaid' | tail -1
       return 0
     fi
     sleep 2
   done
   echo "Delta hasn't logged its startup check yet; see: docker compose logs delta"
+  return 1
 }
 
 backup() {
   say "Backing up the database"
   docker compose exec -T delta npm run -s backup
+  # They hold Plaid access tokens, so only this user may read the copies.
   mkdir -p delta-backups
+  chmod 700 delta-backups
   docker compose cp delta:/data/backups/. ./delta-backups/
+  chmod 600 delta-backups/*.db
   echo "Backups copied to $PWD/delta-backups"
 }
 
@@ -115,7 +125,7 @@ cmd_install() {
   fi
 
   start
-  wait_ready
+  wait_ready || true
   local url; url=$(grep -E '^DELTA_URL=' .env | cut -d= -f2-)
   say "Delta is running at $url"
   echo "Open it, click Connect account, and in sandbox sign in with user_good / pass_good."
@@ -125,11 +135,23 @@ cmd_install() {
 cmd_update() {
   need_docker; in_repo || die "run this from your Delta folder"
   backup
+  # Delta overwrites today's backup when it restarts, and a second update today
+  # would copy that over this one, so keep the pre-update state under its own name.
+  local latest; latest=$(ls delta-backups/delta-????-??-??.db | tail -1)
+  local keep="${latest%.db}-pre-update-$(date -u +%H%M%S).db"
+  cp -p "$latest" "$keep"
+  echo "Pre-update backup: $keep"
+  local old; old=$(docker compose images -q 2>/dev/null | sort -u || true)
   say "Getting the new version"
   git pull --ff-only
   start
-  wait_ready
-  docker image prune -f >/dev/null || true
+  wait_ready || die "the new version may not have started. Old image kept; to roll back see docs/updating.md#roll-back"
+  # Remove the image this update replaced, unless something else still tags it.
+  local id
+  for id in $old; do
+    [ "$(docker image inspect -f '{{len .RepoTags}}' "$id" 2>/dev/null)" = 0 ] &&
+      docker image rm "$id" >/dev/null 2>&1 || true
+  done
   say "Updated. If anything looks wrong, roll back with docs/updating.md#roll-back"
 }
 
@@ -144,7 +166,11 @@ cmd_uninstall() {
     docker compose exec -T delta npm run -s unlink -- --yes ||
       [ "$(ask 'Some banks could not be removed (see above). Continue anyway? [y/N] ')" = y ] || die "stopped, nothing deleted"
     backup
-    mkdir -p ../delta-backups && cp -R delta-backups/. ../delta-backups/
+    # Separate commands: set -e ignores a failure before the last && and would
+    # go on to delete the volume without this copy.
+    mkdir -p ../delta-backups
+    chmod 700 ../delta-backups
+    cp -R delta-backups/. ../delta-backups/
   else
     echo "Delta isn't running, so banks can't be disconnected here. Start it (docker compose up -d) and rerun,"
     [ "$(ask 'or continue without disconnecting them? [y/N] ')" = y ] || die "stopped, nothing deleted"
