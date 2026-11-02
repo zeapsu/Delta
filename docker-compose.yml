@@ -9,7 +9,9 @@ services:
     env_file: .env
     # Publish only on the private interface (your Tailscale IP). The default,
     # 127.0.0.1, is reachable from this machine only. Pages have no login:
-    # anyone who can reach this port sees your finances.
+    # anyone who can reach this port sees your finances. On Linux with
+    # Tailscale, use docker-compose.tailscale.yml (host networking) instead:
+    # Docker's port publishing can hide the real tailnet client address.
     ports:
       - "${DELTA_BIND:-127.0.0.1}:${DELTA_PORT:-3000}:3000"
     volumes:
