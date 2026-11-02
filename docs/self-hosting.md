@@ -123,7 +123,7 @@ At startup Delta logs which Plaid environment is active and whether the keys wor
 
 ### Plaid keys from the browser
 
-If `.env` has no `PLAID_CLIENT_ID`, the welcome page offers **Set up Plaid**: paste the client id and a secret, pick sandbox or production, and Delta checks them with Plaid before saving them in its database (the same database that holds your Plaid access tokens, so it's in your backups too). They're never shown again; **Settings → Plaid → Replace keys** swaps them, and the environment can't change once a bank is linked. Keys in `.env` always win, and the setup page only shows them.
+If `.env` has no `PLAID_CLIENT_ID`, the welcome page starts with **Add Plaid keys → Set up**: paste the client id and a secret, pick sandbox or production, and Delta checks them with Plaid before saving them in its database (the same database that holds your Plaid access tokens, so it's in your backups too). They're never shown again; **Settings → Plaid → Replace** swaps them, and the environment can't change once a bank is linked. Keys in `.env` always win, and the setup page only shows them.
 
 ### Boot order with Tailscale
 

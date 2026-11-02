@@ -14,7 +14,7 @@ const PAGES: [string, RegExp][] = [
   ["/net-worth", /Net worth/],
   ["/investments", /Investments/],
   ["/settings", /Settings/],
-  ["/setup", /Set up Delta/],
+  ["/setup", /Plaid keys/],
 ];
 
 for (const [path, heading] of PAGES) {

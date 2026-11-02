@@ -8,7 +8,7 @@ title: Troubleshooting
 
 Delta checks the keys at startup and logs `[delta] Plaid <env>: keys OK` when they work.
 
-- Entered the keys in the browser? Open **Settings → Plaid → Replace keys** and paste them again. The secret must match the environment you picked (Sandbox or Production).
+- Entered the keys in the browser? Open **Settings → Plaid → Replace** and paste them again. The secret must match the environment you picked (Sandbox or Production).
 - Using `.env`? Make sure `PLAID_CLIENT_ID` and the secret for your `PLAID_ENV` (`PLAID_SANDBOX_SECRET` or `PLAID_PRODUCTION_SECRET`) are there, then restart (`docker compose up -d`).
 
 ## I linked an account but see no transactions

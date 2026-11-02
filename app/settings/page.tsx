@@ -3,6 +3,7 @@ import { hint } from "@/lib/plaid-keys";
 import { currentPlaidKeys, getAnalysisSettings } from "@/lib/settings";
 import { Card, Page } from "../ui";
 import { AnalysisForm } from "./analysis-form";
+import { KeyFacts } from "../setup/key-facts";
 
 export const dynamic = "force-dynamic";
 
@@ -14,20 +15,21 @@ export default async function SettingsPage() {
       <Card title="How closely your agent watches spending" ask={false}>
         <AnalysisForm initial={analysis} />
       </Card>
-      <Card title="Plaid" ask={false}>
-        <p className="text-sm text-muted">
-          {keys.source === "none"
-            ? "No Plaid keys yet."
-            : `${keys.env === "production" ? "Production" : "Sandbox"}, client ID ${hint(keys.clientId) ?? "not set"}, ${
-                keys.source === "env" ? "from .env (edit it and restart Delta to change)." : "saved on the setup page."
-              }`}
-        </p>
-        {keys.source === "env" ? null : (
-          <div>
-            <Link href="/setup" className="btn">
-              {keys.source === "none" ? "Set up Plaid" : "Replace keys"}
+      <Card
+        title="Plaid"
+        ask={false}
+        action={
+          keys.source === "env" ? null : (
+            <Link href="/setup" className="btn btn-sm">
+              {keys.source === "none" ? "Set up" : "Replace"}
             </Link>
-          </div>
+          )
+        }
+      >
+        {keys.source === "none" ? (
+          <p className="text-sm text-muted">No keys yet.</p>
+        ) : (
+          <KeyFacts env={keys.env} clientId={hint(keys.clientId)} source={keys.source === "env" ? ".env" : "Saved"} />
         )}
       </Card>
     </Page>

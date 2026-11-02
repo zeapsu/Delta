@@ -9,7 +9,7 @@ test("paste Plaid keys on the setup page", async ({ page, request }) => {
 
   await page.goto("/");
   await expect(page.getByText("Welcome to Delta")).toBeVisible();
-  await page.getByRole("link", { name: "Set up Plaid" }).click();
+  await page.getByRole("link", { name: "Set up", exact: true }).click();
   await expect(page.locator("h1")).toHaveText("Set up Delta");
 
   expect(await (await request.get("/api/settings/plaid")).json()).toEqual({
@@ -21,13 +21,13 @@ test("paste Plaid keys on the setup page", async ({ page, request }) => {
 
   await page.getByLabel("client_id").fill("test-client-id-0001");
   await page.getByLabel("Sandbox secret").fill("rejected-secret");
-  await page.getByRole("button", { name: "Check and save" }).click();
+  await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(page.getByRole("status")).toContainText("INVALID_API_KEYS");
 
   await page.getByLabel("Sandbox secret").fill("test-secret-value-0001");
-  await page.getByRole("button", { name: "Check and save" }).click();
+  await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(page).toHaveURL(/\/$/);
-  await expect(page.getByText("Plaid sandbox: keys OK")).toBeVisible();
+  await expect(page.getByText("Sandbox · OK")).toBeVisible();
   await expect(page.getByRole("button", { name: /Connect account/ })).toBeVisible();
 
   // Saved keys never come back out, only a hint.

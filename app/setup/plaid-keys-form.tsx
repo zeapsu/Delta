@@ -10,7 +10,7 @@ type Env = "sandbox" | "production";
 export function PlaidKeysForm({
   initialEnv = "sandbox",
   lockedEnv,
-  submitLabel = "Check and save",
+  submitLabel = "Save",
   next,
 }: {
   initialEnv?: Env;
@@ -46,8 +46,8 @@ export function PlaidKeysForm({
   };
 
   const envs: { id: Env; label: string; blurb: string }[] = [
-    { id: "sandbox", label: "Sandbox", blurb: "Fake banks, to try it out" },
-    { id: "production", label: "Production", blurb: "Your real accounts" },
+    { id: "sandbox", label: "Sandbox", blurb: "Test banks" },
+    { id: "production", label: "Production", blurb: "Real accounts" },
   ];
 
   return (
@@ -74,7 +74,7 @@ export function PlaidKeysForm({
         })}
       </div>
       {lockedEnv ? (
-        <p className="text-xs text-muted">Banks are linked, so the environment stays as it is.</p>
+        <p className="text-xs text-muted">Locked while banks are linked.</p>
       ) : null}
 
       <label className="flex flex-col gap-1.5 text-sm">
@@ -105,11 +105,11 @@ export function PlaidKeysForm({
 
       <div className="flex flex-wrap items-center gap-3">
         <button type="submit" disabled={status.saving} className="btn btn-primary">
-          {status.saving ? "Checking with Plaid…" : submitLabel}
+          {status.saving ? "Checking…" : submitLabel}
         </button>
         {status.saved || status.error ? (
           <p role="status" className={`text-sm ${status.error ? "text-negative" : "text-muted"}`}>
-            {status.error ?? "Saved. Plaid accepted the keys."}
+            {status.error ?? "Saved"}
           </p>
         ) : null}
       </div>

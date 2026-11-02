@@ -4,7 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { usePlaidLink, type PlaidLinkOnSuccessMetadata } from "react-plaid-link";
 
-export default function PlaidButtons() {
+// connectOnly: just the Connect button (nothing to sync before the first link).
+export default function PlaidButtons({ connectOnly = false }: { connectOnly?: boolean }) {
   const router = useRouter();
   const [linkToken, setLinkToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -84,14 +85,11 @@ export default function PlaidButtons() {
     <div className="flex flex-col items-start gap-2 sm:items-end">
       <div className="flex flex-wrap items-center gap-2">
         {syncResult && <span className="text-xs text-muted">{syncResult}</span>}
-        <button
-          type="button"
-          onClick={handleSync}
-          disabled={syncing}
-          className="btn"
-        >
-          {syncing ? "Syncing…" : "Sync now"}
-        </button>
+        {connectOnly ? null : (
+          <button type="button" onClick={handleSync} disabled={syncing} className="btn">
+            {syncing ? "Syncing…" : "Sync now"}
+          </button>
+        )}
         <button
           type="button"
           onClick={() => open()}

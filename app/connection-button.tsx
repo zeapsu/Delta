@@ -135,7 +135,7 @@ export default function ConnectionButton({
           type="button"
           onClick={reconnect}
           disabled={working}
-          title={`${institution} needs you to log in again`}
+          title={`Sign in to ${institution} again`}
           className="btn btn-sm border-transparent bg-red-600 text-white hover:bg-red-600 hover:opacity-90"
         >
           {working ? "Reconnecting…" : "Reconnect"}

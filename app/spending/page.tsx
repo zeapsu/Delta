@@ -65,7 +65,7 @@ export default async function SpendingPage({
   return (
     <Page
       title="Spending"
-      subtitle="Everything that left your accounts, minus transfers and income."
+      subtitle="Excludes transfers and income."
       actions={
         <div className="glass flex items-center gap-1 rounded-full p-1">
           <Link

@@ -12,12 +12,11 @@ export const dynamic = "force-dynamic";
 const PAGE_SIZE = 50;
 
 const ACCESS_NOTE: Record<InvestmentsAccess, string> = {
-  active: "has investments access but no activity has synced (Plaid covers the last 24 months).",
-  needs_consent:
-    "was connected without investments access, so Plaid won't share its trades or dividends. Grant access to start syncing them.",
-  consented: "has investments access. Activity appears after the next sync.",
-  unsupported: "doesn't offer investment activity through Plaid.",
-  error: "couldn't be checked for investments access right now.",
+  active: "· no activity in the last 24 months",
+  needs_consent: "· no investments access",
+  consented: "· activity arrives next sync",
+  unsupported: "· investments not available via Plaid",
+  error: "· couldn't check investments access",
 };
 
 export default async function InvestmentsPage({
@@ -93,7 +92,7 @@ export default async function InvestmentsPage({
   const pageHref = (p: number) => `/investments?page=${p}`;
 
   return (
-    <Page wide title="Investments" subtitle="Buys, sells, dividends, and fees from your brokerage accounts.">
+    <Page wide title="Investments">
       {byType.length > 0 ? (
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4 md:gap-5">
           <Card>
@@ -126,7 +125,7 @@ export default async function InvestmentsPage({
       <Card className="p-0 sm:p-0">
         {rows.length === 0 ? (
           <div className="p-5">
-            <Empty>No investment activity synced yet.</Empty>
+            <Empty>No investment activity yet.</Empty>
           </div>
         ) : (
           <div className="overflow-x-auto">

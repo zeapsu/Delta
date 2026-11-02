@@ -63,7 +63,7 @@ export default async function BudgetsPage() {
   const sorted = [...budgetRows].sort((a, b) => b.pct - a.pct);
 
   return (
-    <Page title="Budgets" subtitle="Monthly limits per category, tracked against this month's spending.">
+    <Page title="Budgets">
       {budgetRows.length > 0 ? (
         <Card>
           <div className="flex flex-wrap items-end gap-x-10 gap-y-4">
@@ -93,17 +93,20 @@ export default async function BudgetsPage() {
               title="Even pace"
             />
           </div>
-          <p className="text-xs text-muted">The tick marks an even pace through the month.</p>
+          <p className="flex items-center gap-1.5 text-xs text-muted">
+            <span aria-hidden className="h-3 w-0.5 rounded bg-muted" />
+            Even pace
+          </p>
         </Card>
       ) : null}
 
-      <Card title="Add or update a budget" ask={false}>
+      <Card title="Set a budget" ask={false}>
         <BudgetForm categories={categories} />
       </Card>
 
       {budgetRows.length === 0 ? (
         <Card>
-          <Empty>No budgets yet. Pick a category above to set your first monthly limit.</Empty>
+          <Empty>No budgets yet.</Empty>
         </Card>
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-5">
