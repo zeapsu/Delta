@@ -49,6 +49,15 @@ const config: Config = {
     ],
   ],
 
+  // Old doc URLs. The Update pill in builds before the rename links to
+  // /docs/one-click-install#update; the redirect page keeps the hash.
+  plugins: [
+    [
+      "@docusaurus/plugin-client-redirects",
+      { redirects: [{ from: "/docs/one-click-install", to: "/docs/home-server" }] },
+    ],
+  ],
+
   themeConfig: {
     colorMode: { respectPrefersColorScheme: true },
     navbar: {
@@ -64,6 +73,7 @@ const config: Config = {
           title: "Docs",
           items: [
             { label: "Introduction", to: "/docs" },
+            { label: "Home server app", to: "/docs/home-server" },
             { label: "Self-hosting", to: "/docs/self-hosting" },
             { label: "Plaid Trial setup", to: "/docs/plaid-trial" },
             { label: "Connect an agent", to: "/docs/agents" },

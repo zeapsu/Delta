@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>Delta</Name>
+  <Repository>ghcr.io/zeapsu/delta:latest</Repository>
+  <Registry>https://github.com/zeapsu/Delta/pkgs/container/delta</Registry>
+  <Network>bridge</Network>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/zeapsu/Delta/issues</Support>
+  <Project>https://github.com/zeapsu/Delta</Project>
+  <Overview>Self-hosted personal finance. Delta connects your banks, cards and brokerages through Plaid and shows spending, budgets, recurring charges, investments and net worth. Open the WebUI and follow the checklist: add your own Plaid keys (free for personal use), connect accounts, pull your history. Your agent can read it over MCP with its own token.&#xD;
+&#xD;
+Delta has no login. Keep it on your LAN or Tailscale, never port-forwarded.</Overview>
+  <Category>Productivity: Tools:</Category>
+  <WebUI>http://[IP]:[PORT:3000]/</WebUI>
+  <TemplateURL>https://raw.githubusercontent.com/zeapsu/Delta/main/home-server/unraid/delta.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/zeapsu/Delta/main/home-server/icon.png</Icon>
+  <ExtraParams>--user=0:0</ExtraParams>
+  <PostArgs/>
+  <DonateText/>
+  <DonateLink/>
+  <Requires>Plaid API keys (free for personal use). See https://zeapsu.github.io/Delta/docs/plaid-trial</Requires>
+  <Config Name="Web UI port" Target="3000" Default="3000" Mode="tcp" Description="Port for the web UI and agent API." Type="Port" Display="always" Required="true" Mask="false">3000</Config>
+  <Config Name="Data" Target="/data" Default="/mnt/user/appdata/delta" Mode="rw" Description="Database and daily backups." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/delta</Config>
+  <Config Name="Allowed networks" Target="DELTA_ALLOWED_NETWORKS" Default="10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,100.64.0.0/10" Mode="" Description="Networks allowed to use the API (Plaid Link, sync, agents). Narrow to your LAN, e.g. 192.168.1.0/24." Type="Variable" Display="always" Required="true" Mask="false">10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,100.64.0.0/10</Config>
+  <Config Name="Agent URL" Target="DELTA_URL" Default="" Mode="" Description="How agents reach Delta, e.g. http://192.168.1.20:3000. Printed in the MCP configs." Type="Variable" Display="always" Required="false" Mask="false"/>
+  <Config Name="Background jobs" Target="DELTA_JOBS" Default="on" Mode="" Description="Plaid sync every 6 hours and a daily backup, in this container." Type="Variable" Display="advanced" Required="true" Mask="false">on</Config>
+  <Config Name="Install type" Target="DELTA_INSTALL" Default="stack" Mode="" Description="Points the Update notice at app panel steps." Type="Variable" Display="advanced-hide" Required="true" Mask="false">stack</Config>
+</Container>

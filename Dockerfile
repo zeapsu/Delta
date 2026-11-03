@@ -42,5 +42,6 @@ VOLUME /data
 EXPOSE 3000
 # Migrations apply at server start (instrumentation.ts). Binds 0.0.0.0 inside
 # the container; which host interface it is published on is the compose
-# file's DELTA_BIND.
-CMD ["node", "node_modules/next/dist/bin/next", "start"]
+# file's DELTA_BIND. scripts/start.mjs runs `next start`, and the sync/backup
+# jobs too when DELTA_JOBS=on (single-container installs such as Unraid).
+CMD ["node", "scripts/start.mjs"]

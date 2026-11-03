@@ -37,7 +37,7 @@ Delta syncs your banks, cards and brokerage through [Plaid](https://plaid.com) i
 
 You need Docker and Plaid keys ([free for personal use](docs/plaid-trial.md)).
 
-**App panel** (Portainer, CasaOS, Dockge, Synology, Unraid): paste [`one-click/compose.yaml`](one-click/compose.yaml), open port 3000, add your Plaid keys in the browser. [Guide](docs/one-click-install.md).
+**Home server app** (Portainer, CasaOS, Dockge, Synology, Unraid, TrueNAS): paste [`home-server/compose.yaml`](home-server/compose.yaml), open port 3000, add your Plaid keys in the browser. [Guide](docs/home-server.md).
 
 **Terminal:**
 
