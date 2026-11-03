@@ -1,6 +1,16 @@
 # Delta
 
+[![CI](https://github.com/zeapsu/Delta/actions/workflows/ci.yml/badge.svg)](https://github.com/zeapsu/Delta/actions/workflows/ci.yml)
+[![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue)](LICENSE)
+[![Docker image](https://img.shields.io/badge/docker-ghcr.io%2Fzeapsu%2Fdelta-2496ED?logo=docker&logoColor=white)](https://github.com/zeapsu/Delta/pkgs/container/delta)
+[![Docs](https://img.shields.io/badge/docs-zeapsu.github.io%2FDelta-black)](https://zeapsu.github.io/Delta/)
+
 A self-hosted personal finance dashboard your own agent can talk to.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/img/overview-dark.png">
+  <img alt="Delta's overview: net worth trend, spending this month, cash flow and budgets (sample data)" src="docs/img/overview-light.png">
+</picture>
 
 Delta syncs your banks, cards and brokerage through [Plaid](https://plaid.com) into a SQLite file on your own machine, and shows spending, budgets, recurring charges, investments and net worth. No built-in chatbot: its [MCP](https://modelcontextprotocol.io) server gives the agent you already use the same numbers the dashboard shows.
 
