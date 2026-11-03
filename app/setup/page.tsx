@@ -9,7 +9,7 @@ import { PlaidKeysForm } from "./plaid-keys-form";
 
 export const dynamic = "force-dynamic";
 
-// First-run setup for one-click installs: paste Plaid keys here instead of
+// First-run setup for home server app installs: paste Plaid keys here instead of
 // editing .env. Installs whose .env has keys just see where they come from.
 export default function SetupPage() {
   const keys = currentPlaidKeys();

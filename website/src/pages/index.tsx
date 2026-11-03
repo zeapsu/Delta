@@ -25,9 +25,9 @@ function Hero() {
     <header className={styles.hero}>
       <div className={styles.grid} aria-hidden />
       <div className={styles.heroInner}>
-        <Link to="/docs/one-click-install" className={styles.badge}>
+        <Link to="/docs/home-server" className={styles.badge}>
           <span className={styles.badgeTag}>New</span>
-          One-click install, no terminal
+          Install from your app panel
           <span aria-hidden>→</span>
         </Link>
         <p className={styles.platforms}>Self-hosted · amd64 + arm64 · AGPL-3.0</p>
@@ -241,7 +241,7 @@ function HostVisual() {
   );
 }
 
-const PANELS = ["Portainer", "CasaOS", "Dockge", "Synology", "Unraid"];
+const PANELS = ["Portainer", "CasaOS", "Dockge", "Synology", "Unraid", "TrueNAS"];
 const INSTALL_CMD = "curl -fsSL https://raw.githubusercontent.com/zeapsu/Delta/main/delta.sh | bash -s install";
 
 // A miniature of the app's /setup page: the step a panel install ends with.
@@ -280,10 +280,10 @@ function Install() {
       <h2 className={styles.sectionTitle}>Install it your way</h2>
       <div className={styles.installGrid}>
         <div className={`surface ${styles.installCard}`}>
-          <span className={styles.eyebrow}>No terminal</span>
-          <h3>One click in your app panel</h3>
+          <span className={styles.eyebrow}>Home server app</span>
+          <h3>From your app panel</h3>
           <p>
-            Paste one file into your app panel. Add Plaid keys in the browser.
+            Paste one file. A browser checklist takes it from Plaid keys to synced accounts.
           </p>
           <span className={styles.chips}>
             {PANELS.map((p) => (
@@ -293,13 +293,13 @@ function Install() {
             ))}
           </span>
           <SetupVisual />
-          <Link className={styles.installLink} to="/docs/one-click-install">
-            One-click install guide <span aria-hidden>→</span>
+          <Link className={styles.installLink} to="/docs/home-server">
+            Home server guide <span aria-hidden>→</span>
           </Link>
         </div>
         <div className={`surface ${styles.installCard}`}>
           <span className={styles.eyebrow}>Terminal</span>
-          <h3>One command</h3>
+          <h3>From a shell</h3>
           <p>
             Installs, finds your Tailscale address, starts Delta. Also updates and uninstalls.
           </p>
@@ -311,8 +311,8 @@ function Install() {
               {"./delta.sh update\n./delta.sh uninstall"}
             </CodeBlock>
           </div>
-          <Link className={styles.installLink} to="/docs/self-hosting">
-            Self-hosting guide <span aria-hidden>→</span>
+          <Link className={styles.installLink} to="/docs/self-hosting#terminal-install">
+            Terminal guide <span aria-hidden>→</span>
           </Link>
         </div>
       </div>
@@ -322,7 +322,7 @@ function Install() {
 
 const STEPS = [
   { title: "Get Plaid keys", body: "Free Trial plan, real US and Canadian banks.", to: "/docs/plaid-trial" },
-  { title: "Run Delta", body: "App panel or one command, on any always-on machine.", to: "/#install" },
+  { title: "Run Delta", body: "From an app panel or a terminal, on any always-on machine.", to: "/#install" },
   { title: "Link accounts", body: "In your browser. Syncs every 6 hours.", to: "/docs/self-hosting#4-link-your-accounts" },
   { title: "Connect your agent", body: "Create a token, paste the config, ask.", to: "/docs/agents" },
 ];
@@ -385,11 +385,11 @@ export default function Home(): ReactNode {
         <section className={`${styles.section} ${styles.cta}`}>
           <h2 className={styles.ctaTitle}>Run your own Delta</h2>
           <div className={styles.actions}>
-            <Link className="btn btn-primary" to="/docs/one-click-install">
-              One-click install
+            <Link className="btn btn-primary" to="/docs/home-server">
+              Home server app
             </Link>
-            <Link className="btn" to="/docs/self-hosting">
-              Self-hosting guide
+            <Link className="btn" to="/docs/self-hosting#terminal-install">
+              Terminal install
             </Link>
             <Link className="btn" href="https://github.com/zeapsu/Delta">
               View on GitHub

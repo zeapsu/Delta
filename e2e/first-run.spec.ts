@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-// A one-click install's first visit: no Plaid keys anywhere, so the welcome
+// A home server app install's first visit: no Plaid keys anywhere, so the welcome
 // page sends you to /setup, where pasted keys are checked with Plaid (the
 // mock rejects "rejected-secret") and saved, and Link becomes available.
 test("paste Plaid keys on the setup page", async ({ page, request }) => {
@@ -39,6 +39,13 @@ test("paste Plaid keys on the setup page", async ({ page, request }) => {
     data: { public_token: "public-sandbox-mock", institution_name: "Mock Bank" },
   });
   expect(res.status()).toBe(200);
+
+  // Overview then walks the rest: history in, watch level and agent to go.
+  await page.goto("/");
+  const checklist = page.locator("section", { has: page.getByRole("heading", { name: "Getting started" }) });
+  await expect(checklist).toBeVisible();
+  await expect(checklist.getByRole("listitem").filter({ hasText: "Pull your history" })).toContainText("(done)");
+  await expect(checklist.getByRole("link", { name: "Choose", exact: true })).toBeVisible();
 
   // With a bank linked, the environment can't flip to production.
   const flip = await request.put("/api/settings/plaid", {
