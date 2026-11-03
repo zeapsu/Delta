@@ -2,6 +2,8 @@
 // fixed fixture dated relative to today so month views always have data.
 // The app talks to it when PLAID_MOCK_URL is set (sandbox only, lib/plaid.ts).
 // Usage: node e2e/plaid-mock.mjs [port]   (default 4010)
+// PLAID_MOCK_DEMO=1 swaps in a fuller, synthetic seven-month fixture for the
+// README screenshots (scripts/screenshots.mjs); the e2e suite never sets it.
 import http from "node:http";
 
 const port = Number(process.argv[2] ?? process.env.PLAID_MOCK_PORT ?? 4010);
@@ -13,11 +15,18 @@ const today = iso(now);
 // The 1st of this month and of the previous three: always <= today.
 const monthStart = (back) => iso(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - back, 1)));
 
-const accounts = [
+const DEMO = process.env.PLAID_MOCK_DEMO === "1";
+
+const accounts = (DEMO ? [
+  { account_id: "acc-checking", name: "Everyday Checking", type: "depository", subtype: "checking", mask: "1111", current: 4820.14, available: 4770.14 },
+  { account_id: "acc-savings", name: "High-Yield Savings", type: "depository", subtype: "savings", mask: "4444", current: 18400, available: 18400 },
+  { account_id: "acc-card", name: "Rewards Card", type: "credit", subtype: "credit card", mask: "2222", current: 1236.58, available: 8763.42 },
+  { account_id: "acc-brokerage", name: "Brokerage", type: "investment", subtype: "brokerage", mask: "3333", current: 42150, available: null },
+] : [
   { account_id: "acc-checking", name: "Everyday Checking", type: "depository", subtype: "checking", mask: "1111", current: 2500, available: 2450 },
   { account_id: "acc-card", name: "Rewards Card", type: "credit", subtype: "credit card", mask: "2222", current: 640.25, available: 4359.75 },
   { account_id: "acc-brokerage", name: "Brokerage", type: "investment", subtype: "brokerage", mask: "3333", current: 10000, available: null },
-].map((a) => ({
+]).map((a) => ({
   account_id: a.account_id,
   name: a.name,
   official_name: null,
@@ -43,7 +52,40 @@ const tx = (account_id, date, name, amount, primary, detailed, extra = {}) => ({
 });
 
 const transactions = [];
-for (let back = 0; back < 4; back++) {
+// Demo: invented merchants and amounts, six months, only dates up to today.
+const day = (back, d) => iso(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - back, d)));
+const wobble = (i) => ((i * 37) % 17) / 17; // deterministic 0..1
+if (DEMO) for (let back = 0; back < 7; back++) {
+  const rows = [
+    [1, "acc-checking", "Northwind Payroll", -3850, "INCOME", "INCOME_WAGES"],
+    [15, "acc-checking", "Northwind Payroll", -3850, "INCOME", "INCOME_WAGES"],
+    [1, "acc-checking", "Maple Court Apartments", 1950, "RENT_AND_UTILITIES", "RENT_AND_UTILITIES_RENT"],
+    [6, "acc-card", "City Power & Light", 68 + 30 * wobble(back), "RENT_AND_UTILITIES", "RENT_AND_UTILITIES_GAS_AND_ELECTRICITY"],
+    [9, "acc-card", "Fiberline Internet", 60, "RENT_AND_UTILITIES", "RENT_AND_UTILITIES_INTERNET_AND_CABLE"],
+    [3, "acc-card", "Streamflix", 15.49, "ENTERTAINMENT", "ENTERTAINMENT_TV_AND_MOVIES"],
+    [12, "acc-card", "Tunebox Music", 10.99, "ENTERTAINMENT", "ENTERTAINMENT_MUSIC_AND_AUDIO"],
+    [2, "acc-card", "Ironworks Fitness", 45, "PERSONAL_CARE", "PERSONAL_CARE_GYMS_AND_FITNESS_CENTERS"],
+    [20, "acc-checking", "Rewards Card Payment", 1400, "LOAN_PAYMENTS", "LOAN_PAYMENTS_CREDIT_CARD_PAYMENT"],
+    [16, "acc-checking", "Transfer to Savings", 600, "TRANSFER_OUT", "TRANSFER_OUT_SAVINGS"],
+    [18, "acc-card", "Harbor Outfitters", 40 + 140 * wobble(back + 3), "GENERAL_MERCHANDISE", "GENERAL_MERCHANDISE_CLOTHING_AND_ACCESSORIES"],
+    [24, "acc-card", "Parcelhub", 25 + 90 * wobble(back + 7), "GENERAL_MERCHANDISE", "GENERAL_MERCHANDISE_ONLINE_MARKETPLACES"],
+  ];
+  for (let w = 0; w < 4; w++) {
+    rows.push(
+      [2 + w * 7, "acc-card", "Green Basket Market", 70 + 45 * wobble(back * 4 + w), "FOOD_AND_DRINK", "FOOD_AND_DRINK_GROCERIES"],
+      [4 + w * 7, "acc-card", w % 2 ? "Little Lantern Noodles" : "Oak & Ember Bistro", 22 + 40 * wobble(back * 5 + w), "FOOD_AND_DRINK", "FOOD_AND_DRINK_RESTAURANT"],
+      [3 + w * 7, "acc-card", "Daybreak Coffee", 5.75, "FOOD_AND_DRINK", "FOOD_AND_DRINK_COFFEE"],
+      [5 + w * 7, "acc-card", w % 2 ? "QuickRide" : "Fuel Stop", 14 + 30 * wobble(back * 3 + w), "TRANSPORTATION", w % 2 ? "TRANSPORTATION_TAXIS_AND_RIDE_SHARES" : "TRANSPORTATION_GAS"],
+    );
+  }
+  if (back === 2) rows.push([10, "acc-card", "Skyway Airlines", 386.2, "TRAVEL", "TRAVEL_FLIGHTS"]);
+  for (const [d, acct, name, amount, primary, detailed] of rows) {
+    const date = day(back, d);
+    if (date <= today) transactions.push(tx(acct, date, name, Math.round(amount * 100) / 100, primary, detailed));
+  }
+}
+if (DEMO) transactions.push(tx("acc-card", today, "Daybreak Coffee", 5.75, "FOOD_AND_DRINK", "FOOD_AND_DRINK_COFFEE", { pending: true }));
+for (let back = 0; back < 4 && !DEMO; back++) {
   const d = monthStart(back);
   transactions.push(
     tx("acc-checking", d, "ACME PAYROLL", -3000, "INCOME", "INCOME_WAGES"),
@@ -53,7 +95,7 @@ for (let back = 0; back < 4; back++) {
     tx("acc-checking", d, "Transfer to Savings", 200, "TRANSFER_OUT", "TRANSFER_OUT_SAVINGS"),
   );
 }
-transactions.push(tx("acc-card", today, "Blue Bottle Coffee", 4.5, "FOOD_AND_DRINK", "FOOD_AND_DRINK_COFFEE", { pending: true }));
+if (!DEMO) transactions.push(tx("acc-card", today, "Blue Bottle Coffee", 4.5, "FOOD_AND_DRINK", "FOOD_AND_DRINK_COFFEE", { pending: true }));
 
 const plaidError = (res, code, status = 400) =>
   send(res, status, {
