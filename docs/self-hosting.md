@@ -47,9 +47,9 @@ Not using Tailscale? Any private network works. Set `DELTA_ALLOWED_NETWORKS` to 
 
 You need Docker with the compose plugin, on Linux (amd64 or arm64, so a Raspberry Pi 4/5 or a Jetson works) or macOS.
 
-Using an app panel such as Portainer, CasaOS, Dockge, Synology Container Manager or Unraid? Follow the [one-click install](one-click-install.md) instead: no terminal, and the Plaid keys go in through the browser.
+Using an app panel such as Portainer, CasaOS, Dockge, Synology Container Manager or Unraid? Follow [Home server app](home-server.md) instead: no terminal, and the Plaid keys go in through the browser.
 
-### The short way
+### Terminal install
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/zeapsu/Delta/main/delta.sh | bash -s install

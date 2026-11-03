@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# One-command install, update and uninstall for a Docker-hosted Delta.
+# Terminal install, update and uninstall for a Docker-hosted Delta.
 #   ./delta.sh install     ask for Plaid keys (or skip: paste them on /setup), write .env, start Delta
 #   ./delta.sh update      back up, pull the new version, restart
 #   ./delta.sh uninstall   disconnect banks at Plaid, back up, remove everything

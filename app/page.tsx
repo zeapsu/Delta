@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { desc } from "drizzle-orm";
 import { db } from "@/db";
-import { accounts, items, transactions } from "@/db/schema";
+import { desc, isNull } from "drizzle-orm";
+import { accounts, apiTokens, investmentTransactions, items, transactions } from "@/db/schema";
 import { DEBT_TYPES, formatCategory, formatCents } from "@/lib/format";
 import { getNetWorthData } from "@/lib/networth-data";
 import { categoryColor } from "@/lib/colors";
@@ -27,6 +27,7 @@ import { CashFlowChart, TrendArea } from "./charts";
 import PlaidButtons from "./plaid-buttons";
 import { checkPlaid } from "@/lib/plaid-config";
 import ConnectionButton from "./connection-button";
+import { FirstSync } from "./first-sync";
 import { REAUTH_ERROR_CODES } from "@/lib/plaid-errors";
 import { getAnalysisSettings } from "@/lib/settings";
 import { Card, Change, Empty, Meter, Page, Stat, Steps, Tint } from "./ui";
@@ -109,13 +110,23 @@ export default async function Home() {
                 action: plaid.ok ? <PlaidButtons connectOnly /> : null,
                 detail: plaid.ok && plaid.env !== "production" ? "Sandbox login: user_good / pass_good" : undefined,
               },
-              { title: "Delta syncs every 6 hours", state: "todo" },
+              { title: "Pull your history", state: "todo", detail: "A few minutes after connecting, then every 6 hours." },
             ]}
           />
         </Card>
       </Page>
     );
   }
+
+  // History is in once any transactions arrived. Brokerage-only setups never
+  // get /transactions rows, so investment activity (or having no cash or card
+  // accounts at all) counts too.
+  const historyDone =
+    db.select({ id: transactions.id }).from(transactions).limit(1).all().length > 0 ||
+    db.select({ id: investmentTransactions.id }).from(investmentTransactions).limit(1).all().length > 0 ||
+    !allAccounts.some((a) => a.type === "depository" || a.type === "credit");
+  const hasToken =
+    db.select({ id: apiTokens.id }).from(apiTokens).where(isNull(apiTokens.revokedAt)).limit(1).all().length > 0;
 
   const signed = (a: { type: string; currentBalance: number | null }) => {
     const b = a.currentBalance ?? 0;
@@ -196,13 +207,40 @@ export default async function Home() {
           <span className="ml-auto shrink-0 font-medium text-negative">Reconnect →</span>
         </a>
       ) : null}
-      {!analysisSettings.customized ? (
-        <Link href="/settings" className="surface flex items-center gap-3 px-4 py-3 text-sm">
-          <span>
-            <span className="font-medium">How closely should your agent watch spending?</span>
-          </span>
-          <span className="ml-auto shrink-0 font-medium">Choose →</span>
-        </Link>
+      {!historyDone || !analysisSettings.customized ? (
+        <Card title="Getting started" ask={false}>
+          <Steps
+            steps={[
+              {
+                title: "Connect a bank, card or brokerage",
+                state: "done",
+                detail: `${allAccounts.length} account${allAccounts.length === 1 ? "" : "s"} linked`,
+              },
+              {
+                title: "Pull your history",
+                state: historyDone ? "done" : "todo",
+                action: historyDone ? null : <FirstSync />,
+                detail: historyDone ? undefined : "Plaid usually takes a few minutes. Delta keeps checking.",
+              },
+              {
+                title: "Choose your agent's watch level",
+                state: analysisSettings.customized ? "done" : "todo",
+                action: analysisSettings.customized ? null : (
+                  <Link href="/settings" className="btn btn-sm btn-primary">Choose</Link>
+                ),
+              },
+              {
+                title: "Connect an agent (optional)",
+                state: hasToken ? "done" : "todo",
+                action: hasToken ? null : (
+                  <a className="btn btn-sm" href="https://zeapsu.github.io/Delta/docs/agents" target="_blank" rel="noreferrer">
+                    Guide <span aria-hidden>↗</span>
+                  </a>
+                ),
+              },
+            ]}
+          />
+        </Card>
       ) : null}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-5">
         <Card
