@@ -13,15 +13,15 @@ const globalForDb = globalThis as unknown as {
 
 function createDb() {
   const sqlite = globalForDb.__deltaSqlite ?? new Database(dbPath);
-  sqlite.pragma("journal_mode = WAL");
+  // `next build` imports this from parallel workers. Switching to WAL needs an exclusive
+  // lock, so concurrent workers can fail with SQLITE_BUSY, and migrating there races on
+  // the live DB. Both happen at server start instead (WAL persists in the file).
+  const building = process.env.NEXT_PHASE === "phase-production-build";
+  if (!building) sqlite.pragma("journal_mode = WAL");
   sqlite.pragma("foreign_keys = ON");
 
   const db = drizzle(sqlite, { schema });
-  // `next build` imports this from parallel workers; migrating there races on the live DB.
-  // Migrations run on the server's first DB access after restart instead.
-  if (process.env.NEXT_PHASE !== "phase-production-build") {
-    migrate(db, { migrationsFolder: "./drizzle" });
-  }
+  if (!building) migrate(db, { migrationsFolder: "./drizzle" });
 
   globalForDb.__deltaSqlite = sqlite;
   globalForDb.__deltaDb = db;
