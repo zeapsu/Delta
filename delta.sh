@@ -166,6 +166,10 @@ cmd_install() {
       set_env PLAID_SANDBOX_SECRET "$secret"
     fi
 
+    # Docker runs on UTC; dates (today, this month) should be the user's.
+    local tz; tz=$(readlink /etc/localtime 2>/dev/null | sed -n 's#.*zoneinfo/##p' || true)
+    [ -n "$tz" ] && set_env TZ "$tz"
+
     # A Mac starts on this computer only, and `./delta.sh phone` adds Tailscale
     # when wanted. A Linux box is usually a headless server, reached over Tailscale.
     ip=127.0.0.1

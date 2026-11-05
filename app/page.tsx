@@ -29,7 +29,9 @@ import { checkPlaid } from "@/lib/plaid-config";
 import ConnectionButton from "./connection-button";
 import { FirstSync } from "./first-sync";
 import { REAUTH_ERROR_CODES } from "@/lib/plaid-errors";
-import { getAnalysisSettings } from "@/lib/settings";
+import { getAnalysisSettings, getProfile } from "@/lib/settings";
+import { greeting as greet } from "@/lib/profile";
+import { ProfileForm } from "./profile-form";
 import { Card, Change, Empty, Meter, Page, Stat, Steps, Tint } from "./ui";
 
 export const dynamic = "force-dynamic";
@@ -77,6 +79,8 @@ export default async function Home() {
     getAnalysisSettings(),
   ]);
 
+  const profile = getProfile();
+
   if (allItems.length === 0) {
     const plaid = await checkPlaid();
     const keysState = plaid.ok ? "done" : plaid.missing ? "todo" : "error";
@@ -85,6 +89,13 @@ export default async function Home() {
         <Card>
           <Steps
             steps={[
+              {
+                title: profile.name ? `Hi, ${profile.name}` : "What should Delta call you?",
+                state: profile.saved ? "done" : "todo",
+                detail: profile.saved ? undefined : (
+                  <ProfileForm compact name={profile.name} timeZone={profile.effectiveTimeZone} zones={[]} />
+                ),
+              },
               {
                 title: "Add Plaid keys",
                 state: keysState,
@@ -179,10 +190,7 @@ export default async function Home() {
   }));
   const broken = institutions.filter((i) => i.needsReauth);
 
-  const greeting = (() => {
-    const h = new Date().getHours();
-    return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
-  })();
+  const greeting = greet(new Date().getHours(), profile.name);
 
   return (
     <Page
@@ -207,7 +215,7 @@ export default async function Home() {
           <span className="ml-auto shrink-0 font-medium text-negative">Reconnect →</span>
         </a>
       ) : null}
-      {!historyDone || !analysisSettings.customized ? (
+      {!historyDone || !analysisSettings.customized || !profile.saved ? (
         <Card title="Getting started" ask={false}>
           <Steps
             steps={[
@@ -221,6 +229,14 @@ export default async function Home() {
                 state: historyDone ? "done" : "todo",
                 action: historyDone ? null : <FirstSync />,
                 detail: historyDone ? undefined : "Plaid usually takes a few minutes. Delta keeps checking.",
+              },
+              {
+                title: "Your name and time zone",
+                state: profile.saved ? "done" : "todo",
+                action: profile.saved ? null : (
+                  <Link href="/settings#you" className="btn btn-sm">Set</Link>
+                ),
+                detail: profile.saved ? undefined : `Dates use ${profile.effectiveTimeZone.replace(/_/g, " ")} for now.`,
               },
               {
                 title: "Choose your agent's watch level",

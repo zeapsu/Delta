@@ -9,6 +9,9 @@ test("paste Plaid keys on the setup page", async ({ page, request }) => {
 
   await page.goto("/");
   await expect(page.getByText("Welcome to Delta")).toBeVisible();
+  await page.getByLabel("Your name").fill("Sam");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page.getByText("Hi, Sam")).toBeVisible();
   await page.getByRole("link", { name: "Set up", exact: true }).click();
   await expect(page.locator("h1")).toHaveText("Set up Delta");
 

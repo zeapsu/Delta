@@ -106,3 +106,12 @@ test("tokens are managed from the browser, never by agents", async ({ request })
   expect((await request.get("/api/v1/status", { headers: bearer(token) })).status()).toBe(401);
   expect((await request.delete(`/api/tokens/${id}`)).status()).toBe(404);
 });
+
+test("profile: name and time zone are validated and drive the greeting", async ({ request }) => {
+  expect((await request.put("/api/settings/profile", { data: { timeZone: "Mars/Olympus" } })).status()).toBe(400);
+  expect((await request.put("/api/settings/profile", { data: { name: "x".repeat(41) } })).status()).toBe(400);
+  // UTC, like the rest of the suite: the fixture is dated in UTC.
+  const res = await request.put("/api/settings/profile", { data: { name: "Robin", timeZone: "UTC" } });
+  expect(await res.json()).toEqual({ ok: true, name: "Robin", timeZone: "UTC", effectiveTimeZone: "UTC" });
+  expect(await (await request.get("/")).text()).toMatch(/Good (morning|afternoon|evening), Robin/);
+});

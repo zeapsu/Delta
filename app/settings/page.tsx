@@ -3,7 +3,8 @@ import { isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { apiTokens } from "@/db/schema";
 import { hint } from "@/lib/plaid-keys";
-import { currentPlaidKeys, getAnalysisSettings } from "@/lib/settings";
+import { currentPlaidKeys, getAnalysisSettings, getProfile } from "@/lib/settings";
+import { ProfileForm } from "../profile-form";
 import { Card, Page } from "../ui";
 import { AnalysisForm } from "./analysis-form";
 import { KeyFacts } from "../setup/key-facts";
@@ -26,8 +27,13 @@ export default async function SettingsPage() {
       used: lastUsedAt ? `Used ${lastUsedAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : "Never used",
     }));
   const url = process.env.DELTA_URL;
+  const profile = getProfile();
+  const zones = Intl.supportedValuesOf("timeZone");
   return (
     <Page title="Settings" ask={false}>
+      <Card id="you" title="You" ask={false}>
+        <ProfileForm name={profile.name} timeZone={profile.effectiveTimeZone} zones={zones} />
+      </Card>
       <Card title="How closely your agent watches spending" ask={false}>
         <AnalysisForm initial={analysis} />
       </Card>
