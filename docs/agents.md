@@ -38,6 +38,8 @@ The agent's machine must be able to reach `DELTA_URL`, which normally means it's
 - **An `as_of` block** on every answer, with warnings when data is more than 3 days old or a bank connection's last sync failed.
 - **Instructions** that carry Delta's conventions (what counts as spend, pending charges, confirmed vs suggested recurring charges) and advice guidelines, plus your analysis settings from the **Settings** page (how big a category jump counts as a spike, how many months make a trend, when to warn about a budget): ground every claim in fetched numbers, no investment, tax or legal advice, and only write after you explicitly agree.
 
+A hosted agent sends what it reads to its model provider. For fully private analysis, use an MCP client backed by a local model.
+
 You don't need to install a skill or give the agent database access.
 
 ## Managing tokens

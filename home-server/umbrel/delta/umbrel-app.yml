@@ -7,7 +7,7 @@ name: Delta
 version: "1.1.0"
 tagline: Your money, on your machine, readable by your agent
 description: >-
-  Delta connects your banks, cards and brokerages through Plaid and shows spending, budgets, recurring charges, investments and net worth on a calm dashboard. Your data stays on your Umbrel.
+  Delta connects your banks, cards and brokerages through Plaid and shows spending, budgets, recurring charges, investments and net worth on a calm dashboard. Your data is stored on your Umbrel.
 
 
   First run: open Delta and follow the checklist. It asks for your own Plaid keys (free for personal use), connects your accounts and pulls your history.

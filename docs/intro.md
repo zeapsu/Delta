@@ -21,6 +21,8 @@ Delta has no chatbot of its own. Instead it serves an [MCP](https://modelcontext
 
 Agents get a per-agent token. Read tokens can only look; write tokens can also set budgets, confirm recurring charges and relabel categories. See [Connect an agent](agents.md).
 
+A hosted agent passes what it reads to its provider. A local model keeps it in your network.
+
 ## How it's built
 
 - One Next.js app (TypeScript, App Router) with a SQLite database through Drizzle and better-sqlite3.

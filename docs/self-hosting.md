@@ -1,6 +1,6 @@
 # Self-hosting Delta
 
-Delta is a single-user app: you run your own copy, on your own machine, with your own Plaid keys. Nobody else (including the Delta authors) ever sees your data or your bank credentials.
+Delta is a single-user app: you run your own copy, on your own machine, with your own Plaid keys. The Delta authors never see your data. Plaid handles your bank login, and an agent sees only what its token allows.
 
 This guide gets you from nothing to a running instance with your accounts linked and an agent connected. Plan on about 20 minutes for a sandbox instance. Production (real banks) also needs Plaid to approve your account, which can take a few days.
 
