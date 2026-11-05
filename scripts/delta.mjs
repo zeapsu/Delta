@@ -136,13 +136,8 @@ switch (command) {
   }
   case "open": {
     const { url } = settings();
-    const r = await fetch(`${url}/api/v1`).catch(() => null);
-    if (!r) {
-      console.error(`Delta isn't answering at ${url}. ${brew ? "Start it: brew services start delta" : "Start it: delta start"}`);
-      process.exit(1);
-    }
     openUrl(url);
-    console.log(url);
+    console.log(`${url} (not loading? ${brew ? "brew services start delta" : "delta start"})`);
     break;
   }
   case "phone": {
