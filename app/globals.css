@@ -332,6 +332,11 @@ body {
   outline: 2px solid var(--foreground);
   outline-offset: 2px;
 }
+/* Underline-only field (welcome "Hi, ___"): the underline darkens on focus
+   instead of a box. */
+.inline-field:focus-visible {
+  outline: none;
+}
 
 /* Reduce transparency: frost becomes solid, ambient light switches off. */
 @media (prefers-reduced-transparency: reduce) {

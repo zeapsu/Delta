@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { copy } from "./ask-agent";
 
-const COMMAND = "./delta.sh update";
+const DELTA_SH = "./delta.sh update";
 // Home server app (stack) installs update from their app panel, not a shell.
 const STACK_GUIDE = "https://zeapsu.github.io/Delta/docs/home-server#update";
 
@@ -11,14 +11,17 @@ const STACK_GUIDE = "https://zeapsu.github.io/Delta/docs/home-server#update";
 // (lib/update-check.ts). It can't update by itself (that would need Docker
 // control, i.e. root, from an app with no login), so it copies the command
 // to run on the host.
-export function UpdatePill({ behindBy, stack }: { behindBy: number; stack?: boolean }) {
+// install: DELTA_INSTALL ("stack" = home server app, "brew" = Homebrew).
+export function UpdatePill({ behindBy, install }: { behindBy: number; install?: string }) {
+  const brew = install === "brew";
+  const COMMAND = brew ? "brew upgrade delta && brew services restart delta" : DELTA_SH;
   const [state, setState] = useState<"idle" | "copied" | "failed">("idle");
   const what = `${behindBy} update${behindBy === 1 ? "" : "s"} available`;
   const className =
     "glass ml-auto flex h-10 shrink-0 items-center gap-1.5 rounded-full px-3 text-sm font-medium text-muted transition-colors hover:text-foreground";
   const dot = <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-[var(--positive)]" />;
 
-  if (stack) {
+  if (install === "stack") {
     return (
       <a href={STACK_GUIDE} target="_blank" rel="noreferrer" title={`${what}. How to update from your app panel.`} className={className}>
         {dot}
@@ -37,7 +40,7 @@ export function UpdatePill({ behindBy, stack }: { behindBy: number; stack?: bool
     <button
       type="button"
       onClick={onClick}
-      title={`${what}. Click to copy "${COMMAND}", then run it in your Delta folder on the host.`}
+      title={`${what}. Click to copy "${COMMAND}", then run it ${brew ? "in a terminal" : "in your Delta folder on the host"}.`}
       aria-label={state === "idle" ? `Update: ${what}, copy the update command` : label}
       className={className}
     >

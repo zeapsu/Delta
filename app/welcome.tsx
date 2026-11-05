@@ -120,26 +120,33 @@ function NameStep({ initialName, timeZone, onDone }: { initialName: string | nul
 
   return (
     <form onSubmit={submit} className="flex flex-col gap-5">
-      <div className="flex items-center gap-3">
-        <span aria-hidden className="text-2xl font-semibold tracking-tight sm:text-3xl">
-          Hi,
+      {/* Reads as one sentence: the field is part of the greeting, sized to its text. */}
+      <div className="flex flex-wrap items-baseline gap-x-2 text-3xl font-semibold tracking-tight sm:text-4xl">
+        <span aria-hidden>Hi,</span>
+        {/* The hidden copy sizes the grid, so the underline hugs the text. */}
+        <span className="inline-grid min-w-0 max-w-full">
+          <span aria-hidden className="invisible col-start-1 row-start-1 overflow-hidden whitespace-pre pr-1">
+            {name || "your name"}
+          </span>
+          <input
+            className="inline-field col-start-1 row-start-1 w-full min-w-0 border-0 border-b-2 border-hairline bg-transparent p-0 font-semibold tracking-tight transition-colors placeholder:text-muted focus:border-[var(--foreground)]"
+            size={1}
+            name="name"
+            aria-label="Your name"
+            placeholder="your name"
+            autoComplete="given-name"
+            maxLength={40}
+            autoFocus
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
         </span>
-        <input
-          className="field min-w-0 flex-1 text-xl font-semibold sm:text-2xl"
-          name="name"
-          aria-label="Your name"
-          placeholder="your name"
-          autoComplete="given-name"
-          maxLength={40}
-          autoFocus
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
       </div>
       <div className="flex flex-wrap items-center gap-3">
         <button type="submit" disabled={status.saving} className="btn btn-primary">
           Continue
         </button>
+        <span className="hidden text-xs text-muted sm:inline">or press Enter</span>
         {status.error ? (
           <p role="status" className="text-sm text-negative">
             {status.error}
