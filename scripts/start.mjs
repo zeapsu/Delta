@@ -1,4 +1,4 @@
-// Container entry point: `next start`, plus scripts/jobs.mjs in the same
+// Container entry point (and `delta start`'s): `next start`, plus scripts/jobs.mjs in the same
 // container when DELTA_JOBS is on. Compose files run jobs as their own
 // service and leave DELTA_JOBS unset; single-container installs (an Unraid
 // template, a plain `docker run`) set DELTA_JOBS=on to get the 6-hour sync
@@ -13,7 +13,9 @@ import { dirname, isAbsolute, join } from "node:path";
 
 const NODE_UID = 1000;
 const NODE_GID = 1000;
-const asRoot = process.getuid?.() === 0;
+// Containers only: a native install (`delta start`, DELTA_HOME set) runs as
+// whoever started it.
+const asRoot = process.getuid?.() === 0 && !process.env.DELTA_HOME;
 
 function chownTree(path) {
   const st = lstatSync(path, { throwIfNoEntry: false });
@@ -57,7 +59,10 @@ function shutdown(code) {
 
 for (const sig of ["SIGTERM", "SIGINT"]) process.on(sig, () => shutdown(0));
 
-run(["node_modules/next/dist/bin/next", "start"], { critical: true });
+// DELTA_HOSTNAME: the one address to listen on (native installs, `delta start`).
+// Containers leave it unset and listen on all of theirs.
+const host = process.env.DELTA_HOSTNAME;
+run(["node_modules/next/dist/bin/next", "start", ...(host ? ["-H", host] : [])], { critical: true });
 if (/^(1|on|true|yes)$/i.test(process.env.DELTA_JOBS ?? "")) {
   run(["scripts/jobs.mjs"], { critical: false });
 }

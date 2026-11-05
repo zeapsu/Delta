@@ -43,7 +43,7 @@ export default async function SettingsPage() {
       {/* Home server app installs already serve the whole home network. */}
       {process.env.DELTA_INSTALL === "stack" ? null : (
         <Card id="phone" title="Use on your phone" ask={false}>
-          <PhoneAccess url={url} />
+          <PhoneAccess url={url} brew={process.env.DELTA_INSTALL === "brew"} />
         </Card>
       )}
       <Card

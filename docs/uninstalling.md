@@ -4,7 +4,7 @@ title: Uninstall Delta
 
 # Uninstall Delta
 
-Do the steps in order. Disconnecting your banks needs Delta still running, and the rest deletes things you can't get back. Installed Delta from an app panel such as Portainer or CasaOS? See [Uninstall](home-server.md#uninstall) in the home server guide.
+Do the steps in order. Disconnecting your banks needs Delta still running, and the rest deletes things you can't get back. Installed Delta from an app panel such as Portainer or CasaOS? See [Uninstall](home-server.md#uninstall) in the home server guide. With Homebrew, see [Uninstall](homebrew.md#uninstall) there.
 
 ## The short way
 

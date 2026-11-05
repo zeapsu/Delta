@@ -33,6 +33,7 @@ A hosted agent passes what it reads to its provider. A local model keeps it in y
 
 - [Home server app](home-server.md): Portainer, CasaOS, Dockge, Synology, Unraid or TrueNAS.
 - [Self-hosting](self-hosting.md): Docker, Plaid keys, terminal install, phone access, backups.
+- [Homebrew](homebrew.md): a Mac or Linux with Homebrew, no Docker.
 - [Connect an agent](agents.md): create a token and paste the MCP config.
 - [MCP tools](mcp-tools.md) and [REST API](api.md): what agents can do.
 - [Architecture](architecture.md) and the [contributing guide](https://github.com/zeapsu/Delta/blob/main/CONTRIBUTING.md): for working on Delta itself.
