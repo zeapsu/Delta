@@ -15,10 +15,8 @@ export function onTailnet(url: string | undefined): boolean {
 }
 
 // Settings → Use on your phone. Terminal installs start on this computer only
-// (127.0.0.1); `./delta.sh phone` (Homebrew: `delta phone`) moves Delta onto
-// the Tailscale address.
-export function PhoneAccess({ url, brew }: { url: string | undefined; brew?: boolean }) {
-  const command = brew ? "delta phone" : "./delta.sh phone";
+// (127.0.0.1); `./delta.sh phone` moves Delta onto the Tailscale address.
+export function PhoneAccess({ url }: { url: string | undefined }) {
   if (url && onTailnet(url)) {
     return (
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -46,12 +44,12 @@ export function PhoneAccess({ url, brew }: { url: string | undefined; brew?: boo
         },
         { title: "Sign in on both with the same account", state: "todo" },
         {
-          title: brew ? "Run this in a terminal" : "Run this in your Delta folder",
+          title: "Run this in your Delta folder",
           state: "todo",
-          action: <CopyButton text={command} label="Copy command" />,
+          action: <CopyButton text="./delta.sh phone" label="Copy command" />,
           detail: (
             <>
-              <code className="font-mono">{command}</code>, then open the address it prints on your phone.
+              <code className="font-mono">./delta.sh phone</code>, then open the address it prints on your phone.
             </>
           ),
         },
