@@ -8,7 +8,7 @@
 // else ~/.delta): delta.db, backups/, and delta.env, which `delta phone` and
 // `delta local` edit and every command loads. Plain node, no deps.
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -32,10 +32,19 @@ Data and settings: ${HOME}`;
 
 // --- delta.env --------------------------------------------------------------
 
+// Lines of delta.env, or none yet.
+function envLines() {
+  try {
+    return readFileSync(ENV_FILE, "utf8").split("\n");
+  } catch (err) {
+    if (err.code === "ENOENT") return [];
+    throw err;
+  }
+}
+
 function readEnvFile() {
   const out = {};
-  if (!existsSync(ENV_FILE)) return out;
-  for (const line of readFileSync(ENV_FILE, "utf8").split("\n")) {
+  for (const line of envLines()) {
     const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*?)\s*$/);
     if (m) out[m[1]] = m[2].replace(/^(["'])(.*)\1$/, "$2");
   }
@@ -43,7 +52,7 @@ function readEnvFile() {
 }
 
 function setEnvValue(key, value) {
-  const lines = existsSync(ENV_FILE) ? readFileSync(ENV_FILE, "utf8").split("\n") : [];
+  const lines = envLines();
   const i = lines.findIndex((l) => l.match(/^\s*([A-Z0-9_]+)\s*=/)?.[1] === key);
   const line = `${key}=${value}`;
   if (i >= 0) lines[i] = line;
@@ -52,11 +61,13 @@ function setEnvValue(key, value) {
 }
 
 // The process environment wins over delta.env, like process.loadEnvFile.
+// The address is read key by key: it gets printed, the rest of the
+// environment (which can hold Plaid keys) never is.
 function settings() {
   const file = readEnvFile();
   const env = { ...file, ...process.env };
-  const host = env.DELTA_BIND || "127.0.0.1";
-  const port = env.PORT || "3000";
+  const host = process.env.DELTA_BIND || file.DELTA_BIND || "127.0.0.1";
+  const port = process.env.PORT || file.PORT || "3000";
   const url = `http://${host}:${port}`;
   return {
     host,
