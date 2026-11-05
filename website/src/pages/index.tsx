@@ -350,7 +350,7 @@ export default function Home(): ReactNode {
           </Feature>
           <Feature label="Privacy" title="Stored on your hardware" visual={<HostVisual />}>
             <p>
-              One SQLite file on your machine, on your private network. Plaid tokens never leave it. Daily backups.
+              One SQLite file on your machine, on your private network. Plaid tokens never leave it. Daily backups. Agents read through a token you can revoke. With a local model, nothing you ask leaves your network.
             </p>
           </Feature>
         </section>

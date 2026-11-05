@@ -98,7 +98,7 @@ const config: Config = {
           ],
         },
       ],
-      copyright: "Delta is free, open source and self-hosted. Your data stays on your machine.",
+      copyright: "Delta is free, open source and self-hosted. Your data is stored on your machine.",
     },
     prism: {
       // Code blocks sit on the card's own fill, so the themes' backgrounds go.

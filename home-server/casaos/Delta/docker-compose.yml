@@ -59,7 +59,7 @@ x-casaos:
     en_US: Your money, on your machine, readable by your agent.
   description:
     en_US: |
-      Delta connects your banks, cards and brokerages through Plaid and shows spending, budgets, recurring charges, investments and net worth. Your data stays on this server.
+      Delta connects your banks, cards and brokerages through Plaid and shows spending, budgets, recurring charges, investments and net worth. Your data is stored on this server.
 
       First run: open Delta and follow the checklist. It asks for your own Plaid keys (free for personal use), connects your accounts and pulls your history.
 
