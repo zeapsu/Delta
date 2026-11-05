@@ -5,19 +5,16 @@ import { useRouter } from "next/navigation";
 
 const noSubscribe = () => () => {};
 
-// Name for the greeting and the time zone every date uses
-// (PUT /api/settings/profile). `compact` is the welcome page's one-line
-// version: name only, with this browser's time zone saved alongside.
+// Settings → You: name for the greeting and the time zone every date uses
+// (PUT /api/settings/profile). The welcome page has its own name step.
 export function ProfileForm({
   name: initialName,
   timeZone: initialZone,
   zones,
-  compact,
 }: {
   name: string | null;
   timeZone: string;
   zones: string[];
-  compact?: boolean;
 }) {
   const router = useRouter();
   const [name, setName] = useState(initialName ?? "");
@@ -33,11 +30,10 @@ export function ProfileForm({
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     setStatus({ saving: true });
-    const timeZone = compact ? (browserZone ?? zone) : zone;
     fetch("/api/settings/profile", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, timeZone }),
+      body: JSON.stringify({ name, timeZone: zone }),
     })
       .then(async (res) => {
         const data = await res.json().catch(() => ({}));
@@ -65,19 +61,6 @@ export function ProfileForm({
       {status.error ?? "Saved"}
     </p>
   ) : null;
-
-  if (compact) {
-    return (
-      <form onSubmit={submit} className="flex flex-wrap items-center gap-2">
-        <div className="flex min-w-0 flex-1 sm:max-w-xs">{nameField}</div>
-        {/* Not primary: the next step's button is the page's main action. */}
-        <button type="submit" disabled={status.saving} className="btn btn-sm">
-          Save
-        </button>
-        {saved}
-      </form>
-    );
-  }
 
   const options = zones.includes(zone) ? zones : [zone, ...zones];
   return (

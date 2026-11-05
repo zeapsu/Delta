@@ -29,9 +29,10 @@ import { checkPlaid } from "@/lib/plaid-config";
 import ConnectionButton from "./connection-button";
 import { FirstSync } from "./first-sync";
 import { REAUTH_ERROR_CODES } from "@/lib/plaid-errors";
-import { getAnalysisSettings, getProfile } from "@/lib/settings";
+import { currentPlaidKeys, getAnalysisSettings, getProfile } from "@/lib/settings";
 import { greeting as greet } from "@/lib/profile";
-import { ProfileForm } from "./profile-form";
+import { Welcome } from "./welcome";
+import { hint } from "@/lib/plaid-keys";
 import { Card, Change, Empty, Meter, Page, Stat, Steps, Tint } from "./ui";
 
 export const dynamic = "force-dynamic";
@@ -83,49 +84,19 @@ export default async function Home() {
 
   if (allItems.length === 0) {
     const plaid = await checkPlaid();
-    const keysState = plaid.ok ? "done" : plaid.missing ? "todo" : "error";
     return (
-      <Page title="Welcome to Delta" subtitle="Your money, in one calm place." ask={false}>
-        <Card>
-          <Steps
-            steps={[
-              {
-                title: profile.name ? `Hi, ${profile.name}` : "What should Delta call you?",
-                state: profile.saved ? "done" : "todo",
-                detail: profile.saved ? undefined : (
-                  <ProfileForm compact name={profile.name} timeZone={profile.effectiveTimeZone} zones={[]} />
-                ),
-              },
-              {
-                title: "Add Plaid keys",
-                state: keysState,
-                action: plaid.ok ? (
-                  <span className="text-xs text-muted">{plaid.env === "production" ? "Production" : "Sandbox"} · OK</span>
-                ) : plaid.source === "env" ? null : (
-                  <Link href="/setup" className={`btn btn-sm ${plaid.missing ? "btn-primary" : ""}`}>
-                    {plaid.missing ? "Set up" : "Fix keys"}
-                  </Link>
-                ),
-                detail: keysState === "error" ? (
-                  <ul className="text-negative">
-                    {plaid.problems.map((p) => (
-                      <li key={p}>{p}</li>
-                    ))}
-                    {plaid.source === "env" ? <li>Fix .env and restart Delta.</li> : null}
-                  </ul>
-                ) : undefined,
-              },
-              {
-                title: "Connect a bank, card or brokerage",
-                state: "todo",
-                action: plaid.ok ? <PlaidButtons connectOnly /> : null,
-                detail: plaid.ok && plaid.env !== "production" ? "Sandbox login: user_good / pass_good" : undefined,
-              },
-              { title: "Pull your history", state: "todo", detail: "A few minutes after connecting, then every 6 hours." },
-            ]}
-          />
-        </Card>
-      </Page>
+      <Welcome
+        name={profile.name}
+        timeZone={profile.effectiveTimeZone}
+        nameSaved={profile.saved}
+        plaid={{
+          ok: plaid.ok,
+          env: plaid.env,
+          source: plaid.source,
+          problems: plaid.missing ? [] : plaid.problems,
+          clientId: hint(currentPlaidKeys().clientId),
+        }}
+      />
     );
   }
 
