@@ -2,22 +2,37 @@
 
 Delta is a single-user app: you run your own copy, on your own machine, with your own Plaid keys. The Delta authors never see your data. Plaid handles your bank login, and an agent sees only what its token allows.
 
-This guide gets you from nothing to a running instance with your accounts linked and an agent connected. Plan on about 20 minutes for a sandbox instance. Production (real banks) also needs Plaid to approve your account, which can take a few days.
+About 15 minutes for a sandbox instance. Real banks also need Plaid to approve your account, which can take a few days.
+
+| You need | Account | When |
+| --- | --- | --- |
+| [Docker](#1-install-docker) | None | Now |
+| [Plaid keys](#2-get-plaid-keys) | Plaid (free) | Now, or paste them in the browser after install |
+| [Tailscale](#use-it-on-your-phone-tailscale) | Tailscale (free) | Only to use Delta from your phone |
 
 ## Security model: read this first
 
 **Delta has no login.** There are no user accounts and no passwords. The security model is:
 
-1. **The network is the boundary.** Anyone who can reach Delta's port can see every page, including balances and transactions. Only expose it on a private network you control. [Tailscale](https://tailscale.com) is the recommended way to do that.
+1. **The network is the boundary.** Anyone who can reach Delta's port can see every page, including balances and transactions. A terminal install starts on this computer only (`127.0.0.1`). To reach it from other devices, use a private network you control. [Tailscale](https://tailscale.com) is the recommended one.
 2. **API routes are also IP-filtered.** Every `/api/*` request must come from loopback or from `DELTA_ALLOWED_NETWORKS` (default: Tailscale's `100.64.0.0/10`), and cross-site browser writes are refused.
 3. **Agents use tokens.** The agent API (`/api/v1`, including the MCP server) also needs a per-agent bearer token, read or write scope, which you can revoke at any time.
 4. **Plaid access tokens never leave the database.** No API route returns them.
 
 Never port-forward Delta to the public internet, and never put it behind a public reverse proxy without adding your own authentication in front.
 
-## 1. Get Plaid keys
+## 1. Install Docker
 
-Delta talks to banks through [Plaid](https://plaid.com).
+- **Mac or Windows:** download [Docker Desktop](https://www.docker.com/products/docker-desktop/) and open it. Skip the sign-in: Delta needs no Docker account. Wait until it shows **Engine running**.
+- **Linux** (amd64 or arm64, so a Raspberry Pi 4/5 or a Jetson works): install [Docker Engine](https://docs.docker.com/engine/install/), then let your user run it: `sudo usermod -aG docker $USER` and log in again.
+
+Check it works: `docker compose version`.
+
+Using an app panel such as Portainer, CasaOS, Dockge, Synology Container Manager or Unraid? Follow [Home server app](home-server.md) instead: no terminal, and the Plaid keys go in through the browser.
+
+## 2. Get Plaid keys
+
+Delta talks to banks through [Plaid](https://plaid.com). You can paste the keys in the terminal during install, or skip that and paste them on Delta's setup page.
 
 For personal use, Plaid's free **Trial plan** connects up to 10 real bank logins. [Set up Plaid's free Trial plan](plaid-trial.md) walks through signing up, the limits, and switching from sandbox to your real accounts. The short version:
 
@@ -33,21 +48,7 @@ For personal use, Plaid's free **Trial plan** connects up to 10 real bank logins
 
 Delta uses the `transactions` product and, optionally, `investments`. Both need to be enabled for your Plaid account.
 
-## 2. Set up private networking (Tailscale)
-
-1. Install Tailscale on the machine that will run Delta and on every device you want to use it from (phone, laptop): [tailscale.com/download](https://tailscale.com/download).
-2. Sign in on each with the same account.
-3. On the Delta machine, note its Tailscale IP: `tailscale ip -4` (it looks like `100.x.y.z`).
-
-Your Delta URL will be `http://100.x.y.z:3000`. Traffic between your devices is already encrypted by Tailscale, so plain `http` is fine here.
-
-Not using Tailscale? Any private network works. Set `DELTA_ALLOWED_NETWORKS` to its CIDR (for example `192.168.1.0/24`) and publish the port only on that interface.
-
 ## 3. Run it with Docker
-
-You need Docker with the compose plugin, on Linux (amd64 or arm64, so a Raspberry Pi 4/5 or a Jetson works) or macOS.
-
-Using an app panel such as Portainer, CasaOS, Dockge, Synology Container Manager or Unraid? Follow [Home server app](home-server.md) instead: no terminal, and the Plaid keys go in through the browser.
 
 ### Terminal install
 
@@ -55,9 +56,76 @@ Using an app panel such as Portainer, CasaOS, Dockge, Synology Container Manager
 curl -fsSL https://raw.githubusercontent.com/zeapsu/Delta/main/delta.sh | bash -s install
 ```
 
-This clones Delta into `./delta`, asks for your Plaid client id and sandbox secret (press Enter to skip and paste them on Delta's setup page instead), writes `.env` (with your Tailscale IP as `DELTA_BIND`/`DELTA_URL` if Tailscale is running, plus [host networking](#linux-with-tailscale-use-host-networking) on Linux or the [Docker Desktop setting](#docker-desktop-on-macos) on macOS), starts the containers and waits for the Plaid key check. Already cloned? Run `./delta.sh install` in the folder instead. The same script later runs [`update`](updating.md) and [`uninstall`](uninstalling.md). To see or change what it set up, read on.
+This clones Delta into `./delta`, asks for your Plaid client id and sandbox secret (press Enter to skip and paste them on Delta's setup page instead), writes `.env`, starts the containers and opens Delta in your browser. Already cloned? Run `./delta.sh install` in the folder instead.
 
-### By hand
+- **Mac:** Delta starts on this computer only, at `http://127.0.0.1:3000`. Add your phone later with [`./delta.sh phone`](#use-it-on-your-phone-tailscale).
+- **Linux:** if Tailscale is running, Delta goes straight onto your Tailscale IP with [host networking](#linux-with-tailscale-use-host-networking), since a server is usually headless. Otherwise it starts on this computer only.
+
+The same script later runs [`update`](updating.md) and [`uninstall`](uninstalling.md).
+
+Next: [link your accounts](#4-link-your-accounts). Prefer to set it up yourself? See [Install by hand](#install-by-hand) instead.
+
+## 4. Link your accounts
+
+On the home page, click **Connect account** and go through Plaid Link. In sandbox, pick any bank and sign in with `user_good` / `pass_good`. The first sync starts right away; the first pull of transactions can take a minute to show up.
+
+When a bank needs you to sign in again, its sync control on the overview turns into a red **Reconnect** button.
+
+## 5. Connect an agent
+
+Delta has no chat of its own. You use your own agent (Claude, or any MCP client) and give it a token.
+
+In Delta, open **Settings → Agents**, name the agent, pick **Read** or **Read + edit** (also budgets, recurring rules, categories), and click **Create token**. Delta shows the token once, inside paste-ready configs for Claude Code, JSON-configured MCP clients and stdio-only clients, all pointed at `DELTA_URL`. Paste one into your agent. Revoke tokens there too.
+
+From a terminal instead:
+
+```bash
+docker compose exec delta npm run token -- create my-agent                 # read-only
+docker compose exec delta npm run token -- create my-agent --scope write   # can also set budgets, recurring rules, categories
+docker compose exec delta npm run token -- list
+docker compose exec delta npm run token -- revoke <id>
+```
+
+The agent's machine must reach `DELTA_URL`: the same computer, or a device on your tailnet.
+
+Prefer plain HTTP? The same token works on the REST API: `curl -H "Authorization: Bearer dlt_..." $DELTA_URL/api/v1` describes every endpoint.
+
+## Use it on your phone (Tailscale)
+
+Tailscale puts your devices on one private network, so your phone reaches Delta without exposing it to the internet.
+
+1. Install Tailscale on the computer running Delta and on your phone: [tailscale.com/download](https://tailscale.com/download).
+2. Sign in on both with the same account.
+3. In your Delta folder, run `./delta.sh phone`.
+
+It finds the computer's Tailscale IP (`100.x.y.z`), moves Delta onto it and prints the new address, `http://100.x.y.z:3000`. Open that on your phone. Traffic between your devices is already encrypted by Tailscale, so plain `http` is fine. Delta then answers only on that address, so update any agent set up with `127.0.0.1`. **Settings → Use on your phone** shows the same steps.
+
+Not using Tailscale? Any private network works. Set `DELTA_BIND` to the interface's address and `DELTA_ALLOWED_NETWORKS` to its CIDR (for example `192.168.1.0/24`).
+
+## 6. Backups
+
+The `jobs` container writes a backup to `/data/backups/` once a day and keeps the last 7. Those backups sit in the same volume as the database, so they protect against a bad migration or a mistake, not against losing the disk. Copy them off the machine regularly:
+
+```bash
+docker compose cp delta:/data/backups/. ./delta-backups/
+```
+
+Each backup is a self-contained SQLite file (`sqlite3 delta-2026-10-31.db` opens it directly). The database holds your Plaid access tokens, so store backups somewhere private.
+
+To restore, stop Delta, swap the backup in with a one-off container, and start again. Run this from the folder that holds the backup file:
+
+```bash
+docker compose stop
+docker compose run --rm --no-deps --user root -v "$PWD:/restore:ro" --entrypoint sh delta -c \
+  'rm -f /data/delta.db-wal /data/delta.db-shm && cp /restore/delta-2026-10-31.db /data/delta.db && chown node:node /data/delta.db'
+docker compose start
+```
+
+This deletes the old write-ahead log first, so it can't be replayed onto the restored file, and hands the file to the `node` user the app runs as. (A plain `docker compose cp` into the container leaves a root-owned file the app can't write to.)
+
+## Install by hand
+
+Skip this if you used the terminal install. It does these steps for you.
 
 ```bash
 git clone https://github.com/zeapsu/Delta.git delta
@@ -71,9 +139,12 @@ Edit `.env` (the Plaid lines can stay empty: Delta then asks for the keys on its
 PLAID_CLIENT_ID=your-client-id
 PLAID_SANDBOX_SECRET=your-sandbox-secret
 PLAID_ENV=sandbox
-DELTA_BIND=100.x.y.z            # your Tailscale IP: Delta is only published there
-DELTA_URL=http://100.x.y.z:3000 # how agents and browsers reach it
+DELTA_BIND=127.0.0.1                # this computer only (or your Tailscale IP)
+DELTA_URL=http://127.0.0.1:3000     # how agents and browsers reach it
+DELTA_ALLOWED_NETWORKS=0.0.0.0/0    # see below
 ```
+
+Docker hides the browser's address behind its own when the port is published on `127.0.0.1` (and always on Docker Desktop), so `/api` would refuse your browser. With those binds, allow all networks: the bind is what keeps the port private. On Linux with a Tailscale IP, use [host networking](#linux-with-tailscale-use-host-networking) instead and keep the default.
 
 Then start it:
 
@@ -95,7 +166,7 @@ docker compose logs delta   # look for "[delta] Plaid sandbox: keys OK"
 docker compose logs jobs
 ```
 
-Open `http://100.x.y.z:3000` from a device on your tailnet.
+Open `DELTA_URL` in your browser.
 
 ### Linux with Tailscale: use host networking
 
@@ -131,54 +202,7 @@ When `DELTA_BIND` is a Tailscale IP, Docker can only publish the port (or, with 
 
 ### Docker Desktop on macOS
 
-Docker Desktop rewrites the source address of incoming connections, so API requests from your tailnet arrive from a Docker-internal address and get refused. Host networking doesn't help there (Docker Desktop runs containers in a VM), so set `DELTA_ALLOWED_NETWORKS=0.0.0.0/0` instead and rely on `DELTA_BIND` (your Tailscale IP) to keep the port private.
-
-## 4. Link your accounts
-
-On the home page, click **Connect account** and go through Plaid Link. In sandbox, pick any bank and sign in with `user_good` / `pass_good`. The first sync starts right away; the first pull of transactions can take a minute to show up.
-
-When a bank needs you to sign in again, its sync control on the overview turns into a red **Reconnect** button.
-
-## 5. Connect an agent
-
-Delta has no chat of its own. You use your own agent (Claude, or any MCP client) and give it a token.
-
-```bash
-docker compose exec delta npm run token -- create my-agent                 # read-only
-docker compose exec delta npm run token -- create my-agent --scope write   # can also set budgets, recurring rules, categories
-```
-
-It prints the token once, plus paste-ready configs for Claude Code, for JSON-configured MCP clients (Claude Desktop, Cursor, ...) and for stdio-only clients via `mcp-remote`, all pointed at `DELTA_URL`. Paste one into your agent. The agent's machine must be on your tailnet.
-
-Other token commands:
-
-```bash
-docker compose exec delta npm run token -- list
-docker compose exec delta npm run token -- revoke <id>
-```
-
-Prefer plain HTTP? The same token works on the REST API: `curl -H "Authorization: Bearer dlt_..." $DELTA_URL/api/v1` describes every endpoint.
-
-## 6. Backups
-
-The `jobs` container writes a backup to `/data/backups/` once a day and keeps the last 7. Those backups sit in the same volume as the database, so they protect against a bad migration or a mistake, not against losing the disk. Copy them off the machine regularly:
-
-```bash
-docker compose cp delta:/data/backups/. ./delta-backups/
-```
-
-Each backup is a self-contained SQLite file (`sqlite3 delta-2026-10-31.db` opens it directly). The database holds your Plaid access tokens, so store backups somewhere private.
-
-To restore, stop Delta, swap the backup in with a one-off container, and start again. Run this from the folder that holds the backup file:
-
-```bash
-docker compose stop
-docker compose run --rm --no-deps --user root -v "$PWD:/restore:ro" --entrypoint sh delta -c \
-  'rm -f /data/delta.db-wal /data/delta.db-shm && cp /restore/delta-2026-10-31.db /data/delta.db && chown node:node /data/delta.db'
-docker compose start
-```
-
-This deletes the old write-ahead log first, so it can't be replayed onto the restored file, and hands the file to the `node` user the app runs as. (A plain `docker compose cp` into the container leaves a root-owned file the app can't write to.)
+Docker Desktop rewrites the source address of incoming connections, so API requests arrive from a Docker-internal address and get refused. Host networking doesn't help there (Docker Desktop runs containers in a VM), so set `DELTA_ALLOWED_NETWORKS=0.0.0.0/0` instead and rely on `DELTA_BIND` (`127.0.0.1` or your Tailscale IP) to keep the port private. `delta.sh` does this for you.
 
 ## Updating and uninstalling
 
@@ -194,8 +218,8 @@ All settings go in `.env`. The Plaid keys can instead be entered on the setup pa
 | `PLAID_SANDBOX_SECRET` | | Sandbox secret |
 | `PLAID_PRODUCTION_SECRET` | | Production secret |
 | `PLAID_ENV` | `sandbox` | `sandbox` or `production` |
-| `DELTA_URL` | `http://localhost:3000` | Public (tailnet) URL, used in the MCP configs `token create` prints |
-| `DELTA_ALLOWED_NETWORKS` | `100.64.0.0/10` | Comma-separated IPv4 CIDRs allowed to call `/api`. Loopback is always allowed |
+| `DELTA_URL` | `http://localhost:3000` | The address browsers and agents use, shown in agent configs |
+| `DELTA_ALLOWED_NETWORKS` | `100.64.0.0/10` | Comma-separated IPv4 CIDRs allowed to call `/api`. Loopback is always allowed. `0.0.0.0/0` when Docker hides the browser's address (bind `127.0.0.1`, Docker Desktop) |
 | `DELTA_BIND` | `127.0.0.1` | Docker: host interface the port is published on |
 | `DELTA_PORT` | `3000` | Docker: host port |
 | `COMPOSE_FILE` | | Docker: set to `docker-compose.yml:docker-compose.tailscale.yml` for [host networking on Linux](#linux-with-tailscale-use-host-networking) |

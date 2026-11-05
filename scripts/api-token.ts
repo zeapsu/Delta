@@ -13,26 +13,13 @@ try {
 
 const [cmd, ...args] = process.argv.slice(2);
 
-function mcpConfig(token: string): string {
-  const url = `${(process.env.DELTA_URL ?? "http://localhost:3000").replace(/\/+$/, "")}/api/v1/mcp`;
-  const auth = `Bearer ${token}`;
-  const json = (v: unknown) => JSON.stringify(v, null, 2);
+async function mcpConfig(token: string): Promise<string> {
+  const { agentConfigs, mcpUrl } = await import("../lib/agent-config");
+  const base = process.env.DELTA_URL ?? "http://localhost:3000";
   return [
-    `Connect an agent over MCP (Streamable HTTP): ${url}`,
-    `with the header  Authorization: ${auth}`,
-    "",
-    "Claude Code:",
-    `  claude mcp add --transport http delta ${url} --header "Authorization: ${auth}"`,
-    "",
-    "Most MCP clients (Claude Desktop, Cursor, ...), JSON config:",
-    json({ mcpServers: { delta: { type: "http", url, headers: { Authorization: auth } } } }),
-    "",
-    "Clients that only run stdio servers, via the mcp-remote bridge (needs npx):",
-    json({
-      mcpServers: {
-        delta: { command: "npx", args: ["-y", "mcp-remote", url, "--allow-http", "--header", `Authorization:${auth}`] },
-      },
-    }),
+    `Connect an agent over MCP (Streamable HTTP): ${mcpUrl(base)}`,
+    `with the header  Authorization: Bearer ${token}`,
+    ...agentConfigs(base, token).flatMap((c) => ["", `${c.label} (${c.hint.replace(/\.$/, "")}):`, c.text]),
   ].join("\n");
 }
 
@@ -47,7 +34,7 @@ async function main() {
     }
     const { id, token } = await createToken(name, scope);
     console.log(`created token ${id} "${name}" (${scope}). Copy it now, it is not shown again:\n\n${token}\n`);
-    console.log(`${mcpConfig(token)}\n`);
+    console.log(`${await mcpConfig(token)}\n`);
   } else if (cmd === "list") {
     const fmt = (d: Date | null) => (d ? d.toISOString().slice(0, 16).replace("T", " ") : "-");
     for (const t of await listTokens()) {

@@ -233,9 +233,7 @@ export default async function Home() {
                 title: "Connect an agent (optional)",
                 state: hasToken ? "done" : "todo",
                 action: hasToken ? null : (
-                  <a className="btn btn-sm" href="https://zeapsu.github.io/Delta/docs/agents" target="_blank" rel="noreferrer">
-                    Guide <span aria-hidden>↗</span>
-                  </a>
+                  <Link href="/settings#agents" className="btn btn-sm">Connect</Link>
                 ),
               },
             ]}

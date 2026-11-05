@@ -8,28 +8,31 @@ Delta serves an MCP server at `/api/v1/mcp` (Streamable HTTP, stateless, JSON re
 
 ## 1. Create a token
 
-On the machine that runs Delta:
+In Delta, open **Settings → Agents**:
 
-```bash
-# Docker
-docker compose exec delta npm run token -- create my-agent
-# From source
-npm run token -- create my-agent
-```
+1. Name the agent.
+2. Pick **Read**, or **Read + edit** if it may also set budgets, confirm or edit recurring charges, and relabel categories.
+3. Click **Create token**.
 
-Add `--scope write` if the agent may also set budgets, confirm or edit recurring charges, and relabel categories. Without it the token is read-only.
+Delta shows the token once, inside ready-to-paste configs pointed at `DELTA_URL`:
 
-The command prints the token once, followed by ready-to-paste configs pointed at `DELTA_URL` from your `.env`:
-
-- a `claude mcp add` command for Claude Code,
-- a JSON block for clients configured with an `mcpServers` file (Claude Desktop, Cursor and most others),
-- an `mcp-remote` stdio bridge for clients that only run local servers.
+- **Claude Code:** a `claude mcp add` command.
+- **JSON config:** an `mcpServers` block for most clients (Cursor and others).
+- **stdio only:** an `mcp-remote` bridge for clients that only run local servers.
 
 Only a hash of the token is stored, so if you lose it, revoke it and create a new one.
 
+From a terminal on the machine that runs Delta, the same thing:
+
+```bash
+docker compose exec delta npm run token -- create my-agent                 # Docker
+docker compose exec delta npm run token -- create my-agent --scope write   # Read + edit
+npm run token -- create my-agent                                           # from source
+```
+
 ## 2. Paste the config into your agent
 
-The agent's machine must be able to reach `DELTA_URL`, which normally means it's on your tailnet. Ask it something like "how much did I spend on food this month?" to check it works.
+The agent's machine must be able to reach `DELTA_URL`: the same computer, or a device on your tailnet. Ask it something like "how much did I spend on food this month?" to check it works.
 
 ## What the agent gets
 
@@ -43,6 +46,8 @@ A hosted agent sends what it reads to its model provider. For fully private anal
 You don't need to install a skill or give the agent database access.
 
 ## Managing tokens
+
+**Settings → Agents** lists active tokens with their access and when each was last used; **Revoke…** removes one. From a terminal:
 
 ```bash
 npm run token -- list          # id, prefix, scope, name, last used, revoked or active

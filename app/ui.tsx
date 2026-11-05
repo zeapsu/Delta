@@ -45,12 +45,14 @@ export function Page({
 // Titled cards get an "Ask" button that copies the card for the agent; pass
 // ask={false} on cards that are forms rather than data.
 export function Card({
+  id,
   title,
   action,
   ask = true,
   className = "",
   children,
 }: {
+  id?: string;
   title?: React.ReactNode;
   action?: React.ReactNode;
   ask?: boolean;
@@ -58,7 +60,7 @@ export function Card({
   children: React.ReactNode;
 }) {
   return (
-    <section className={`surface flex min-w-0 flex-col gap-4 p-4 sm:p-5 ${className}`}>
+    <section id={id} className={`surface flex min-w-0 scroll-mt-20 flex-col gap-4 p-4 sm:p-5 ${className}`}>
       {title || action ? (
         <div data-ask-skip="" className="flex items-center justify-between gap-3">
           {title ? <h2 className="text-sm font-semibold">{title}</h2> : <span />}
