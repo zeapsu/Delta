@@ -19,8 +19,22 @@ ask() { local v; read -r -p "$1" v </dev/tty; printf '%s' "$v"; }
 ask_secret() { local v; read -rs -p "$1" v </dev/tty; echo >/dev/tty; printf '%s' "$v"; }
 
 need_docker() {
-  command -v docker >/dev/null || die "Docker isn't installed: https://docs.docker.com/get-docker/"
+  # Docker Desktop for Mac keeps its helpers (docker-credential-desktop, ...)
+  # in folders a new shell may not have on PATH yet (fish, or a terminal opened
+  # before the install). Without them every pull fails on "error getting credentials".
+  local d
+  for d in "$HOME/.docker/bin" /Applications/Docker.app/Contents/Resources/bin; do
+    [ -d "$d" ] && case ":$PATH:" in *":$d:"*) ;; *) PATH="$PATH:$d" ;; esac
+  done
+  export PATH
+  command -v docker >/dev/null || die "Docker isn't installed. Get Docker Desktop (Mac/Windows) or Docker Engine (Linux): https://docs.docker.com/get-docker/"
   docker compose version >/dev/null 2>&1 || die "Docker's compose plugin is missing: https://docs.docker.com/compose/install/"
+  if ! docker info >/dev/null 2>&1; then
+    case "$(uname -s)" in
+      Darwin) die "Docker isn't running. Open Docker Desktop, wait until it says Engine running, then run this again." ;;
+      *) die "can't reach Docker. Start it (sudo systemctl start docker) and make sure your user may use it: https://docs.docker.com/engine/install/linux-postinstall/" ;;
+    esac
+  fi
 }
 
 # Run from the checkout this script lives in (or the current folder under curl).
@@ -52,6 +66,11 @@ start() {
   if err=$(docker compose pull -q 2>&1); then docker compose up -d
   else
     printf '%s\n' "$err" >&2
+    # A build needs the same credential helper for its base image, so don't try one.
+    if grep -q 'error getting credentials' <<<"$err"; then
+      local helper; helper=$(grep -o 'docker-credential-[a-z-]*' <<<"$err" | head -1)
+      die "Docker can't run its sign-in helper (${helper:-docker-credential-*}). Quit and reopen Docker Desktop, then run this again. Still failing? Delete the \"credsStore\" line in ~/.docker/config.json (Delta's image needs no sign-in)."
+    fi
     say "Couldn't pull the image (see above), building from source (a few minutes)"
     docker compose up -d --build
   fi

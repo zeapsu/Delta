@@ -4,6 +4,13 @@ title: Troubleshooting
 
 # Troubleshooting
 
+## Install fails with "error getting credentials" (macOS)
+
+Docker can't find its sign-in helper, `docker-credential-desktop`. Delta's image is public and needs no sign-in.
+
+1. Quit and reopen Docker Desktop, then open a new terminal and run `./delta.sh install` again.
+2. Still failing? In `~/.docker/config.json`, delete the `"credsStore": "desktop"` line and try again.
+
 ## The welcome page says my Plaid keys are missing or rejected
 
 Delta checks the keys at startup and logs `[delta] Plaid <env>: keys OK` when they work.
