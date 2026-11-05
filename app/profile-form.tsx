@@ -69,8 +69,9 @@ export function ProfileForm({
   if (compact) {
     return (
       <form onSubmit={submit} className="flex flex-wrap items-center gap-2">
-        {nameField}
-        <button type="submit" disabled={status.saving} className="btn btn-sm btn-primary">
+        <div className="flex min-w-0 flex-1 sm:max-w-xs">{nameField}</div>
+        {/* Not primary: the next step's button is the page's main action. */}
+        <button type="submit" disabled={status.saving} className="btn btn-sm">
           Save
         </button>
         {saved}
