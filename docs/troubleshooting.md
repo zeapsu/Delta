@@ -4,6 +4,13 @@ title: Troubleshooting
 
 # Troubleshooting
 
+## Install fails with "error getting credentials" (macOS)
+
+Docker can't find its sign-in helper, `docker-credential-desktop`. Delta's image is public and needs no sign-in.
+
+1. Quit and reopen Docker Desktop, then open a new terminal and run `./delta.sh install` again.
+2. Still failing? In `~/.docker/config.json`, delete the `"credsStore": "desktop"` line and try again.
+
 ## The welcome page says my Plaid keys are missing or rejected
 
 Delta checks the keys at startup and logs `[delta] Plaid <env>: keys OK` when they work.
@@ -25,14 +32,17 @@ The bank wants you to sign in again (for example after a password change or an e
 
 The connection was linked without investments consent. Click **Grant investments access** to add it in Plaid Link; you don't need to re-link.
 
-## "Could not start Plaid Link" or "Sync failed" from my phone
+## "Could not start Plaid Link" or "Sync failed"
 
-Pages load but every action fails: the API is refusing your requests as coming from outside the allowed networks. On Linux with Tailscale this is usually Docker NATing tailnet traffic so it no longer arrives from your device's `100.x` address. Switch to host networking, see [Linux with Tailscale](self-hosting.md#linux-with-tailscale-use-host-networking). On Docker Desktop for macOS, see [the macOS note](self-hosting.md#docker-desktop-on-macos).
+Pages load but every action fails: the API is refusing your requests as coming from outside the allowed networks.
+
+- **On the same computer, Docker install:** with `DELTA_BIND=127.0.0.1` Docker hides your browser's address. Add `DELTA_ALLOWED_NETWORKS=0.0.0.0/0` to `.env` and run `docker compose up -d` (new `delta.sh` installs set this).
+- **From your phone:** on Linux with Tailscale this is usually Docker NATing tailnet traffic so it no longer arrives from your device's `100.x` address. Switch to host networking, see [Linux with Tailscale](self-hosting.md#linux-with-tailscale-use-host-networking). On Docker Desktop for macOS, see [the macOS note](self-hosting.md#docker-desktop-on-macos).
 
 ## My agent gets 401 or 403
 
-- `401`: the token is missing, mistyped or revoked. Run `npm run token -- list` and create a new one if needed.
-- `403`: either the token is read-only and the agent tried to write (create one with `--scope write`), or the request came from outside the allowed networks. Check that the agent's machine is on your tailnet, or add its network to `DELTA_ALLOWED_NETWORKS`. On Docker, see [Linux with Tailscale](self-hosting.md#linux-with-tailscale-use-host-networking) or, on macOS, [the Docker Desktop note](self-hosting.md#docker-desktop-on-macos).
+- `401`: the token is missing, mistyped or revoked. Check **Settings → Agents** and create a new one if needed.
+- `403`: either the token is read-only and the agent tried to write (create a **Read + edit** one), or the request came from outside the allowed networks. Check that the agent's machine is on your tailnet, or add its network to `DELTA_ALLOWED_NETWORKS`. On Docker, see [Linux with Tailscale](self-hosting.md#linux-with-tailscale-use-host-networking) or, on macOS, [the Docker Desktop note](self-hosting.md#docker-desktop-on-macos).
 
 ## The data looks stale
 

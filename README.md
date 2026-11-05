@@ -35,7 +35,7 @@ Delta syncs your banks, cards and brokerage through [Plaid](https://plaid.com) i
 
 ## Quick start
 
-You need Docker and Plaid keys ([free for personal use](docs/plaid-trial.md)).
+You need [Docker](docs/self-hosting.md#1-install-docker) (no account) and Plaid keys ([free for personal use](docs/plaid-trial.md)). Tailscale is optional, for using Delta from your phone.
 
 **Home server app** (Portainer, CasaOS, Dockge, Synology, Unraid, TrueNAS): paste [`home-server/compose.yaml`](home-server/compose.yaml), open port 3000, add your Plaid keys in the browser. [Guide](docs/home-server.md).
 
@@ -45,12 +45,14 @@ You need Docker and Plaid keys ([free for personal use](docs/plaid-trial.md)).
 curl -fsSL https://raw.githubusercontent.com/zeapsu/Delta/main/delta.sh | bash -s install
 ```
 
-It clones into `./delta`, asks for Plaid keys (Enter skips to the browser), writes `.env` with your Tailscale IP and starts Delta. Later: `./delta.sh update` or `./delta.sh uninstall`. By hand:
+It clones into `./delta`, asks for Plaid keys (Enter skips to the browser), starts Delta and opens it. On a Mac it starts on that computer only; `./delta.sh phone` adds your phone over Tailscale. Later: `./delta.sh update` or `./delta.sh uninstall`.
+
+Or by hand, instead of the script:
 
 ```bash
 git clone https://github.com/zeapsu/Delta.git delta
 cd delta
-cp .env.example .env      # set DELTA_BIND and DELTA_URL; add Plaid keys here or on the setup page
+cp .env.example .env      # add Plaid keys here or on the setup page; see the Docker notes in .env
 docker compose up -d --build
 ```
 
@@ -58,11 +60,7 @@ Open `DELTA_URL` and click **Connect account** (sandbox login: `user_good` / `pa
 
 ## Connect an agent
 
-```bash
-docker compose exec delta npm run token -- create my-agent   # add --scope write to allow budget/recurring/category edits
-```
-
-It prints a token and ready-to-paste MCP configs for Claude Code, JSON-configured clients (Claude Desktop, Cursor, ...) and stdio-only clients. Paste one into your agent. See [Connect an agent](docs/agents.md) and the [MCP tools](docs/mcp-tools.md).
+In Delta, open **Settings → Agents**, create a token, and paste the config it shows into your agent (Claude Code, JSON for most MCP clients, or a stdio bridge). From a terminal: `docker compose exec delta npm run token -- create my-agent`. See [Connect an agent](docs/agents.md) and the [MCP tools](docs/mcp-tools.md).
 
 ## Development
 

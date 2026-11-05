@@ -196,7 +196,7 @@ function AgentVisual() {
   const tools = ["get_status", "spending_by_category", "search_transactions", "cash_flow", "get_budgets", "get_recurring", "get_net_worth"];
   return (
     <div className={styles.stack}>
-      <CodeBlock language="json" title="Printed by npm run token -- create my-agent">
+      <CodeBlock language="json" title="Settings → Agents → Create token">
         {MCP_CONFIG}
       </CodeBlock>
       <div className={styles.toolChips}>
@@ -212,10 +212,7 @@ function AgentVisual() {
 
 const TERMINAL = `docker compose up -d
 # the app, plus a jobs container that syncs every 6h
-# and backs up daily
-
-docker compose exec delta npm run token -- create my-agent
-# prints the token and a ready-to-paste MCP config`;
+# and backs up daily`;
 
 function HostVisual() {
   return (
@@ -301,14 +298,14 @@ function Install() {
           <span className={styles.eyebrow}>Terminal</span>
           <h3>From a shell</h3>
           <p>
-            Installs, finds your Tailscale address, starts Delta. Also updates and uninstalls.
+            Installs, starts Delta and opens it. Also adds your phone, updates and uninstalls.
           </p>
           <div className={styles.stack}>
             <CodeBlock language="bash" title="On your server">
               {INSTALL_CMD}
             </CodeBlock>
             <CodeBlock language="bash" title="Later, from the delta folder">
-              {"./delta.sh update\n./delta.sh uninstall"}
+              {"./delta.sh phone      # optional\n./delta.sh update\n./delta.sh uninstall"}
             </CodeBlock>
           </div>
           <Link className={styles.installLink} to="/docs/self-hosting#terminal-install">

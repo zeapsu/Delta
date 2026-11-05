@@ -72,14 +72,7 @@ Data lives in the `delta-data` volume and survives updates. Delta keeps 7 daily 
 
 ## Connect an agent
 
-Open a console on the `delta` container (Portainer: **Containers → delta-delta-1 → Console**, `/bin/sh`), then:
-
-```bash
-npm run token -- create my-agent                 # read-only
-npm run token -- create my-agent --scope write   # can also edit budgets, recurring, categories
-```
-
-It prints a token and MCP configs to paste. Set `DELTA_URL` first. More in [Connect an agent](agents.md).
+Set `DELTA_URL` first, then open **Settings → Agents** in Delta, create a token and paste the config it shows into your agent. More in [Connect an agent](agents.md).
 
 ## Uninstall
 

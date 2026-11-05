@@ -66,3 +66,23 @@ test("spending shows the fixture's categories", async ({ page }) => {
   await expect(page.getByText(/Food and drink/i).first()).toBeVisible();
   await expect(page.getByText(/Entertainment/i).first()).toBeVisible();
 });
+
+test("Settings → Agents creates a token with a ready config, then revokes it", async ({ page }, info) => {
+  test.skip(info.project.name !== "desktop");
+  await page.goto("/settings");
+  const agents = page.locator("#agents");
+  await agents.getByLabel("New agent").fill("ui-agent");
+  await agents.getByRole("radio", { name: /Read \+ edit/ }).click();
+  await agents.getByRole("button", { name: "Create token" }).click();
+  await expect(agents.getByText("ui-agent is ready")).toBeVisible();
+  await expect(agents.locator("pre")).toContainText("/api/v1/mcp");
+  await expect(agents.locator("pre")).toContainText("dlt_");
+  await agents.getByRole("button", { name: "JSON config" }).click();
+  await expect(agents.locator("pre")).toContainText('"mcpServers"');
+  await info.attach("agents-created.png", { body: await agents.screenshot(), contentType: "image/png" });
+  await agents.getByRole("button", { name: "Done" }).click();
+
+  await agents.getByRole("button", { name: "Revoke ui-agent" }).click();
+  await agents.getByRole("button", { name: "Revoke", exact: true }).click();
+  await expect(agents.getByText("ui-agent")).toHaveCount(0);
+});
