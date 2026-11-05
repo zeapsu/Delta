@@ -218,6 +218,7 @@ All settings go in `.env`. The Plaid keys can instead be entered on the setup pa
 | `PLAID_SANDBOX_SECRET` | | Sandbox secret |
 | `PLAID_PRODUCTION_SECRET` | | Production secret |
 | `PLAID_ENV` | `sandbox` | `sandbox` or `production` |
+| `TZ` | system (UTC in Docker) | Time zone for dates: today, this month, the greeting. **Settings → You** overrides it. `delta.sh install` copies your computer's |
 | `DELTA_URL` | `http://localhost:3000` | The address browsers and agents use, shown in agent configs |
 | `DELTA_ALLOWED_NETWORKS` | `100.64.0.0/10` | Comma-separated IPv4 CIDRs allowed to call `/api`. Loopback is always allowed. `0.0.0.0/0` when Docker hides the browser's address (bind `127.0.0.1`, Docker Desktop) |
 | `DELTA_BIND` | `127.0.0.1` | Docker: host interface the port is published on |

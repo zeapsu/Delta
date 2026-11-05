@@ -13,7 +13,7 @@
     "token": "tsx scripts/api-token.ts",
     "screenshots": "node scripts/screenshots.mjs",
     "unlink": "tsx scripts/unlink-items.ts",
-    "test": "tsx lib/tailnet-check.ts && tsx lib/api-auth-check.ts && tsx lib/recurring-check.ts && tsx lib/networth-check.ts && tsx lib/mcp-check.ts && tsx lib/analysis-check.ts && tsx lib/plaid-keys-check.ts"
+    "test": "tsx lib/tailnet-check.ts && tsx lib/api-auth-check.ts && tsx lib/recurring-check.ts && tsx lib/networth-check.ts && tsx lib/mcp-check.ts && tsx lib/analysis-check.ts && tsx lib/plaid-keys-check.ts && tsx lib/profile-check.ts"
   },
   "dependencies": {
     "better-sqlite3": "^13.0.3",
