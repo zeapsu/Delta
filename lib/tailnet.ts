@@ -1,5 +1,5 @@
-// ponytail: the network is the real trust boundary (no route in this app has
-// user auth); this guard refuses first-hop addresses outside loopback and the
+// ponytail: the network is the real trust boundary (the optional web UI
+// password, lib/login.ts, is a second lock); this guard refuses first-hop addresses outside loopback and the
 // allowed networks: DELTA_ALLOWED_NETWORKS, comma-separated IPv4 CIDRs,
 // default the tailscale CGNAT range 100.64.0.0/10. Next.js fills
 // x-forwarded-for with the real peer when the client sends none (verified),

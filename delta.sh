@@ -5,6 +5,7 @@
 #   ./delta.sh update      back up, pull the new version, restart
 #   ./delta.sh uninstall   disconnect banks at Plaid, back up, remove everything
 #   ./delta.sh backup      back up and copy the backups out to ./delta-backups
+#   ./delta.sh reset-password   turn off the web UI password (forgot it); set a new one in Settings
 # Fresh machine, from anywhere:
 #   curl -fsSL https://raw.githubusercontent.com/zeapsu/Delta/main/delta.sh | bash -s install
 # What each step does, by hand: docs/self-hosting.md, docs/updating.md,
@@ -283,5 +284,6 @@ case "${1:-}" in
   update) cmd_update ;;
   uninstall) cmd_uninstall ;;
   backup) need_docker; in_repo || die "run this from your Delta folder"; backup ;;
-  *) sed -n '2,9p' "$0" 2>/dev/null | sed 's/^# \{0,1\}//'; exit 1 ;;
+  reset-password) need_docker; in_repo || die "run this from your Delta folder"; docker compose exec delta npm run --silent password -- reset ;;
+  *) sed -n '2,10p' "$0" 2>/dev/null | sed 's/^# \{0,1\}//'; exit 1 ;;
 esac

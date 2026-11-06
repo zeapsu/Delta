@@ -10,7 +10,7 @@ const STACK_GUIDE = "https://zeapsu.github.io/Delta/docs/home-server#update";
 
 // Subtle "Update" pill in the header when the build is behind main
 // (lib/update-check.ts). It can't update by itself (that would need Docker
-// control, i.e. root, from an app with no login), so it copies the command
+// control, i.e. root, from a web app), so it copies the command
 // to run on the host.
 // install: DELTA_INSTALL ("stack" = home server app, "brew" = Homebrew).
 export function UpdatePill({ behindBy, install }: { behindBy: number; install?: string }) {

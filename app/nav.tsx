@@ -39,6 +39,8 @@ export function Nav({ extra }: { extra?: React.ReactNode }) {
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(href + "/");
 
+  // Logged out: nothing to navigate to yet.
+  if (pathname === "/login") return null;
   return (
     <header className="sticky top-0 z-20 flex h-14 items-center gap-2 bg-linear-to-b from-background via-background/70 to-transparent px-2 sm:px-4">
       <Link

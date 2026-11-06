@@ -1,5 +1,5 @@
 import assert from "node:assert";
-import { bearerToken, hashToken, newToken, requiredScope, scopeAllows, tokenPrefix } from "./api-auth";
+import { bearerToken, hashToken, newToken, publicMcp, requiredScope, scopeAllows, tokenPrefix } from "./api-auth";
 
 // Tokens: well-formed, unique, hash is stable hex.
 const t = newToken();
@@ -28,6 +28,15 @@ assert.strictEqual(requiredScope("/api/v10/x", "GET", false), null);
 assert.strictEqual(requiredScope("/api/v1/mcp", "POST", false), "read");
 assert.strictEqual(requiredScope("/api/v1/mcp", "GET", true), "read");
 assert.strictEqual(requiredScope("/api/budgets", "POST", false), null);
+
+// publicMcp(): opt-in, and only the exact MCP path skips the network guard.
+assert.strictEqual(publicMcp("/api/v1/mcp", undefined), false);
+assert.strictEqual(publicMcp("/api/v1/mcp", "true"), false);
+assert.strictEqual(publicMcp("/api/v1/mcp", "1"), true);
+assert.strictEqual(publicMcp("/api/v1/mcp/", "1"), false);
+assert.strictEqual(publicMcp("/api/v1/mcp/x", "1"), false);
+assert.strictEqual(publicMcp("/api/v1/accounts", "1"), false);
+assert.strictEqual(publicMcp("/api/plaid/sync", "1"), false);
 assert.strictEqual(requiredScope("/api/plaid/sync", "POST", false), null);
 assert.strictEqual(requiredScope("/api/budgets", "GET", true), "read");
 assert.strictEqual(requiredScope("/api/budgets", "POST", true), "write");

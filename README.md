@@ -31,7 +31,7 @@ Delta syncs your banks, cards and brokerage through [Plaid](https://plaid.com) i
 
 ## Security model
 
-**No login.** Your private network is the boundary ([Tailscale](https://tailscale.com) recommended). The API only answers allowed networks, agents need a revocable token, and Plaid access tokens never leave the database. Never expose Delta to the internet. [Details](docs/self-hosting.md#security-model-read-this-first).
+**Optional password.** Your private network is the boundary ([Tailscale](https://tailscale.com) recommended). The API only answers allowed networks, agents need a revocable token, and Plaid access tokens never leave the database. Settings → Password adds a login. Never expose Delta to the internet. [Details](docs/self-hosting.md#security-model-read-this-first).
 
 ## Quick start
 
