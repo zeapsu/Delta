@@ -8,6 +8,10 @@ on:
   schedule:
     - cron: "17 * * * *"
   workflow_dispatch:
+    inputs:
+      ref:
+        description: "Test a Delta commit or branch instead (builds and tests, never pushes)"
+        required: false
   pull_request:
 
 permissions:
@@ -19,9 +23,21 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - name: Point the formula at a Delta commit (test only)
+        if: inputs.ref != ''
+        env:
+          REF: ${{ inputs.ref }}
+        run: |
+          url="https://github.com/zeapsu/Delta/archive/${REF}.tar.gz"
+          sha=$(curl -fsSL "$url" | shasum -a 256 | cut -d' ' -f1)
+          URL="$url" SHA="$sha" perl -pi -e 's/^  url ".*"/  url "$ENV{URL}"\n  version "0.0.0"/; s/^  sha256 ".*"/  sha256 "$ENV{SHA}"/' Formula/delta.rb
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -qam "test $REF"
+
       - name: Point the formula at the latest release
         id: bump
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && inputs.ref == ''
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -32,7 +48,7 @@ jobs:
             exit 0
           fi
           sha=$(curl -fsSL "$url" | shasum -a 256 | cut -d' ' -f1)
-          sed -i '' -E "s|^  url \".*\"|  url \"$url\"|; s|^  sha256 \".*\"|  sha256 \"$sha\"|" Formula/delta.rb
+          URL="$url" SHA="$sha" perl -pi -e 's/^  url ".*"/  url "$ENV{URL}"/; s/^  sha256 ".*"/  sha256 "$ENV{SHA}"/' Formula/delta.rb
           # Commit now (brew taps the committed tree); push only once tested.
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
