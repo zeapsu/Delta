@@ -8,7 +8,7 @@ title: REST API
 
 ## Authentication
 
-Every request needs `Authorization: Bearer dlt_...` (see [Connect an agent](agents.md#1-create-a-token)) and must come from loopback or an allowed network (`DELTA_ALLOWED_NETWORKS`).
+Every request needs `Authorization: Bearer dlt_...` (see [Connect an agent](agents.md#1-create-a-token)) and must come from loopback or an allowed network (`DELTA_ALLOWED_NETWORKS`). The one exception is `/api/v1/mcp` with `DELTA_PUBLIC_MCP=1`, which answers any network but still needs the token ([agents that call from the internet](agents.md#agents-that-call-from-the-internet)).
 
 - `GET` and `HEAD` need a **read** or **write** token.
 - `POST`, `PUT` and `DELETE` need a **write** token.

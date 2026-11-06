@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { allowed, crossSiteWrite } from "@/lib/tailnet";
-import { bearerToken, requiredScope, scopeAllows } from "@/lib/api-auth";
+import { bearerToken, publicMcp, requiredScope, scopeAllows } from "@/lib/api-auth";
 import { lookupToken } from "@/lib/api-tokens";
 import { gate, SESSION_COOKIE, validSession } from "@/lib/login";
 import { getLogin } from "@/lib/login-store";
@@ -16,14 +16,17 @@ import { getLogin } from "@/lib/login-store";
 // token with the right scope (lib/api-auth.ts). Proxy runs on the Node.js
 // runtime in Next 16, so it can read the token table directly.
 //
-// Once a password is set (Settings → You, lib/login.ts), pages and the
+// Once a password is set (Settings → Password, lib/login.ts), pages and the
 // dashboard's own API routes also need the session cookie; /api/v1 keeps
 // using its tokens, and the sync timer's POSTs stay open (gate()).
+//
+// DELTA_PUBLIC_MCP=1 opens /api/v1/mcp alone to any network; it still needs a
+// token (see publicMcp in lib/api-auth.ts).
 export async function proxy(req: NextRequest) {
   const path = req.nextUrl.pathname;
   if (!path.startsWith("/api/")) return loginGate(req, gate(path, req.method));
 
-  if (!allowed(req)) {
+  if (!allowed(req) && !publicMcp(path)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   if (crossSiteWrite(req)) {
