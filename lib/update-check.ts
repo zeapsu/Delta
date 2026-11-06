@@ -14,14 +14,30 @@ export type UpdateStatus = { behindBy: number };
 let cached: { at: number; status: UpdateStatus | null } | undefined;
 let inFlight = false;
 
-async function check(commit: string): Promise<UpdateStatus | null> {
-  const res = await fetch(`https://api.github.com/repos/${REPO}/compare/${commit}...main`, {
+const github = (path: string) =>
+  fetch(`https://api.github.com/repos/${REPO}/${path}`, {
     headers: { Accept: "application/vnd.github+json", "User-Agent": "delta-update-check" },
     signal: AbortSignal.timeout(5000),
     cache: "no-store",
   });
+
+// Homebrew installs a release (DELTA_COMMIT is its tag, e.g. v1.2.0), and
+// `brew upgrade` only moves to the next one, so compare with the latest
+// release there. Everything else follows main.
+async function target(): Promise<string | null> {
+  if (process.env.DELTA_INSTALL !== "brew") return "main";
+  const res = await github("releases/latest");
+  if (!res.ok) return null;
+  const tag = ((await res.json()) as { tag_name?: unknown }).tag_name;
+  return typeof tag === "string" ? tag : null;
+}
+
+async function check(commit: string): Promise<UpdateStatus | null> {
+  const to = await target();
+  if (!to) return null;
+  const res = await github(`compare/${commit}...${to}`);
   if (!res.ok) return null; // unknown commit (local build, fork), rate limit, ...
-  // compare/<build>...main: ahead_by = commits on main the build doesn't have.
+  // compare/<build>...<target>: ahead_by = commits there the build doesn't have.
   const body = (await res.json()) as { ahead_by?: unknown };
   return typeof body.ahead_by === "number" && body.ahead_by > 0 ? { behindBy: body.ahead_by } : null;
 }

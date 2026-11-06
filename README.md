@@ -35,9 +35,15 @@ Delta syncs your banks, cards and brokerage through [Plaid](https://plaid.com) i
 
 ## Quick start
 
-You need [Docker](docs/self-hosting.md#1-install-docker) (no account) and Plaid keys ([free for personal use](docs/plaid-trial.md)). Tailscale is optional, for using Delta from your phone.
+You need Plaid keys ([free for personal use](docs/plaid-trial.md)) and either [Docker](docs/self-hosting.md#1-install-docker) (no account) or [Homebrew](docs/homebrew.md). Tailscale is optional, for using Delta from your phone.
 
 **Home server app** (Portainer, CasaOS, Dockge, Synology, Unraid, TrueNAS): paste [`home-server/compose.yaml`](home-server/compose.yaml), open port 3000, add your Plaid keys in the browser. [Guide](docs/home-server.md).
+
+**Homebrew** (Mac or Linux, no Docker): [guide](docs/homebrew.md).
+
+```bash
+brew install zeapsu/tap/delta && brew services start delta
+```
 
 **Terminal:**
 

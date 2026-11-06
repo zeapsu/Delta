@@ -29,7 +29,7 @@ Never port-forward Delta to the public internet, and never put it behind a publi
 
 Check it works: `docker compose version`.
 
-Using an app panel such as Portainer, CasaOS, Dockge, Synology Container Manager or Unraid? Follow [Home server app](home-server.md) instead: no terminal, and the Plaid keys go in through the browser.
+Using an app panel such as Portainer, CasaOS, Dockge, Synology Container Manager or Unraid? Follow [Home server app](home-server.md) instead: no terminal, and the Plaid keys go in through the browser. Have [Homebrew](https://brew.sh)? [Install with Homebrew](homebrew.md) needs no Docker.
 
 ## 2. Get Plaid keys
 
