@@ -390,7 +390,7 @@ export const TOOLS: Tool[] = [
   {
     name: "update_recurring_rule",
     title: "Edit a recurring charge",
-    description: "Edit a confirmed recurring rule (id from get_recurring confirmed). Only after the user explicitly agrees.",
+    description: "Edit a confirmed recurring rule (id from get_recurring confirmed). To move the next charge, set anchor_date to the new expected date: it overrides the detected nextDate until a charge on or after it posts. Only after the user explicitly agrees.",
     scope: "write",
     props: {
       id: { ...ID, description: "Rule id" },
