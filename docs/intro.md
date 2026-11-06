@@ -27,7 +27,7 @@ A hosted agent passes what it reads to its provider. A local model keeps it in y
 
 - One Next.js app (TypeScript, App Router) with a SQLite database through Drizzle and better-sqlite3.
 - Plaid calls only happen on the server. Plaid access tokens never leave the database.
-- No login. The private network you run it on (Tailscale is recommended) is the boundary, and the agent API also needs a token. Read the [security model](self-hosting.md#security-model-read-this-first) before you run it.
+- No accounts, and an optional password. The private network you run it on (Tailscale is recommended) is the boundary, and the agent API also needs a token. Read the [security model](self-hosting.md#security-model-read-this-first) before you run it.
 
 ## Where to go next
 

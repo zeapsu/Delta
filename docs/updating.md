@@ -8,7 +8,7 @@ An update is three steps: back up, get the new version, restart. Delta applies d
 
 Run every command below from the folder you cloned Delta into. Installed Delta from an app panel such as Portainer or CasaOS? Follow [Update](home-server.md#update) in the home server guide instead.
 
-You don't have to watch for releases: when a newer version is out, a small **Update** pill appears in Delta's header. Clicking it copies `./delta.sh update` for you to run on the host. (Delta can't update itself: that would need control of Docker, which is root on the host, from an app with no login.) To find out, Delta asks GitHub's API twice a day how far its build is behind `main`; it sends nothing but that question. Turn it off with `DELTA_UPDATE_CHECK=off` in `.env`. Images you build yourself only know their version when built through `delta.sh`, or with `DELTA_COMMIT=$(git rev-parse HEAD)` set for `docker compose build`.
+You don't have to watch for releases: when a newer version is out, a small **Update** pill appears in Delta's header. Clicking it copies `./delta.sh update` for you to run on the host. (Delta can't update itself: that would need control of Docker, which is root on the host, from a web app.) To find out, Delta asks GitHub's API twice a day how far its build is behind `main`; it sends nothing but that question. Turn it off with `DELTA_UPDATE_CHECK=off` in `.env`. Images you build yourself only know their version when built through `delta.sh`, or with `DELTA_COMMIT=$(git rev-parse HEAD)` set for `docker compose build`.
 
 ## The short way
 

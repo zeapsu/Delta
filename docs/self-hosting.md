@@ -12,14 +12,15 @@ About 15 minutes for a sandbox instance. Real banks also need Plaid to approve y
 
 ## Security model: read this first
 
-**Delta has no login.** There are no user accounts and no passwords. The security model is:
+**Delta has no user accounts.** An optional [password](login.md) can lock the pages, but the network is still what keeps Delta private. The security model is:
 
 1. **The network is the boundary.** Anyone who can reach Delta's port can see every page, including balances and transactions. A terminal install starts on this computer only (`127.0.0.1`). To reach it from other devices, use a private network you control. [Tailscale](https://tailscale.com) is the recommended one.
 2. **API routes are also IP-filtered.** Every `/api/*` request must come from loopback or from `DELTA_ALLOWED_NETWORKS` (default: Tailscale's `100.64.0.0/10`), and cross-site browser writes are refused. The one opt-in exception is `DELTA_PUBLIC_MCP=1`, which lets `/api/v1/mcp` answer any network for internet-hosted agents ([Connect an agent](agents.md#agents-that-call-from-the-internet)).
 3. **Agents use tokens.** The agent API (`/api/v1`, including the MCP server) also needs a per-agent bearer token, read or write scope, which you can revoke at any time.
 4. **Plaid access tokens never leave the database.** No API route returns them.
+5. **Optional password.** Settings → Password locks every page and the dashboard's routes behind a session cookie. [Password](login.md).
 
-Never port-forward Delta to the public internet, and never put it behind a public reverse proxy without adding your own authentication in front.
+Never port-forward Delta to the public internet, and never put it behind a public reverse proxy. The password is a second lock, not a reason to expose Delta.
 
 ## 1. Install Docker
 

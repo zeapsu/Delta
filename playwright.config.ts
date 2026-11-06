@@ -53,6 +53,8 @@ export default defineConfig({
       dependencies: ["setup"],
       use: { ...devices["Pixel 7"], colorScheme: "dark" },
     },
+    // Locks the shared server while it runs, so it goes last.
+    { name: "login", testMatch: /login\.spec\.ts/, dependencies: ["api", "first-run", "desktop", "phone"] },
   ],
   webServer: [
     {

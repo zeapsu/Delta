@@ -39,7 +39,7 @@ The agent's machine must be able to reach `DELTA_URL`: the same computer, or a d
 Some hosted agents connect from their provider's servers, not from your devices. To serve one, publish only the MCP path and let it past the network check:
 
 1. Set `DELTA_PUBLIC_MCP=1` (in `.env`, or in your panel's environment settings for a home server app install) and restart Delta. `/api/v1/mcp` then answers from any network; every other route keeps the network check.
-2. Publish that one path, for example with Tailscale Funnel: `sudo tailscale funnel --bg --https=8443 --set-path /api/v1/mcp http://<delta-host>:3000/api/v1/mcp`. Don't funnel the whole port: pages have no login.
+2. Publish that one path, for example with Tailscale Funnel: `sudo tailscale funnel --bg --https=8443 --set-path /api/v1/mcp http://<delta-host>:3000/api/v1/mcp`. Don't funnel the whole port: the pages rely on your private network (the password is only a second lock).
 3. Give the agent a **Read** token and the URL `https://<machine>.<tailnet>.ts.net:8443/api/v1/mcp`.
 
 The token is then the only thing between the internet and your data, so revoke it if it leaks.

@@ -33,6 +33,7 @@ import { currentPlaidKeys, getAnalysisSettings, getProfile } from "@/lib/setting
 import { greeting as greet } from "@/lib/profile";
 import { Welcome } from "./welcome";
 import { hint } from "@/lib/plaid-keys";
+import { getLogin } from "@/lib/login-store";
 import { Card, Change, Empty, Meter, Page, Stat, Steps, Tint } from "./ui";
 
 export const dynamic = "force-dynamic";
@@ -109,6 +110,8 @@ export default async function Home() {
     !allAccounts.some((a) => a.type === "depository" || a.type === "credit");
   const hasToken =
     db.select({ id: apiTokens.id }).from(apiTokens).where(isNull(apiTokens.revokedAt)).limit(1).all().length > 0;
+
+  const hasPassword = getLogin() !== null;
 
   const signed = (a: { type: string; currentBalance: number | null }) => {
     const b = a.currentBalance ?? 0;
@@ -214,6 +217,13 @@ export default async function Home() {
                 state: analysisSettings.customized ? "done" : "todo",
                 action: analysisSettings.customized ? null : (
                   <Link href="/settings" className="btn btn-sm btn-primary">Choose</Link>
+                ),
+              },
+              {
+                title: "Set a password (optional)",
+                state: hasPassword ? "done" : "todo",
+                action: hasPassword ? null : (
+                  <Link href="/settings#password" className="btn btn-sm">Set</Link>
                 ),
               },
               {

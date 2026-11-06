@@ -10,6 +10,8 @@ import { AnalysisForm } from "./analysis-form";
 import { KeyFacts } from "../setup/key-facts";
 import { Agents } from "./agents";
 import { PhoneAccess } from "./phone";
+import { PasswordSettings } from "./password";
+import { getLogin } from "@/lib/login-store";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +35,9 @@ export default async function SettingsPage() {
     <Page title="Settings" ask={false}>
       <Card id="you" title="You" ask={false}>
         <ProfileForm name={profile.name} timeZone={profile.effectiveTimeZone} zones={zones} />
+      </Card>
+      <Card id="password" title="Password" ask={false}>
+        <PasswordSettings enabled={getLogin() !== null} />
       </Card>
       <Card title="How closely your agent watches spending" ask={false}>
         <AnalysisForm initial={analysis} />

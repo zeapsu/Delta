@@ -12,7 +12,7 @@ Prefer a terminal? See [Terminal install](self-hosting.md#terminal-install).
 
 - A machine running Docker (64-bit Intel/AMD or ARM, e.g. a Raspberry Pi 4/5) with an app panel.
 - Plaid keys: your `client_id` and **Sandbox** secret from [Developers → Keys](https://dashboard.plaid.com/developers/keys). Free for personal use ([details](plaid-trial.md)).
-- A private network. Delta has no login, so anyone who can open it sees your finances. Use your home network or [Tailscale](https://tailscale.com), never port forwarding. [Security model](self-hosting.md#security-model-read-this-first).
+- A private network. Anyone who can open Delta sees your finances unless you set a [password](login.md). Use your home network or [Tailscale](https://tailscale.com), never port forwarding. [Security model](self-hosting.md#security-model-read-this-first).
 
 ## 1. Add Delta to your panel
 
