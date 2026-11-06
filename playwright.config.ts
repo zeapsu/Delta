@@ -20,7 +20,7 @@ const env = {
 // The token CLI (e2e/setup.spec.ts) and the server must share the DB.
 Object.assign(process.env, env);
 
-// A second server like a one-click install: no Plaid keys in its environment
+// A second server like a home server app install: no Plaid keys in its environment
 // (they get pasted on /setup) and its own empty DB. Blank, not omitted:
 // webServer env is merged over process.env, which carries the keys above.
 export const FRESH_PORT = 3101;
@@ -53,6 +53,8 @@ export default defineConfig({
       dependencies: ["setup"],
       use: { ...devices["Pixel 7"], colorScheme: "dark" },
     },
+    // Locks the shared server while it runs, so it goes last.
+    { name: "login", testMatch: /login\.spec\.ts/, dependencies: ["api", "first-run", "desktop", "phone"] },
   ],
   webServer: [
     {

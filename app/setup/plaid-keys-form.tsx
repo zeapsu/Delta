@@ -12,6 +12,8 @@ export function PlaidKeysForm({
   lockedEnv,
   submitLabel = "Save",
   next,
+  onSaved,
+  before,
 }: {
   initialEnv?: Env;
   // Banks are linked: switching environments needs a fresh install.
@@ -19,6 +21,10 @@ export function PlaidKeysForm({
   submitLabel?: string;
   // Where to go once saved (else stay and refresh).
   next?: string;
+  // Called once saved (the welcome page moves to its next step).
+  onSaved?: () => void;
+  // Shown left of the submit button (the welcome page's Back).
+  before?: React.ReactNode;
 }) {
   const router = useRouter();
   const [env, setEnv] = useState<Env>(initialEnv);
@@ -41,6 +47,7 @@ export function PlaidKeysForm({
         setStatus({ saved: true });
         if (next) router.push(next);
         else router.refresh();
+        onSaved?.();
       })
       .catch((err) => setStatus({ error: err.message }));
   };
@@ -104,6 +111,7 @@ export function PlaidKeysForm({
       </label>
 
       <div className="flex flex-wrap items-center gap-3">
+        {before}
         <button type="submit" disabled={status.saving} className="btn btn-primary">
           {status.saving ? "Checking…" : submitLabel}
         </button>

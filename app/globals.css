@@ -315,11 +315,27 @@ body {
     font-weight: 500;
     color: var(--muted);
   }
+
+  /* Welcome cards: each step fades and lifts in. */
+  .step-in {
+    animation: step-in 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  @keyframes step-in {
+    from {
+      opacity: 0;
+      translate: 0 0.5rem;
+    }
+  }
 }
 
 :focus-visible {
   outline: 2px solid var(--foreground);
   outline-offset: 2px;
+}
+/* Underline-only field (welcome "Hi, ___"): the underline darkens on focus
+   instead of a box. */
+.inline-field:focus-visible {
+  outline: none;
 }
 
 /* Reduce transparency: frost becomes solid, ambient light switches off. */

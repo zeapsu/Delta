@@ -4,12 +4,12 @@ import { useState } from "react";
 import { copy } from "./ask-agent";
 
 const COMMAND = "./delta.sh update";
-// One-click (stack) installs update from their app panel, not a shell.
-const STACK_GUIDE = "https://zeapsu.github.io/Delta/docs/one-click-install#update";
+// Home server app (stack) installs update from their app panel, not a shell.
+const STACK_GUIDE = "https://zeapsu.github.io/Delta/docs/home-server#update";
 
 // Subtle "Update" pill in the header when the build is behind main
 // (lib/update-check.ts). It can't update by itself (that would need Docker
-// control, i.e. root, from an app with no login), so it copies the command
+// control, i.e. root, from a web app), so it copies the command
 // to run on the host.
 export function UpdatePill({ behindBy, stack }: { behindBy: number; stack?: boolean }) {
   const [state, setState] = useState<"idle" | "copied" | "failed">("idle");
@@ -20,7 +20,7 @@ export function UpdatePill({ behindBy, stack }: { behindBy: number; stack?: bool
 
   if (stack) {
     return (
-      <a href={STACK_GUIDE} target="_blank" rel="noreferrer" title={`${what}. How to update a one-click install.`} className={className}>
+      <a href={STACK_GUIDE} target="_blank" rel="noreferrer" title={`${what}. How to update from your app panel.`} className={className}>
         {dot}
         <span>Update</span>
       </a>

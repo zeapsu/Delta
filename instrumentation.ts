@@ -4,6 +4,9 @@
 export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
   await import("@/db");
+  // The saved time zone (Settings → You) wins over TZ.
+  const { applyTimeZone } = await import("@/lib/settings");
+  applyTimeZone();
   const { checkPlaid } = await import("@/lib/plaid-config");
   const check = await checkPlaid();
   if (check.ok) console.log(`[delta] Plaid ${check.env}: keys OK`);

@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { desc } from "drizzle-orm";
 import { db } from "@/db";
-import { accounts, items, transactions } from "@/db/schema";
+import { desc, isNull } from "drizzle-orm";
+import { accounts, apiTokens, investmentTransactions, items, transactions } from "@/db/schema";
 import { DEBT_TYPES, formatCategory, formatCents } from "@/lib/format";
 import { getNetWorthData } from "@/lib/networth-data";
 import { categoryColor } from "@/lib/colors";
@@ -27,8 +27,13 @@ import { CashFlowChart, TrendArea } from "./charts";
 import PlaidButtons from "./plaid-buttons";
 import { checkPlaid } from "@/lib/plaid-config";
 import ConnectionButton from "./connection-button";
+import { FirstSync } from "./first-sync";
 import { REAUTH_ERROR_CODES } from "@/lib/plaid-errors";
-import { getAnalysisSettings } from "@/lib/settings";
+import { currentPlaidKeys, getAnalysisSettings, getProfile } from "@/lib/settings";
+import { greeting as greet } from "@/lib/profile";
+import { Welcome } from "./welcome";
+import { hint } from "@/lib/plaid-keys";
+import { getLogin } from "@/lib/login-store";
 import { Card, Change, Empty, Meter, Page, Stat, Steps, Tint } from "./ui";
 
 export const dynamic = "force-dynamic";
@@ -76,46 +81,37 @@ export default async function Home() {
     getAnalysisSettings(),
   ]);
 
+  const profile = getProfile();
+
   if (allItems.length === 0) {
     const plaid = await checkPlaid();
-    const keysState = plaid.ok ? "done" : plaid.missing ? "todo" : "error";
     return (
-      <Page title="Welcome to Delta" subtitle="Your money, in one calm place." ask={false}>
-        <Card>
-          <Steps
-            steps={[
-              {
-                title: "Add Plaid keys",
-                state: keysState,
-                action: plaid.ok ? (
-                  <span className="text-xs text-muted">{plaid.env === "production" ? "Production" : "Sandbox"} · OK</span>
-                ) : plaid.source === "env" ? null : (
-                  <Link href="/setup" className={`btn btn-sm ${plaid.missing ? "btn-primary" : ""}`}>
-                    {plaid.missing ? "Set up" : "Fix keys"}
-                  </Link>
-                ),
-                detail: keysState === "error" ? (
-                  <ul className="text-negative">
-                    {plaid.problems.map((p) => (
-                      <li key={p}>{p}</li>
-                    ))}
-                    {plaid.source === "env" ? <li>Fix .env and restart Delta.</li> : null}
-                  </ul>
-                ) : undefined,
-              },
-              {
-                title: "Connect a bank, card or brokerage",
-                state: "todo",
-                action: plaid.ok ? <PlaidButtons connectOnly /> : null,
-                detail: plaid.ok && plaid.env !== "production" ? "Sandbox login: user_good / pass_good" : undefined,
-              },
-              { title: "Delta syncs every 6 hours", state: "todo" },
-            ]}
-          />
-        </Card>
-      </Page>
+      <Welcome
+        name={profile.name}
+        timeZone={profile.effectiveTimeZone}
+        nameSaved={profile.saved}
+        plaid={{
+          ok: plaid.ok,
+          env: plaid.env,
+          source: plaid.source,
+          problems: plaid.missing ? [] : plaid.problems,
+          clientId: hint(currentPlaidKeys().clientId),
+        }}
+      />
     );
   }
+
+  // History is in once any transactions arrived. Brokerage-only setups never
+  // get /transactions rows, so investment activity (or having no cash or card
+  // accounts at all) counts too.
+  const historyDone =
+    db.select({ id: transactions.id }).from(transactions).limit(1).all().length > 0 ||
+    db.select({ id: investmentTransactions.id }).from(investmentTransactions).limit(1).all().length > 0 ||
+    !allAccounts.some((a) => a.type === "depository" || a.type === "credit");
+  const hasToken =
+    db.select({ id: apiTokens.id }).from(apiTokens).where(isNull(apiTokens.revokedAt)).limit(1).all().length > 0;
+
+  const hasPassword = getLogin() !== null;
 
   const signed = (a: { type: string; currentBalance: number | null }) => {
     const b = a.currentBalance ?? 0;
@@ -168,10 +164,7 @@ export default async function Home() {
   }));
   const broken = institutions.filter((i) => i.needsReauth);
 
-  const greeting = (() => {
-    const h = new Date().getHours();
-    return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
-  })();
+  const greeting = greet(new Date().getHours(), profile.name);
 
   return (
     <Page
@@ -196,13 +189,53 @@ export default async function Home() {
           <span className="ml-auto shrink-0 font-medium text-negative">Reconnect →</span>
         </a>
       ) : null}
-      {!analysisSettings.customized ? (
-        <Link href="/settings" className="surface flex items-center gap-3 px-4 py-3 text-sm">
-          <span>
-            <span className="font-medium">How closely should your agent watch spending?</span>
-          </span>
-          <span className="ml-auto shrink-0 font-medium">Choose →</span>
-        </Link>
+      {!historyDone || !analysisSettings.customized || !profile.saved ? (
+        <Card title="Getting started" ask={false}>
+          <Steps
+            steps={[
+              {
+                title: "Connect a bank, card or brokerage",
+                state: "done",
+                detail: `${allAccounts.length} account${allAccounts.length === 1 ? "" : "s"} linked`,
+              },
+              {
+                title: "Pull your history",
+                state: historyDone ? "done" : "todo",
+                action: historyDone ? null : <FirstSync />,
+                detail: historyDone ? undefined : "Plaid usually takes a few minutes. Delta keeps checking.",
+              },
+              {
+                title: "Your name and time zone",
+                state: profile.saved ? "done" : "todo",
+                action: profile.saved ? null : (
+                  <Link href="/settings#you" className="btn btn-sm">Set</Link>
+                ),
+                detail: profile.saved ? undefined : `Dates use ${profile.effectiveTimeZone.replace(/_/g, " ")} for now.`,
+              },
+              {
+                title: "Choose your agent's watch level",
+                state: analysisSettings.customized ? "done" : "todo",
+                action: analysisSettings.customized ? null : (
+                  <Link href="/settings" className="btn btn-sm btn-primary">Choose</Link>
+                ),
+              },
+              {
+                title: "Set a password (optional)",
+                state: hasPassword ? "done" : "todo",
+                action: hasPassword ? null : (
+                  <Link href="/settings#password" className="btn btn-sm">Set</Link>
+                ),
+              },
+              {
+                title: "Connect an agent (optional)",
+                state: hasToken ? "done" : "todo",
+                action: hasToken ? null : (
+                  <Link href="/settings#agents" className="btn btn-sm">Connect</Link>
+                ),
+              },
+            ]}
+          />
+        </Card>
       ) : null}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-5">
         <Card

@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<Maintainer>
+  <Profile>Maintainer of Delta, a self-hosted personal finance dashboard your own agent can read over MCP.</Profile>
+  <Icon>https://raw.githubusercontent.com/zeapsu/Delta/main/home-server/icon.png</Icon>
+  <WebPage>https://zeapsu.github.io/Delta/</WebPage>
+  <Forum>https://github.com/zeapsu/Delta/issues</Forum>
+</Maintainer>

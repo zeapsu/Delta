@@ -21,16 +21,18 @@ Delta has no chatbot of its own. Instead it serves an [MCP](https://modelcontext
 
 Agents get a per-agent token. Read tokens can only look; write tokens can also set budgets, confirm recurring charges and relabel categories. See [Connect an agent](agents.md).
 
+A hosted agent passes what it reads to its provider. A local model keeps it in your network.
+
 ## How it's built
 
 - One Next.js app (TypeScript, App Router) with a SQLite database through Drizzle and better-sqlite3.
 - Plaid calls only happen on the server. Plaid access tokens never leave the database.
-- No login. The private network you run it on (Tailscale is recommended) is the boundary, and the agent API also needs a token. Read the [security model](self-hosting.md#security-model-read-this-first) before you run it.
+- No accounts, and an optional password. The private network you run it on (Tailscale is recommended) is the boundary, and the agent API also needs a token. Read the [security model](self-hosting.md#security-model-read-this-first) before you run it.
 
 ## Where to go next
 
-- [One-click install](one-click-install.md): Portainer, CasaOS, Dockge, Synology or Unraid, no terminal.
-- [Self-hosting](self-hosting.md): Plaid keys, Tailscale, Docker, backups.
+- [Home server app](home-server.md): Portainer, CasaOS, Dockge, Synology, Unraid or TrueNAS.
+- [Self-hosting](self-hosting.md): Docker, Plaid keys, terminal install, phone access, backups.
 - [Connect an agent](agents.md): create a token and paste the MCP config.
 - [MCP tools](mcp-tools.md) and [REST API](api.md): what agents can do.
 - [Architecture](architecture.md) and the [contributing guide](https://github.com/zeapsu/Delta/blob/main/CONTRIBUTING.md): for working on Delta itself.

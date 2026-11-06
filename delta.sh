@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
-# One-command install, update and uninstall for a Docker-hosted Delta.
+# Terminal install, update and uninstall for a Docker-hosted Delta.
 #   ./delta.sh install     ask for Plaid keys (or skip: paste them on /setup), write .env, start Delta
+#   ./delta.sh phone       move Delta onto your Tailscale address, to use it from your phone
 #   ./delta.sh update      back up, pull the new version, restart
 #   ./delta.sh uninstall   disconnect banks at Plaid, back up, remove everything
 #   ./delta.sh backup      back up and copy the backups out to ./delta-backups
+#   ./delta.sh reset-password   turn off the web UI password (forgot it); set a new one in Settings
 # Fresh machine, from anywhere:
 #   curl -fsSL https://raw.githubusercontent.com/zeapsu/Delta/main/delta.sh | bash -s install
 # What each step does, by hand: docs/self-hosting.md, docs/updating.md,
@@ -19,8 +21,22 @@ ask() { local v; read -r -p "$1" v </dev/tty; printf '%s' "$v"; }
 ask_secret() { local v; read -rs -p "$1" v </dev/tty; echo >/dev/tty; printf '%s' "$v"; }
 
 need_docker() {
-  command -v docker >/dev/null || die "Docker isn't installed: https://docs.docker.com/get-docker/"
+  # Docker Desktop for Mac keeps its helpers (docker-credential-desktop, ...)
+  # in folders a new shell may not have on PATH yet (fish, or a terminal opened
+  # before the install). Without them every pull fails on "error getting credentials".
+  local d
+  for d in "$HOME/.docker/bin" /Applications/Docker.app/Contents/Resources/bin; do
+    [ -d "$d" ] && case ":$PATH:" in *":$d:"*) ;; *) PATH="$PATH:$d" ;; esac
+  done
+  export PATH
+  command -v docker >/dev/null || die "Docker isn't installed. Get Docker Desktop (Mac/Windows) or Docker Engine (Linux): https://docs.docker.com/get-docker/"
   docker compose version >/dev/null 2>&1 || die "Docker's compose plugin is missing: https://docs.docker.com/compose/install/"
+  if ! docker info >/dev/null 2>&1; then
+    case "$(uname -s)" in
+      Darwin) die "Docker isn't running. Open Docker Desktop, wait until it says Engine running, then run this again." ;;
+      *) die "can't reach Docker. Start it (sudo systemctl start docker) and make sure your user may use it: https://docs.docker.com/engine/install/linux-postinstall/" ;;
+    esac
+  fi
 }
 
 # Run from the checkout this script lives in (or the current folder under curl).
@@ -44,6 +60,45 @@ set_env() {
   fi
 }
 
+# This machine's Tailscale IPv4, or nothing. The Mac app's CLI isn't on PATH.
+tailscale_ip() {
+  local ts ip
+  for ts in tailscale /Applications/Tailscale.app/Contents/MacOS/Tailscale; do
+    command -v "$ts" >/dev/null 2>&1 || continue
+    ip=$("$ts" ip -4 2>/dev/null | head -1 || true)
+    if [ -n "$ip" ]; then printf '%s' "$ip"; return 0; fi
+  done
+  return 0
+}
+
+# Serve Delta on one address and write the settings that go with it.
+use_address() {
+  local ip=$1
+  set_env DELTA_BIND "$ip"
+  set_env DELTA_URL "http://$ip:3000"
+  # Published ports hide the browser's address behind Docker's own (a port on
+  # 127.0.0.1 is reached from the bridge gateway; Docker Desktop always does
+  # it), so the API guard would refuse the browser. There the bind is what
+  # keeps the port private. Linux + Tailscale uses host networking instead,
+  # which keeps the real address: docs/self-hosting.md.
+  if [ "$ip" != 127.0.0.1 ] && [ "$(uname -s)" = Linux ]; then
+    set_env COMPOSE_FILE docker-compose.yml:docker-compose.tailscale.yml
+    set_env DELTA_ALLOWED_NETWORKS 100.64.0.0/10
+  else
+    set_env DELTA_ALLOWED_NETWORKS 0.0.0.0/0
+  fi
+}
+
+open_browser() {
+  case "$(uname -s)" in
+    Darwin) open "$1" 2>/dev/null || true ;;
+    Linux)
+      if [ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ] && command -v xdg-open >/dev/null; then
+        xdg-open "$1" >/dev/null 2>&1 || true
+      fi ;;
+  esac
+}
+
 # Prefer the published image; build from this checkout if it can't be pulled.
 start() {
   # Baked into a local build so the in-app update notice knows its version.
@@ -52,6 +107,11 @@ start() {
   if err=$(docker compose pull -q 2>&1); then docker compose up -d
   else
     printf '%s\n' "$err" >&2
+    # A build needs the same credential helper for its base image, so don't try one.
+    if grep -q 'error getting credentials' <<<"$err"; then
+      local helper; helper=$(grep -o 'docker-credential-[a-z-]*' <<<"$err" | head -1)
+      die "Docker can't run its sign-in helper (${helper:-docker-credential-*}). Quit and reopen Docker Desktop, then run this again. Still failing? Delete the \"credsStore\" line in ~/.docker/config.json (Delta's image needs no sign-in)."
+    fi
     say "Couldn't pull the image (see above), building from source (a few minutes)"
     docker compose up -d --build
   fi
@@ -107,24 +167,23 @@ cmd_install() {
       set_env PLAID_SANDBOX_SECRET "$secret"
     fi
 
-    ip=$(tailscale ip -4 2>/dev/null | head -1 || true)
-    if [ -n "$ip" ]; then
-      echo "Found your Tailscale IP: $ip. Delta will only be reachable there."
+    # Docker runs on UTC; dates (today, this month) should be the user's.
+    local tz; tz=$(readlink /etc/localtime 2>/dev/null | sed -n 's#.*zoneinfo/##p' || true)
+    [ -n "$tz" ] && set_env TZ "$tz"
+
+    # A Mac starts on this computer only, and `./delta.sh phone` adds Tailscale
+    # when wanted. A Linux box is usually a headless server, reached over Tailscale.
+    ip=127.0.0.1
+    if [ "$(uname -s)" = Linux ]; then
+      ip=$(tailscale_ip)
+      [ -n "$ip" ] || ip=127.0.0.1
+    fi
+    if [ "$ip" = 127.0.0.1 ]; then
+      echo "Delta will be reachable from this computer only. For your phone, later: ./delta.sh phone"
     else
-      echo "Tailscale isn't running, so Delta will only be reachable from this machine (127.0.0.1)."
-      echo "To reach it from your phone later, see docs/self-hosting.md (Tailscale)."
-      ip=127.0.0.1
+      echo "Found your Tailscale IP: $ip. Delta will only be reachable there."
     fi
-    set_env DELTA_BIND "$ip"
-    set_env DELTA_URL "http://$ip:3000"
-    # docs/self-hosting.md: on Linux, published ports can hide the tailnet
-    # client address; Docker Desktop on macOS always does.
-    if [ "$ip" != 127.0.0.1 ]; then
-      case "$(uname -s)" in
-        Linux) set_env COMPOSE_FILE docker-compose.yml:docker-compose.tailscale.yml ;;
-        Darwin) set_env DELTA_ALLOWED_NETWORKS 0.0.0.0/0 ;;
-      esac
-    fi
+    use_address "$ip"
   fi
 
   start
@@ -132,11 +191,37 @@ cmd_install() {
   local url; url=$(grep -E '^DELTA_URL=' .env | cut -d= -f2-)
   say "Delta is running at $url"
   if grep -qE '^PLAID_CLIENT_ID=.+' .env; then
-    echo "Open it, click Connect account, and in sandbox sign in with user_good / pass_good."
+    echo "Next: Connect account (sandbox login: user_good / pass_good)."
+    open_browser "$url"
   else
-    echo "Open it and paste your Plaid keys on the setup page, then click Connect account."
+    echo "Next: paste your Plaid keys on the setup page, then Connect account."
+    open_browser "$url/setup"
   fi
-  echo "Connect an agent: docker compose exec delta npm run token -- create my-agent"
+  echo "Connect an agent: Settings > Agents."
+}
+
+cmd_phone() {
+  need_docker; in_repo || die "run this from your Delta folder"
+  [ -f .env ] || die "no .env here yet; run ./delta.sh install first"
+  local ip; ip=$(tailscale_ip)
+  if [ -z "$ip" ]; then
+    echo "Tailscale isn't running on this computer."
+    echo "  1. Install it here and on your phone: https://tailscale.com/download"
+    echo "  2. Sign in on both with the same account"
+    echo "  3. Run ./delta.sh phone again"
+    exit 1
+  fi
+  local old; old=$(grep -E '^DELTA_URL=' .env | cut -d= -f2- || true)
+  local url="http://$ip:3000"
+  use_address "$ip"
+  say "Moving Delta to your Tailscale address"
+  docker compose up -d
+  wait_ready || true
+  say "Delta is at $url"
+  echo "Open it on your phone, with Tailscale on."
+  if [ -n "$old" ] && [ "$old" != "$url" ]; then
+    echo "It no longer answers at $old. Agents set up with that address need the new one (Settings > Agents)."
+  fi
 }
 
 cmd_update() {
@@ -195,8 +280,10 @@ cmd_uninstall() {
 
 case "${1:-}" in
   install) cmd_install ;;
+  phone) cmd_phone ;;
   update) cmd_update ;;
   uninstall) cmd_uninstall ;;
   backup) need_docker; in_repo || die "run this from your Delta folder"; backup ;;
-  *) sed -n '2,8p' "$0" 2>/dev/null | sed 's/^# \{0,1\}//'; exit 1 ;;
+  reset-password) need_docker; in_repo || die "run this from your Delta folder"; docker compose exec delta npm run --silent password -- reset ;;
+  *) sed -n '2,10p' "$0" 2>/dev/null | sed 's/^# \{0,1\}//'; exit 1 ;;
 esac

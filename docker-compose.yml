@@ -2,7 +2,7 @@
 #   cp .env.example .env   # add Plaid keys, set DELTA_BIND / DELTA_URL
 #   docker compose up -d
 # No .env is fine too: open Delta and paste the Plaid keys on /setup.
-# For Portainer, CasaOS, Dockge and other app panels: one-click/compose.yaml.
+# For Portainer, CasaOS, Dockge and other app panels: home-server/compose.yaml.
 services:
   delta:
     image: ghcr.io/zeapsu/delta:${DELTA_TAG:-latest}

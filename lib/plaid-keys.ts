@@ -5,7 +5,7 @@
 // - .env / the container environment (PLAID_CLIENT_ID + the secret for
 //   PLAID_ENV), the CLI install and the Jetson. Set PLAID_CLIENT_ID and the
 //   environment is the only source; the setup page shows it read-only.
-// - the setup page (/setup), for one-click installs that start with no .env:
+// - the setup page (/setup), for home server app installs that start with no .env:
 //   saved as the "plaid" row of the settings table. The DB already holds the
 //   Plaid access tokens, so the secret sits next to them (and in backups).
 //   Never return the secret from any route.

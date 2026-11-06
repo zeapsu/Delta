@@ -87,3 +87,31 @@ test("Plaid keys from .env can't be replaced from the browser", async ({ request
   });
   expect(res.status()).toBe(409);
 });
+
+test("tokens are managed from the browser, never by agents", async ({ request }) => {
+  expect((await request.post("/api/tokens", { data: { name: "  ", scope: "read" } })).status()).toBe(400);
+  expect((await request.post("/api/tokens", { data: { name: "x", scope: "admin" } })).status()).toBe(400);
+  expect((await request.get("/api/tokens", { headers: bearer(tokens().write) })).status()).toBe(403);
+  expect((await request.post("/api/tokens", { headers: bearer(tokens().write), data: { name: "x", scope: "write" } })).status()).toBe(403);
+
+  const res = await request.post("/api/tokens", { data: { name: "browser", scope: "read" } });
+  expect(res.status()).toBe(201);
+  const { id, token } = await res.json();
+  expect((await request.get("/api/v1/status", { headers: bearer(token) })).status()).toBe(200);
+  const list = await (await request.get("/api/tokens")).json();
+  expect(list.tokens.map((t: { name: string }) => t.name)).toContain("browser");
+  expect(JSON.stringify(list)).not.toMatch(/hash|dlt_[A-Za-z0-9_-]{20}/i);
+
+  expect((await request.delete(`/api/tokens/${id}`)).status()).toBe(200);
+  expect((await request.get("/api/v1/status", { headers: bearer(token) })).status()).toBe(401);
+  expect((await request.delete(`/api/tokens/${id}`)).status()).toBe(404);
+});
+
+test("profile: name and time zone are validated and drive the greeting", async ({ request }) => {
+  expect((await request.put("/api/settings/profile", { data: { timeZone: "Mars/Olympus" } })).status()).toBe(400);
+  expect((await request.put("/api/settings/profile", { data: { name: "x".repeat(41) } })).status()).toBe(400);
+  // UTC, like the rest of the suite: the fixture is dated in UTC.
+  const res = await request.put("/api/settings/profile", { data: { name: "Robin", timeZone: "UTC" } });
+  expect(await res.json()).toEqual({ ok: true, name: "Robin", timeZone: "UTC", effectiveTimeZone: "UTC" });
+  expect(await (await request.get("/")).text()).toMatch(/Good (morning|afternoon|evening), Robin/);
+});

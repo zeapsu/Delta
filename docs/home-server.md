@@ -1,45 +1,49 @@
 ---
-title: One-click install
+title: Home server app
 ---
 
-# One-click install
+# Home server app
 
-No terminal needed. Paste one file into your server's app panel, then add your Plaid keys in the browser.
+For servers run from an app panel such as Portainer, CasaOS, Dockge, Synology, Unraid or TrueNAS. Add Delta as an app, then finish setup in the browser.
 
-Prefer a terminal? Use the [one-command install](self-hosting.md#the-short-way).
+Prefer a terminal? See [Terminal install](self-hosting.md#terminal-install).
 
 ## You need
 
 - A machine running Docker (64-bit Intel/AMD or ARM, e.g. a Raspberry Pi 4/5) with an app panel.
 - Plaid keys: your `client_id` and **Sandbox** secret from [Developers → Keys](https://dashboard.plaid.com/developers/keys). Free for personal use ([details](plaid-trial.md)).
-- A private network. Delta has no login, so anyone who can open it sees your finances. Use your home network or [Tailscale](https://tailscale.com), never port forwarding. [Security model](self-hosting.md#security-model-read-this-first).
+- A private network. Anyone who can open Delta sees your finances unless you set a [password](login.md). Use your home network or [Tailscale](https://tailscale.com), never port forwarding. [Security model](self-hosting.md#security-model-read-this-first).
 
 ## 1. Add Delta to your panel
 
-Every panel uses the same file: [`one-click/compose.yaml`](https://raw.githubusercontent.com/zeapsu/Delta/main/one-click/compose.yaml). Copy it.
+Every panel uses the same file: [`home-server/compose.yaml`](https://raw.githubusercontent.com/zeapsu/Delta/main/home-server/compose.yaml). Copy it.
 
 | Panel | Steps |
 | --- | --- |
-| **Portainer** | **Stacks → Add stack**, name `delta`. Choose **Repository** with URL `https://github.com/zeapsu/Delta` and path `one-click/compose.yaml` (easiest updates), or **Web editor** and paste. **Deploy the stack**. |
+| **Portainer** | **Stacks → Add stack**, name `delta`. Choose **Repository** with URL `https://github.com/zeapsu/Delta` and path `home-server/compose.yaml` (easiest updates), or **Web editor** and paste. **Deploy the stack**. |
 | **CasaOS** | **App Store → Custom Install** (+) **→ Import**, paste, **Submit**, **Install**. |
 | **Dockge** | **+ Compose**, name `delta`, paste, **Deploy**. |
 | **Synology** | Container Manager: **Project → Create**, name `delta`, **Create docker-compose.yml**, paste, **Next**, **Done**. |
 | **Unraid** | Install **Docker Compose Manager**. **Docker → Compose → Add New Stack**, name `delta`, **Edit Stack → Compose File**, paste, **Compose Up**. |
+| **TrueNAS** (24.10+) | **Apps → Discover Apps → ⋮ → Install via YAML**, name `delta`, paste, **Save**. |
 
 Coolify, Komodo and other compose-based panels work the same way. Or from a terminal:
 
 ```bash
-curl -fsSLO https://raw.githubusercontent.com/zeapsu/Delta/main/one-click/compose.yaml
+curl -fsSLO https://raw.githubusercontent.com/zeapsu/Delta/main/home-server/compose.yaml
 docker compose -f compose.yaml up -d
 ```
 
 ## 2. Finish in the browser
 
-1. Open `http://<server address>:3000`, for example `http://192.168.1.20:3000`.
-2. **Set up** → **Sandbox** → paste your keys → **Save**. Delta checks them with Plaid first.
-3. **Connect account**. Sandbox login: `user_good` / `pass_good`.
+Open `http://<server address>:3000`, for example `http://192.168.1.20:3000`. A checklist walks you through:
 
-Delta then syncs every 6 hours and backs up daily.
+1. **Plaid keys:** **Set up** → **Sandbox** → paste → **Save**. Delta checks them with Plaid first.
+2. **Bank:** **Connect account**. Sandbox login: `user_good` / `pass_good`.
+3. **History:** Plaid takes a few minutes to send it. Delta keeps checking.
+4. **Agent watch level:** pick Relaxed, Balanced or Watchful.
+
+After that Delta syncs every 6 hours and backs up daily.
 
 **Going live:** get [production access](plaid-trial.md), then reinstall fresh (remove the stack **and** its volume) and choose **Production**. Sandbox and production data don't mix, so the environment is locked once a bank is linked.
 
@@ -68,14 +72,7 @@ Data lives in the `delta-data` volume and survives updates. Delta keeps 7 daily 
 
 ## Connect an agent
 
-Open a console on the `delta` container (Portainer: **Containers → delta-delta-1 → Console**, `/bin/sh`), then:
-
-```bash
-npm run token -- create my-agent                 # read-only
-npm run token -- create my-agent --scope write   # can also edit budgets, recurring, categories
-```
-
-It prints a token and MCP configs to paste. Set `DELTA_URL` first. More in [Connect an agent](agents.md).
+Set `DELTA_URL` first, then open **Settings → Agents** in Delta, create a token and paste the config it shows into your agent. More in [Connect an agent](agents.md).
 
 ## Uninstall
 

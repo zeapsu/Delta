@@ -3,6 +3,7 @@ import { eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { settings } from "@/db/schema";
 import { withDefaults, type AnalysisSettings } from "@/lib/analysis";
+import { parseStoredProfile, PROFILE_KEY, type Profile } from "@/lib/profile";
 import { parseStoredKeys, resolvePlaidKeys, SETTINGS_KEY, type PlaidKeys, type StoredPlaidKeys } from "@/lib/plaid-keys";
 
 // customized = the user saved their own (or kept the defaults on purpose);
@@ -44,4 +45,33 @@ export function savePlaidKeys(keys: StoredPlaidKeys) {
       set: { value: json, updatedAt: sql`(unixepoch('now', 'subsec') * 1000)` },
     })
     .run();
+}
+
+// The time zone the server started with (TZ in .env; else the system's,
+// UTC in Docker), before any saved profile overrides it.
+const STARTUP_TZ = process.env.TZ || Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+export function getProfile(): Profile & { effectiveTimeZone: string; saved: boolean } {
+  const row = db.select({ value: settings.value }).from(settings).where(eq(settings.key, PROFILE_KEY)).get();
+  const p = parseStoredProfile(row?.value) ?? { name: null, timeZone: null };
+  return { ...p, effectiveTimeZone: p.timeZone ?? STARTUP_TZ, saved: Boolean(row) };
+}
+
+// Every date in Delta (today, this month, the greeting) uses the process's
+// local time, and Node re-reads process.env.TZ when it's assigned.
+export function applyTimeZone() {
+  process.env.TZ = getProfile().effectiveTimeZone;
+}
+
+export function saveProfile(patch: Partial<Profile>) {
+  const { name, timeZone } = { ...getProfile(), ...patch };
+  const json = JSON.stringify({ name, timeZone });
+  db.insert(settings)
+    .values({ key: PROFILE_KEY, value: json })
+    .onConflictDoUpdate({
+      target: settings.key,
+      set: { value: json, updatedAt: sql`(unixepoch('now', 'subsec') * 1000)` },
+    })
+    .run();
+  applyTimeZone();
 }
