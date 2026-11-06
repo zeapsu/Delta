@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { allowed, crossSiteWrite } from "@/lib/tailnet";
-import { bearerToken, requiredScope, scopeAllows } from "@/lib/api-auth";
+import { bearerToken, publicMcp, requiredScope, scopeAllows } from "@/lib/api-auth";
 import { lookupToken } from "@/lib/api-tokens";
 
 // Every API route sits behind the tailnet guard — the budgets, recurring and
@@ -13,8 +13,11 @@ import { lookupToken } from "@/lib/api-tokens";
 // Inside the tailnet, /api/v1 (the agent API) also needs a per-client bearer
 // token with the right scope (lib/api-auth.ts). Proxy runs on the Node.js
 // runtime in Next 16, so it can read the token table directly.
+//
+// DELTA_PUBLIC_MCP=1 opens /api/v1/mcp alone to any network; it still needs a
+// token (see publicMcp in lib/api-auth.ts).
 export async function proxy(req: NextRequest) {
-  if (!allowed(req)) {
+  if (!allowed(req) && !publicMcp(req.nextUrl.pathname)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   if (crossSiteWrite(req)) {
