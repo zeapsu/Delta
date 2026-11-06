@@ -151,4 +151,14 @@ assert(manualDates, "manual rule should get dates");
 assert.strictEqual(manualDates.lastDate, undefined, "manual rule has no live lastDate");
 assert.strictEqual(manualDates.nextDate, "2027-03-01", "anchor rolls forward past today");
 
+// Anchor moved past the last matched charge (Netflix last charged 2026-07-08):
+// a future anchor is the next date; a past one rolls forward by gapDays.
+const moved = (anchorDate: string) =>
+  partitionSeries(results, [{ ...rules[0], anchorDate }], today).nextDates.get(1);
+assert.deepStrictEqual(moved("2026-07-12"), { lastDate: "2026-07-08", nextDate: "2026-07-12" }, "future anchor wins over the detector");
+assert.deepStrictEqual(moved("2026-06-10"), { lastDate: "2026-07-08", nextDate: "2026-08-07" }, "anchor before the last charge: detector wins");
+assert.strictEqual(moved("2026-07-08")?.nextDate, "2026-08-07", "anchor on the last charge: detector wins");
+const manualFuture = partitionSeries(results, [{ ...rules[2], anchorDate: "2026-08-01" }], today).nextDates.get(3);
+assert.strictEqual(manualFuture?.nextDate, "2026-08-01", "manual rule with a future anchor: anchor is next");
+
 console.log("lib/recurring-check.ts: all assertions passed");

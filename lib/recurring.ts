@@ -183,8 +183,12 @@ function matches(series: RecurringSeries, rule: RecurringRule): boolean {
 }
 
 // Splits detected series into unreviewed suggestions (no rule matches) and
-// per-confirmed-rule dates: a matching live series supplies lastDate/nextDate;
-// otherwise (manual adds, stale series) the anchor rolls forward past today.
+// per-confirmed-rule dates. A matching live series supplies lastDate/nextDate,
+// unless the rule's anchor is newer than the series' last charge (the user or
+// an agent moved the date): then the anchor drives nextDate until a charge on
+// or after it posts. With no live series (manual adds, stale series) the
+// anchor drives it too. An anchor still ahead of today is the next date;
+// one on or before today rolls forward by gapDays past today.
 export function partitionSeries(
   series: RecurringSeries[],
   rules: RecurringRule[],
@@ -201,12 +205,12 @@ export function partitionSeries(
   for (const rule of rules) {
     if (rule.status !== "confirmed") continue;
     const live = series.find((s) => matches(s, rule));
-    if (live) {
+    if (live && live.lastDate >= rule.anchorDate) {
       nextDates.set(rule.id, { lastDate: live.lastDate, nextDate: live.nextDate });
     } else {
-      let next = addDays(rule.anchorDate, rule.gapDays);
+      let next = rule.anchorDate;
       while (next <= todayDate) next = addDays(next, rule.gapDays);
-      nextDates.set(rule.id, { nextDate: next });
+      nextDates.set(rule.id, live ? { lastDate: live.lastDate, nextDate: next } : { nextDate: next });
     }
   }
 

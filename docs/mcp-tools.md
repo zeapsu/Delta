@@ -29,7 +29,7 @@ Write tools are only listed for write-scoped tokens, and calls to them with a re
 | `set_budget` | Create or change a category's monthly budget. |
 | `delete_budget` | Remove a category's budget. |
 | `add_recurring_rule` | Confirm or dismiss a recurring charge (answer a suggestion with its `match_key`, or add one by hand). |
-| `update_recurring_rule` | Edit a confirmed rule's name, amount, cadence or anchor date. |
+| `update_recurring_rule` | Edit a confirmed rule's name, amount, cadence or anchor date. A future anchor date sets the next expected charge. |
 | `delete_recurring_rule` | Remove a rule, e.g. after a cancellation. If the charge continues, Delta suggests it again. |
 | `set_transaction_category` | Relabel a transaction, or with `all_from_merchant` every transaction from its merchant, now and on future syncs. |
 | `reset_transaction_category` | Undo a relabel and go back to the bank's category. |
