@@ -22,6 +22,9 @@ services:
       # How agents reach Delta (printed in their MCP configs), e.g.
       # http://192.168.1.20:3000. Optional.
       DELTA_URL: ${DELTA_URL:-}
+      # 1 lets /api/v1/mcp alone answer any network, for agents that call
+      # from the internet (token still required). Off by default.
+      DELTA_PUBLIC_MCP: ${DELTA_PUBLIC_MCP:-}
       # The header's Update pill links to the panel update steps.
       DELTA_INSTALL: stack
     ports:

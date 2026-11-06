@@ -34,6 +34,16 @@ npm run token -- create my-agent                                           # fro
 
 The agent's machine must be able to reach `DELTA_URL`: the same computer, or a device on your tailnet. Ask it something like "how much did I spend on food this month?" to check it works.
 
+### Agents that call from the internet
+
+Some hosted agents connect from their provider's servers, not from your devices. To serve one, publish only the MCP path and let it past the network check:
+
+1. Set `DELTA_PUBLIC_MCP=1` (in `.env`, or in your panel's environment settings for a home server app install) and restart Delta. `/api/v1/mcp` then answers from any network; every other route keeps the network check.
+2. Publish that one path, for example with Tailscale Funnel: `sudo tailscale funnel --bg --https=8443 --set-path /api/v1/mcp http://<delta-host>:3000/api/v1/mcp`. Don't funnel the whole port: pages have no login.
+3. Give the agent a **Read** token and the URL `https://<machine>.<tailnet>.ts.net:8443/api/v1/mcp`.
+
+The token is then the only thing between the internet and your data, so revoke it if it leaks.
+
 ## What the agent gets
 
 - **Tools** for status, accounts, transactions, spending, cash flow, budgets, recurring charges, net worth and investments, plus write tools for write tokens. See [MCP tools](mcp-tools.md).

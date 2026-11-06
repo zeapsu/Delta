@@ -27,6 +27,14 @@ export function tokenPrefix(token: string): string {
 // write tools check for write scope themselves (lib/mcp.ts).
 export const MCP_PATH = "/api/v1/mcp";
 
+// DELTA_PUBLIC_MCP=1 lets the MCP endpoint, and only that exact path, through
+// the network guard, for agents that call from the internet (e.g. through
+// Tailscale Funnel scoped to this path). The bearer token is then the only gate,
+// so requiredScope() still demands one. Off by default.
+export function publicMcp(pathname: string, flag = process.env.DELTA_PUBLIC_MCP): boolean {
+  return flag === "1" && pathname === MCP_PATH;
+}
+
 export function isV1(pathname: string): boolean {
   return pathname === "/api/v1" || pathname.startsWith("/api/v1/");
 }
