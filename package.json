@@ -19,7 +19,7 @@
   "dependencies": {
     "better-sqlite3": "^13.0.3",
     "drizzle-orm": "^0.45.4",
-    "next": "16.4.3",
+    "next": "16.4.5",
     "plaid": "^49.0.0",
     "react": "19.3.1",
     "react-dom": "19.3.1",
@@ -40,7 +40,7 @@
     "@typescript/native": "npm:typescript@^7.0.2",
     "drizzle-kit": "^0.31.11",
     "eslint": "^10",
-    "eslint-config-next": "16.4.3",
+    "eslint-config-next": "16.4.5",
     "tailwindcss": "^4",
     "typescript": "npm:@typescript/typescript6@^6.0.2"
   }
