@@ -8,7 +8,7 @@ const BREW = "delta backup && brew upgrade delta && brew services restart delta"
 // Home server app (stack) installs update from their app panel, not a shell.
 const STACK_GUIDE = "https://zeapsu.github.io/Delta/docs/home-server#update";
 
-// Subtle "Update" pill in the header when the build is behind main
+// Subtle "Update" pill in the header when the build lacks the latest release
 // (lib/update-check.ts). It can't update by itself (that would need Docker
 // control, i.e. root, from a web app), so it copies the command
 // to run on the host.
