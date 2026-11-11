@@ -5,7 +5,8 @@ import type { Page } from "@playwright/test";
 //  - nothing sticks out of the card (or dialog) it sits in, and no control is
 //    wider than its column,
 //  - on phone widths every form field renders at 16px or more (below that iOS
-//    zooms the page on focus).
+//    zooms the page on focus), and date fields carry the styles that keep
+//    iOS Safari's native control inside its column.
 // Content inside a horizontal scroller (tables in `overflow-x-auto`) or a
 // clipping box is skipped: that is the intended place for wide content.
 // Each problem names the element so the failure reads without a screenshot.
@@ -72,6 +73,13 @@ export function layoutProblems(page: Page): Promise<string[]> {
           problems.push(`${name(el)} is ${px(over)} wider than the column it sits in`);
           continue;
         }
+      }
+
+      // iOS Safari draws date fields as a native control with a wide minimum
+      // width that ignores its column (#135). No browser in CI draws that
+      // control, so check the styles that tame it instead.
+      if (el.matches('input[type="date"]') && (style.appearance !== "none" || style.minWidth !== "0px")) {
+        problems.push(`${name(el)} is a date field without appearance: none and min-width: 0, so it overflows its column on iOS (use .field)`);
       }
 
       if (phone && el.matches("input, select, textarea")) {
