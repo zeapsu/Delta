@@ -10,6 +10,7 @@
 // money in dollars. The API stays in cents; conversion happens here.
 import type { Scope } from "@/lib/api-auth";
 import { CATEGORIES } from "@/lib/categories";
+import { todayISO } from "@/lib/months";
 import { ANALYSIS_DEFAULTS, analysisText, withDefaults, type AnalysisSettings } from "@/lib/analysis";
 
 export const SERVER_INFO = { name: "delta", version: "1.0.0" };
@@ -156,7 +157,7 @@ export type AsOf = {
   warnings: string[];
 };
 
-export function asOf(s: Status, today: string = new Date().toISOString().slice(0, 10)): AsOf {
+export function asOf(s: Status, today: string = todayISO()): AsOf {
   const warnings: string[] = [];
   const newest = [s.lastTransaction, s.lastSnapshot].filter((d): d is string => !!d).sort().at(-1);
   if (!newest) {

@@ -18,7 +18,9 @@ export type NetWorthData = {
   accounts: { name: string; values: (number | null)[] }[];
 };
 
-// Per-account per-day snapshots (latest per day wins, debt balances negated);
+// Per-account per-day snapshots (latest per day wins, debt balances negated).
+// Days are in the saved time zone, like every other date in the app: in UTC an
+// evening sync west of Greenwich would land on tomorrow.
 // forward-fill across missing days happens in JS (lib/networth.ts) so an
 // account's day is carried forward, not dropped.
 export async function getNetWorthData(): Promise<NetWorthData> {
@@ -30,10 +32,10 @@ export async function getNetWorthData(): Promise<NetWorthData> {
     SELECT account_id, account_name, day, adj FROM (
       SELECT bs.account_id,
              a.name AS account_name,
-             date(bs.snapshot_at / 1000, 'unixepoch') AS day,
+             date(bs.snapshot_at / 1000, 'unixepoch', 'localtime') AS day,
              CASE WHEN a.type IN (${debtTypes}) THEN -bs.current_balance
                   ELSE bs.current_balance END AS adj,
-             ROW_NUMBER() OVER (PARTITION BY bs.account_id, date(bs.snapshot_at/1000,'unixepoch')
+             ROW_NUMBER() OVER (PARTITION BY bs.account_id, date(bs.snapshot_at / 1000, 'unixepoch', 'localtime')
                                 ORDER BY bs.snapshot_at DESC) AS rn
       FROM balance_snapshots bs JOIN accounts a ON a.id = bs.account_id
     ) WHERE rn = 1 ORDER BY day
