@@ -33,6 +33,18 @@ test("password locks pages and dashboard routes, not agents or the sync timer", 
   // The owner's session cookie still works.
   expect((await owner.get("/api/budgets")).status()).toBe(200);
 
+  // Logging out ends every session, so a copy of the cookie is worth nothing
+  // afterwards. Only someone logged in can do that.
+  const second = await newRequest.newContext({ baseURL });
+  expect((await second.post("/api/auth/login", { data: { password: PASSWORD } })).status()).toBe(200);
+  const copy = (await second.storageState()).cookies.find((c) => c.name === "delta_session")!.value;
+  expect((await stranger.post("/api/auth/logout")).status()).toBe(200);
+  expect((await owner.get("/api/budgets")).status()).toBe(200);
+  expect((await second.post("/api/auth/logout")).status()).toBe(200);
+  expect((await second.get("/api/budgets")).status()).toBe(401);
+  expect((await owner.get("/api/budgets")).status()).toBe(401);
+  expect((await stranger.get("/api/budgets", { headers: { cookie: `delta_session=${copy}` } })).status()).toBe(401);
+
   await page.goto("/spending");
   await expect(page).toHaveURL(/\/login\?next=%2Fspending/);
   await expect(page.getByRole("navigation")).toHaveCount(0);

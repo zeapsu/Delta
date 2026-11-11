@@ -8,10 +8,10 @@ Delta can ask for a password before showing any page. It's off by default, and y
 
 ## Turn it on
 
-**Settings → Password**, enter a password (8 characters or more), **Turn on**. The same card changes it, turns it off, and logs this device out.
+**Settings → Password**, enter a password (8 characters or more), **Turn on**. The same card changes it, turns it off, and logs you out.
 
 - Each browser stays logged in for 30 days.
-- Changing the password logs out every other device.
+- **Log out everywhere** ends the session on every device, this one included. Changing the password logs out every other device.
 - 10 wrong tries from one address lock that address out for 15 minutes, and 50 wrong tries overall lock the login for everyone until the 15 minutes pass. Devices that are already logged in keep working.
 
 ## What it covers

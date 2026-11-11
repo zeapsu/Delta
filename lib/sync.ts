@@ -41,20 +41,34 @@ export type SyncResult = SyncCounts & { errors: SyncError[] };
 import { safePlaidError } from "@/lib/plaid-errors";
 export { safePlaidError };
 
-function applySync(
-  item: Item,
+// Insert or refresh an item's accounts. Also run when a bank is linked (the
+// exchange route), so a connection has its accounts even if its first sync
+// fails: the duplicate check on the next link compares against them.
+export function saveAccounts(
+  tx: Pick<typeof db, "insert">,
+  itemId: number,
   accountsPayload: AccountBase[],
-  addedOrModified: PlaidTransaction[],
-  removedIds: string[],
-  nextCursor: string,
 ) {
-  db.transaction((tx) => {
-    for (const a of accountsPayload) {
-      tx
-        .insert(accounts)
-        .values({
-          itemId: item.id,
-          plaidAccountId: a.account_id,
+  for (const a of accountsPayload) {
+    tx
+      .insert(accounts)
+      .values({
+        itemId,
+        plaidAccountId: a.account_id,
+        name: a.name,
+        officialName: a.official_name ?? null,
+        type: a.type,
+        subtype: a.subtype ?? null,
+        mask: a.mask ?? null,
+        currentBalance:
+          a.balances.current != null ? toCents(a.balances.current) : null,
+        availableBalance:
+          a.balances.available != null ? toCents(a.balances.available) : null,
+        currency: a.balances.iso_currency_code ?? "USD",
+      })
+      .onConflictDoUpdate({
+        target: accounts.plaidAccountId,
+        set: {
           name: a.name,
           officialName: a.official_name ?? null,
           type: a.type,
@@ -63,28 +77,25 @@ function applySync(
           currentBalance:
             a.balances.current != null ? toCents(a.balances.current) : null,
           availableBalance:
-            a.balances.available != null ? toCents(a.balances.available) : null,
+            a.balances.available != null
+              ? toCents(a.balances.available)
+              : null,
           currency: a.balances.iso_currency_code ?? "USD",
-        })
-        .onConflictDoUpdate({
-          target: accounts.plaidAccountId,
-          set: {
-            name: a.name,
-            officialName: a.official_name ?? null,
-            type: a.type,
-            subtype: a.subtype ?? null,
-            mask: a.mask ?? null,
-            currentBalance:
-              a.balances.current != null ? toCents(a.balances.current) : null,
-            availableBalance:
-              a.balances.available != null
-                ? toCents(a.balances.available)
-                : null,
-            currency: a.balances.iso_currency_code ?? "USD",
-          },
-        })
-        .run();
-    }
+        },
+      })
+      .run();
+  }
+}
+
+function applySync(
+  item: Item,
+  accountsPayload: AccountBase[],
+  addedOrModified: PlaidTransaction[],
+  removedIds: string[],
+  nextCursor: string,
+) {
+  db.transaction((tx) => {
+    saveAccounts(tx, item.id, accountsPayload);
 
     const accountRows = tx
       .select({ id: accounts.id, plaidAccountId: accounts.plaidAccountId })

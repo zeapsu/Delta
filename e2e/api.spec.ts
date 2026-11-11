@@ -167,6 +167,26 @@ test("overlapping syncs queue up instead of doubling anything", async ({ request
   expect((await request.post("/api/plaid/sync", { data: { item_id: 999_999 } })).status()).toBe(404);
 });
 
+test("linking a bank that is already connected is refused, not doubled", async ({ request }) => {
+  const h = bearer(tokens().read);
+  const state = async () => ({
+    accounts: (await (await request.get("/api/v1/accounts", { headers: h })).json()).accounts.length,
+    connections: (await (await request.get("/api/v1/status", { headers: h })).json()).connections.length,
+  });
+  const before = await state();
+
+  // Plaid makes a new item with new account ids for the same login.
+  const res = await request.post("/api/plaid/exchange", {
+    data: { public_token: "public-sandbox-mock-again", institution_name: "Mock Bank" },
+  });
+  expect(res.status()).toBe(409);
+  expect(await res.json()).toEqual({ error: "Mock Bank is already connected" });
+  expect(await state()).toEqual(before);
+  // The extra item is removed at Plaid, where it would be billed.
+  const { removed } = await (await request.post(`${MOCK_PLAID_URL}/__mock/removed`)).json();
+  expect(removed).toEqual(["access-sandbox-mock-2"]);
+});
+
 test("a relabel made while a charge is pending survives it posting", async ({ request }) => {
   const read = bearer(tokens().read);
   const write = bearer(tokens().write);

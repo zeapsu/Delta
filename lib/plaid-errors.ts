@@ -18,6 +18,10 @@ export const REAUTH_ERROR_CODES = new Set([
   "NO_ACCOUNTS",
 ]);
 
+// The item no longer exists at Plaid for these keys (removed there, or by the
+// user at the bank): update mode can't repair it, only a new link can.
+export const GONE_ERROR_CODES = new Set(["ITEM_NOT_FOUND", "INVALID_ACCESS_TOKEN"]);
+
 function shortString(v: unknown): string | null {
   return typeof v === "string" ? v.slice(0, 100) : null;
 }
