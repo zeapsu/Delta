@@ -2,8 +2,7 @@ import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { recurringRules } from "@/db/schema";
-
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+import { isDate } from "@/lib/months";
 
 type Fields = {
   name: string;
@@ -36,7 +35,7 @@ function validateFields(body: Record<string, unknown>): Fields | string {
   ) {
     return "Invalid gapDays";
   }
-  if (typeof anchorDate !== "string" || !DATE_RE.test(anchorDate)) {
+  if (!isDate(anchorDate)) {
     return "Invalid anchorDate";
   }
 
