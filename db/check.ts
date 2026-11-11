@@ -1,6 +1,6 @@
 import assert from "node:assert";
 import path from "node:path";
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 
 // Fresh DB per run so reruns don't trip unique constraints.
@@ -86,6 +86,14 @@ async function main() {
     "transaction.accountId should match account.id",
   );
   assert.strictEqual(readTransactions[0].pending, false, "pending should default to false");
+
+  // The file holds Plaid access tokens: readable by its owner only.
+  if (process.platform !== "win32") {
+    for (const suffix of ["", "-wal", "-shm"]) {
+      const mode = statSync(process.env.DATABASE_PATH + suffix).mode & 0o777;
+      assert.strictEqual(mode, 0o600, `delta-check.db${suffix} should be owner-only, is ${mode.toString(8)}`);
+    }
+  }
 
   console.log("db/check.ts: all assertions passed");
 }
