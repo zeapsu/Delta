@@ -4,7 +4,8 @@ import { DEBT_TYPES, formatCents } from "@/lib/format";
 import { getNetWorthData } from "@/lib/networth-data";
 import { CHART_COLORS } from "@/lib/colors";
 import { NetWorthLine, type NetWorthPoint, type NetWorthSeriesDef } from "@/app/charts";
-import { Card, Change, Empty, Meter, Page, Stat } from "@/app/ui";
+import { Card, Change, Empty, Meter, Money, Page, Stat } from "@/app/ui";
+import { shortDate } from "@/lib/months";
 
 export const dynamic = "force-dynamic";
 
@@ -67,14 +68,14 @@ export default async function NetWorthPage() {
           <Stat
             size="lg"
             label="Current"
-            value={formatCents(latest)}
+            value={latest === null ? "—" : <Money cents={latest} />}
             sub={
               latest !== null && first !== null && rows.length > 1 ? (
-                <Change current={latest} previous={first} suffix={`since ${rows[0].day}`} goodWhenUp />
+                <Change current={latest} previous={first} suffix={`since ${shortDate(rows[0].day)}`} goodWhenUp />
               ) : undefined
             }
           />
-          {high !== null && rows.length > 1 ? <Stat label="All-time high" value={formatCents(high)} /> : null}
+          {high !== null && rows.length > 1 && high !== latest ? <Stat label="All-time high" value={formatCents(high)} /> : null}
         </div>
         {rows.length === 0 ? (
           <Empty>Appears after the first sync.</Empty>

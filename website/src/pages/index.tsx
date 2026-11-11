@@ -12,11 +12,12 @@ import styles from "./index.module.css";
 const NAV = ["Overview", "Spending", "Transactions", "Budgets", "Recurring", "Net worth"];
 
 const CATEGORIES = [
-  { name: "Food and drink", amount: 612, color: "var(--chart-1)" },
-  { name: "Rent and utilities", amount: 540, color: "var(--chart-2)" },
-  { name: "Transportation", amount: 286, color: "var(--chart-3)" },
-  { name: "Shopping", amount: 241, color: "var(--chart-5)" },
-  { name: "Entertainment", amount: 163, color: "var(--chart-6)" },
+  // Same pinned hues as the app (lib/colors.ts): no category wears the green or red that mean money in / over budget.
+  { name: "Food and drink", amount: 612, color: "var(--chart-3)" },
+  { name: "Rent and utilities", amount: 540, color: "var(--chart-1)" },
+  { name: "Transportation", amount: 286, color: "var(--chart-5)" },
+  { name: "Shopping", amount: 241, color: "var(--chart-7)" },
+  { name: "Entertainment", amount: 163, color: "var(--chart-8)" },
 ];
 const MAX = Math.max(...CATEGORIES.map((c) => c.amount));
 
@@ -30,7 +31,6 @@ function Hero() {
           Install from your app panel
           <span aria-hidden>→</span>
         </Link>
-        <p className={styles.platforms}>Self-hosted · amd64 + arm64 · AGPL-3.0</p>
         <h1 className={styles.title}>
           Your money,
           <br />
@@ -47,6 +47,7 @@ function Hero() {
             Read the docs
           </Link>
         </div>
+        <p className={styles.platforms}>Free and open source · Docker or Homebrew</p>
       </div>
       <Preview />
     </header>
@@ -69,7 +70,7 @@ function Preview() {
       <div className={styles.previewBody}>
         <div className={styles.stats}>
           <Stat label="Net worth" value="$48,210" change="+$1,320 this month" tone="positive" />
-          <Stat label="Spent this month" value="$1,842" change="$96 pending" />
+          <Stat label="This month" value="$1,842" change="$96 pending" />
           <Stat label="Cash flow" value="+$1,260" change="In $3,102 · Out $1,842" tone="positive" />
         </div>
         <div className={styles.previewCols}>
@@ -93,8 +94,13 @@ function Preview() {
               ))}
             </ul>
           </div>
-          <div className={`surface ${styles.card} ${styles.agent}`}>
+          <div className={`glass ${styles.card} ${styles.agent}`}>
             <div className={styles.cardHead}>
+              <span className={styles.windowDots} aria-hidden>
+                <i />
+                <i />
+                <i />
+              </span>
               <span className={styles.cardTitle}>Your agent</span>
               <span className={styles.eyebrow}>via MCP</span>
             </div>
@@ -276,7 +282,7 @@ function Install() {
     <section id="install" className={styles.section}>
       <h2 className={styles.sectionTitle}>Install it your way</h2>
       <div className={styles.installGrid}>
-        <div className={`surface ${styles.installCard}`}>
+        <div className={`surface ${styles.installCard} ${styles.installTall}`}>
           <span className={styles.eyebrow}>Home server app</span>
           <h3>From your app panel</h3>
           <p>
@@ -298,18 +304,26 @@ function Install() {
           <span className={styles.eyebrow}>Terminal</span>
           <h3>From a shell</h3>
           <p>
-            Installs, starts Delta and opens it. Also adds your phone, updates and uninstalls.
+            Installs, starts Delta and opens it. <code>./delta.sh</code> then updates, adds your phone or uninstalls.
           </p>
           <div className={styles.stack}>
             <CodeBlock language="bash" title="On your server">
               {INSTALL_CMD}
             </CodeBlock>
-            <CodeBlock language="bash" title="Later, from the delta folder">
-              {"./delta.sh phone      # optional\n./delta.sh update\n./delta.sh uninstall"}
-            </CodeBlock>
           </div>
           <Link className={styles.installLink} to="/docs/self-hosting#terminal-install">
             Terminal guide <span aria-hidden>→</span>
+          </Link>
+        </div>
+        <div className={`surface ${styles.installCard}`}>
+          <span className={styles.eyebrow}>Homebrew</span>
+          <h3>On your Mac, no Docker</h3>
+          <p>Runs as a background service. Add your phone later with one command.</p>
+          <div className={styles.stack}>
+            <CodeBlock language="bash">{"brew install zeapsu/tap/delta\nbrew services start delta"}</CodeBlock>
+          </div>
+          <Link className={styles.installLink} to="/docs/homebrew">
+            Homebrew guide <span aria-hidden>→</span>
           </Link>
         </div>
       </div>
@@ -387,6 +401,9 @@ export default function Home(): ReactNode {
             </Link>
             <Link className="btn" to="/docs/self-hosting#terminal-install">
               Terminal install
+            </Link>
+            <Link className="btn" to="/docs/homebrew">
+              Homebrew
             </Link>
             <Link className="btn" href="https://github.com/zeapsu/Delta">
               View on GitHub

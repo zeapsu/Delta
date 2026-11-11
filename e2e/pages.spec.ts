@@ -69,10 +69,42 @@ const STATES: [string, string, ((page: Page) => Promise<void>)?][] = [
     },
   ],
   [
+    "/transactions filters open",
+    "/transactions",
+    async (page) => {
+      // Phone only: the filters fold behind a button next to the search field.
+      const filters = page.getByRole("button", { name: /^Filters/ }).filter({ visible: true });
+      if (await filters.count()) await filters.click();
+    },
+  ],
+  [
+    "More sheet",
+    "/",
+    async (page) => {
+      // Phone only: the tab bar's last tab opens the rest of the pages.
+      const more = page.getByRole("button", { name: "More", exact: true }).filter({ visible: true });
+      if (await more.count()) {
+        await more.click();
+        await expect(page.getByRole("dialog", { name: "More pages" })).toBeVisible();
+      }
+    },
+  ],
+  [
+    "/budgets edit sheet",
+    "/budgets",
+    async (page) => {
+      const edit = page.getByRole("button", { name: /^Edit .* budget$/ }).filter({ visible: true }).first();
+      if (await edit.count()) {
+        await edit.click();
+        await expect(page.getByRole("dialog")).toBeVisible();
+      }
+    },
+  ],
+  [
     "/recurring confirm form",
     "/recurring",
     async (page) => {
-      const yes = page.getByRole("button", { name: "Yes, track it" }).filter({ visible: true }).first();
+      const yes = page.getByRole("button", { name: "Track", exact: true }).filter({ visible: true }).first();
       if (await yes.count()) await yes.click();
     },
   ],
@@ -97,6 +129,36 @@ test("nothing overflows the screen or its card, and fields don't trigger iOS zoo
     }
   }
   expect(found).toEqual([]);
+});
+
+test("phone tab bar: four tabs, and More reaches the rest", async ({ page }, info) => {
+  test.skip(info.project.name === "desktop");
+  await page.goto("/");
+  const bar = page.getByRole("navigation", { name: "Primary" }).filter({ visible: true });
+  await expect(bar.getByRole("link")).toHaveText(["Overview", "Spending", "Transactions", "Budgets"]);
+  await expect(bar.getByRole("link", { name: "Overview" })).toHaveAttribute("aria-current", "page");
+
+  await bar.getByRole("link", { name: "Budgets" }).click();
+  await expect(page.locator("h1").first()).toHaveText(/Budgets/);
+
+  await bar.getByRole("button", { name: "More", exact: true }).click();
+  const sheet = page.getByRole("dialog", { name: "More pages" });
+  await expect(sheet.getByRole("link")).toHaveText([/Recurring/, /Net worth/, /Investments/, /Settings/]);
+  const axe = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+  expect(axe.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+
+  await sheet.getByRole("link", { name: /Net worth/ }).click();
+  await expect(page.locator("h1").first()).toHaveText(/Net worth/);
+  await expect(sheet).toBeHidden();
+});
+
+test("phone transactions list shows each amount without scrolling sideways", async ({ page, viewport }, info) => {
+  test.skip(info.project.name === "desktop");
+  await page.goto("/transactions");
+  const amount = page.locator("main ul ul > li").first().locator("span.tabular-nums").last();
+  await expect(amount).toBeVisible();
+  const box = await amount.boundingBox();
+  expect(box!.x + box!.width).toBeLessThanOrEqual(viewport!.width);
 });
 
 test("spending shows the fixture's categories", async ({ page }) => {

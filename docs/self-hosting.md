@@ -188,7 +188,7 @@ docker compose up -d --build
 
 With the override, `delta` drops the published port and runs `next start -H $DELTA_BIND`, so it answers on your Tailscale IP only (not on your LAN or the public interface), and `jobs` reaches it on that IP instead of loopback. `DELTA_BIND` must be your Tailscale IP. It needs Docker Compose 2.24 or newer (`docker compose version`).
 
-To check it worked, open Delta from your phone and click **Connect account**. If Plaid Link opens, the API sees your real tailnet address.
+To check it worked, open Delta from your phone and click **Connect account** (under Accounts on Overview). If Plaid Link opens, the API sees your real tailnet address.
 
 ### First-run check
 

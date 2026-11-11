@@ -162,6 +162,7 @@ export async function budgetProgress(m: string): Promise<BudgetProgress[]> {
   });
 }
 
-export function budgetTone(pct: number): "positive" | "warning" | "negative" {
-  return pct > 100 ? "negative" : pct >= 80 ? "warning" : "positive";
+// On track stays ink: color only shows up when a budget needs attention.
+export function budgetTone(pct: number): "ink" | "warning" | "negative" {
+  return pct > 100 ? "negative" : pct >= 80 ? "warning" : "ink";
 }

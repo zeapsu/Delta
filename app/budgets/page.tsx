@@ -4,9 +4,9 @@ import { transactions } from "@/db/schema";
 import { formatCategory, formatCents } from "@/lib/format";
 import { budgetProgress, budgetTone, isSpend } from "@/lib/insights";
 import { currentMonth, recentMonths, shortMonthLabel } from "@/lib/months";
-import { BudgetForm, DeleteBudgetButton } from "./budget-form";
+import { BudgetForm, EditBudgetButton } from "./budget-form";
 import { BudgetTrendChart, type BudgetTrendPoint } from "@/app/charts";
-import { Card, Empty, Meter, Page, Stat } from "@/app/ui";
+import { Card, Empty, Meter, Money, Page, Stat } from "@/app/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -70,7 +70,7 @@ export default async function BudgetsPage() {
             <Stat
               size="lg"
               label="Spent of budgeted"
-              value={formatCents(totalSpent)}
+              value={<Money cents={totalSpent} />}
               sub={`of ${formatCents(totalBudget)} · ${formatCents(Math.max(totalBudget - totalSpent, 0))} left`}
             />
             <Stat
@@ -100,10 +100,6 @@ export default async function BudgetsPage() {
         </Card>
       ) : null}
 
-      <Card title="Set a budget" ask={false}>
-        <BudgetForm categories={categories} />
-      </Card>
-
       {budgetRows.length === 0 ? (
         <Card>
           <Empty>No budgets yet.</Empty>
@@ -116,12 +112,14 @@ export default async function BudgetsPage() {
               <Card
                 key={b.category}
                 title={formatCategory(b.category)}
-                action={<DeleteBudgetButton category={b.category} />}
+                action={<EditBudgetButton category={b.category} monthlyAmount={b.monthlyAmount} />}
               >
                 <div className="flex items-end justify-between gap-3">
                   <Stat
                     label={remaining >= 0 ? "Left this month" : "Over budget"}
-                    value={formatCents(Math.abs(remaining))}
+                    value={
+                      <span className={remaining < 0 ? "text-negative" : ""}>{formatCents(Math.abs(remaining))}</span>
+                    }
                   />
                   <span className="text-right text-xs text-muted tabular-nums">
                     {formatCents(b.net)} / {formatCents(b.monthlyAmount)}
@@ -141,6 +139,10 @@ export default async function BudgetsPage() {
           })}
         </div>
       )}
+
+      <Card title="Add a budget" ask={false}>
+        <BudgetForm categories={categories} />
+      </Card>
     </Page>
   );
 }

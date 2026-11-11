@@ -34,7 +34,7 @@ import { greeting as greet } from "@/lib/profile";
 import { Welcome } from "./welcome";
 import { hint } from "@/lib/plaid-keys";
 import { getLogin } from "@/lib/login-store";
-import { Card, Change, Empty, Meter, Page, Stat, Steps, Tint } from "./ui";
+import { Card, Change, Empty, Meter, Money, Page, Stat, Steps, Tint } from "./ui";
 
 export const dynamic = "force-dynamic";
 
@@ -165,13 +165,27 @@ export default async function Home() {
   const broken = institutions.filter((i) => i.needsReauth);
 
   const greeting = greet(new Date().getHours(), profile.name);
+  const lastSynced = allItems.reduce<Date | null>(
+    (latest, i) => (i.lastSyncedAt && (!latest || i.lastSyncedAt > latest) ? i.lastSyncedAt : latest),
+    null,
+  );
 
   return (
     <Page
       wide
       title={greeting}
-      subtitle={new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
-      actions={<PlaidButtons />}
+      subtitle={
+        <>
+          {/* Short on phones so the date and sync time stay on one line beside Ask Agent. */}
+          <span className="sm:hidden">
+            {new Date().toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
+          </span>
+          <span className="hidden sm:inline">
+            {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
+          </span>
+          {lastSynced ? ` · synced ${timeAgo(lastSynced)}` : ""}
+        </>
+      }
     >
       {broken.length > 0 ? (
         <a
@@ -247,7 +261,7 @@ export default async function Home() {
             <Stat
               size="lg"
               label="Today"
-              value={formatCents(net)}
+              value={<Money cents={net} />}
               sub={
                 history.length > 1 && baseline ? (
                   <Change current={net} previous={baseline.net_worth} suffix="in 30 days" goodWhenUp />
@@ -275,7 +289,7 @@ export default async function Home() {
           <Stat
             size="lg"
             label={`Spent through ${shortDate(`${month}-${String(day).padStart(2, "0")}`)}`}
-            value={formatCents(spentSoFar)}
+            value={<Money cents={spentSoFar} />}
             sub={
               <Change
                 current={spentSoFar}
@@ -332,11 +346,13 @@ export default async function Home() {
           ) : (
             <>
               <p className="text-sm">
-                {overCount > 0
-                  ? `${overCount} over budget`
-                  : nearCount > 0
-                    ? `${nearCount} close to the limit`
-                    : "Everything on track"}
+                <span className={overCount > 0 ? "font-medium text-negative" : nearCount > 0 ? "font-medium text-warning" : ""}>
+                  {overCount > 0
+                    ? `${overCount} over budget`
+                    : nearCount > 0
+                      ? `${nearCount} close to the limit`
+                      : "Everything on track"}
+                </span>
                 <span className="text-muted"> · {budgetRows.length} budgets</span>
               </p>
               <ul className="flex flex-col gap-3">
@@ -344,7 +360,7 @@ export default async function Home() {
                   <li key={b.category} className="flex flex-col gap-1.5">
                     <div className="flex items-center justify-between gap-3 text-sm">
                       <span className="truncate">{formatCategory(b.category)}</span>
-                      <span className="tabular-nums text-muted">
+                      <span className={`tabular-nums ${b.pct > 100 ? "text-negative" : "text-muted"}`}>
                         {Math.round(b.pct)}%{b.pct > 100 ? " · over" : ""}
                       </span>
                     </div>
@@ -429,7 +445,10 @@ export default async function Home() {
         </Card>
       </div>
 
-      <h2 id="accounts" className="mt-2 scroll-mt-16 text-lg font-semibold tracking-tight">Accounts</h2>
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+        <h2 id="accounts" className="scroll-mt-16 text-lg font-semibold tracking-tight">Accounts</h2>
+        <PlaidButtons compact />
+      </div>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 lg:gap-5">
         {institutions.map((inst) => {
           const subtotal = inst.accounts.reduce((sum, a) => sum + signed(a), 0);

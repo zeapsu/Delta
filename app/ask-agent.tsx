@@ -110,7 +110,7 @@ export function AskAgent({ scope = "card" }: { scope?: "card" | "page" }) {
       className={
         scope === "page"
           ? "btn btn-sm"
-          : "shrink-0 rounded-full px-2 py-0.5 text-xs text-muted transition-colors hover:bg-fill hover:text-foreground"
+          : "shrink-0 rounded-full border border-hairline bg-fill px-2.5 py-0.5 text-xs font-medium text-muted transition-colors hover:bg-fill-strong hover:text-foreground"
       }
     >
       <span aria-live="polite">{label}</span>

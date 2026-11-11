@@ -39,6 +39,8 @@
   --chart-4: #008300;
   --chart-5: #4a3aa7;
   --chart-6: #e34948;
+  --chart-7: #e87ba4;
+  --chart-8: #eb6834;
   --chart-grid: #e2e2e4;
 
   --font-sans: "Geist", ui-sans-serif, system-ui, -apple-system, sans-serif;
@@ -122,6 +124,8 @@
   --chart-4: #008300;
   --chart-5: #9085e9;
   --chart-6: #e66767;
+  --chart-7: #d55181;
+  --chart-8: #d95926;
   --chart-grid: #26262a;
 }
 
