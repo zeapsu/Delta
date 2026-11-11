@@ -38,19 +38,31 @@ const SyncIcon = ({ spinning }: { spinning: boolean }) => (
   </svg>
 );
 
+const MoreIcon = () => (
+  <svg viewBox="0 0 24 24" aria-hidden className="h-4 w-4" fill="currentColor">
+    <circle cx="5" cy="12" r="1.6" />
+    <circle cx="12" cy="12" r="1.6" />
+    <circle cx="19" cy="12" r="1.6" />
+  </svg>
+);
+
 // Per-connection control. Healthy: a quiet sync icon that refreshes just this
 // connection. When Plaid says the user must log in again (needsReauth), it
 // becomes a red Reconnect pill that runs Link update mode (#62) — the item
 // keeps its access token, so success only needs a sync and a refresh.
+// Beside it, "⋯" opens a sheet where the connection can be removed: the
+// destructive step sits behind the sheet and a second, spelled-out confirm.
 export default function ConnectionButton({
   itemId,
   institution,
+  accountCount,
   needsReauth,
   transientError,
   syncedLabel,
 }: {
   itemId: number;
   institution: string;
+  accountCount: number;
   needsReauth: boolean;
   transientError: string | null;
   syncedLabel: string | null;
@@ -62,6 +74,10 @@ export default function ConnectionButton({
   // Clearing the token after success force-exits Link, which may fire onExit
   // while the sync is still running; this keeps busy set until it finishes.
   const succeeded = useRef(false);
+  const sheet = useRef<HTMLDialogElement>(null);
+  const [confirming, setConfirming] = useState(false);
+  const [removing, setRemoving] = useState(false);
+  const [removeError, setRemoveError] = useState<string | null>(null);
 
   const { open, ready, error: linkError } = usePlaidLink({
     token,
@@ -128,8 +144,28 @@ export default function ConnectionButton({
       });
   };
 
+  const remove = () => {
+    setRemoving(true);
+    setRemoveError(null);
+    fetch("/api/plaid/items", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ item_id: itemId }),
+    })
+      .then(async (res) => {
+        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "Could not remove it. Try again.");
+        sheet.current?.close();
+        router.refresh();
+      })
+      .catch((err) => setRemoveError(err.message))
+      .finally(() => setRemoving(false));
+  };
+
+  const accountsLabel = `${accountCount} ${accountCount === 1 ? "account" : "accounts"}`;
+
   return (
     <span className="flex flex-col items-end gap-1">
+      <span className="flex items-center gap-1">
       {needsReauth ? (
         <button
           type="button"
@@ -161,7 +197,62 @@ export default function ConnectionButton({
           ) : null}
         </button>
       )}
+        <button
+          type="button"
+          aria-haspopup="dialog"
+          aria-label={`Manage ${institution}`}
+          title="Manage connection"
+          onClick={() => {
+            setConfirming(false);
+            setRemoveError(null);
+            sheet.current?.showModal();
+          }}
+          className="flex h-8 w-7 items-center justify-center rounded-full text-muted transition-colors hover:bg-fill hover:text-foreground"
+        >
+          <MoreIcon />
+        </button>
+      </span>
       {shown && <span className="text-xs text-negative">{shown}</span>}
+
+      <dialog
+        ref={sheet}
+        aria-label={`Manage ${institution}`}
+        onClick={(e) => e.target === sheet.current && !removing && sheet.current?.close()}
+        className="glass sheet mx-auto mt-auto mb-0 w-full max-w-none rounded-t-3xl rounded-b-none p-0 pb-[env(safe-area-inset-bottom)] text-left text-foreground sm:m-auto sm:w-[calc(100%-2rem)] sm:max-w-sm sm:rounded-3xl sm:pb-0"
+      >
+        <div className="flex flex-col gap-4 p-5">
+          {/* Takes the dialog's initial focus, so Remove is never one Enter away. */}
+          <div tabIndex={-1} className="outline-none">
+            <p className="eyebrow">{confirming ? "Remove connection" : "Connection"}</p>
+            <p className="text-base font-semibold">{confirming ? `Remove ${institution}?` : institution}</p>
+            <p className="mt-1 text-sm text-muted">
+              {confirming
+                ? `Deletes its ${accountsLabel}, balances and transactions from Delta. Connecting it again brings back about two years. Budgets and recurring charges stay.`
+                : `${accountsLabel}${syncedLabel ? ` · synced ${syncedLabel}` : ""}`}
+            </p>
+          </div>
+          {removeError && <p className="text-sm text-negative">{removeError}</p>}
+          {confirming ? (
+            <div className="flex gap-2">
+              <button type="button" onClick={remove} disabled={removing} className="btn btn-danger flex-1">
+                {removing ? "Removing…" : "Remove"}
+              </button>
+              <button type="button" onClick={() => sheet.current?.close()} disabled={removing} className="btn flex-1">
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setConfirming(true)} className="btn flex-1 text-negative">
+                Remove connection
+              </button>
+              <button type="button" onClick={() => sheet.current?.close()} className="btn flex-1">
+                Done
+              </button>
+            </div>
+          )}
+        </div>
+      </dialog>
     </span>
   );
 }

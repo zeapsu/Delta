@@ -90,6 +90,15 @@ const STATES: [string, string, ((page: Page) => Promise<void>)?][] = [
     },
   ],
   [
+    "connection sheet, remove confirm",
+    "/",
+    async (page) => {
+      await page.getByRole("button", { name: /^Manage / }).first().click();
+      await page.getByRole("button", { name: "Remove connection" }).click();
+      await expect(page.getByRole("dialog").getByRole("button", { name: "Remove", exact: true })).toBeVisible();
+    },
+  ],
+  [
     "/budgets edit sheet",
     "/budgets",
     async (page) => {

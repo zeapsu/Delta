@@ -119,3 +119,37 @@ test("welcome cards: name, Plaid keys, then Link", async ({ page, request }) => 
   });
   expect(last.status()).toBe(200);
 });
+
+// The bank linked above is removed from its card: "⋯" opens the sheet, and
+// the removal sits behind a second step that says what is deleted. With no
+// connection left, the welcome cards come back.
+test("a connection is removed from its card, behind a confirm", async ({ page, request }) => {
+  const local = (url: string) => url.startsWith("http://127.0.0.1");
+  await page.route((url) => !local(url.href), (route) => route.abort());
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "Manage Mock Bank" }).click();
+  const sheet = page.getByRole("dialog", { name: "Manage Mock Bank" });
+  await expect(sheet.getByRole("button", { name: "Remove", exact: true })).toHaveCount(0);
+  await sheet.getByRole("button", { name: "Remove connection" }).click();
+  await expect(sheet).toContainText("Remove Mock Bank?");
+  expect(await axe(page)).toEqual([]);
+
+  // Cancel leaves it alone.
+  await sheet.getByRole("button", { name: "Cancel" }).click();
+  await expect(sheet).toBeHidden();
+  await expect(page.getByRole("heading", { name: "Mock Bank" })).toBeVisible();
+
+  // Plaid refuses: the sheet stays open and says nothing was deleted.
+  const fail = (code: string | null) =>
+    request.post(`${MOCK_PLAID_URL}/__mock/fail`, { data: { code, path: "/item/remove" } });
+  await fail("INTERNAL_SERVER_ERROR");
+  await page.getByRole("button", { name: "Manage Mock Bank" }).click();
+  await sheet.getByRole("button", { name: "Remove connection" }).click();
+  await sheet.getByRole("button", { name: "Remove", exact: true }).click();
+  await expect(sheet).toContainText("Nothing was deleted");
+  await fail(null);
+
+  await sheet.getByRole("button", { name: "Remove", exact: true }).click();
+  await expect(page.getByText("Welcome to Delta")).toBeVisible();
+});
