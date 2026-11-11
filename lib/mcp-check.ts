@@ -134,7 +134,13 @@ async function main() {
   assert.strictEqual(old.last_sync, "2026-10-20T00:00:00.000Z");
   assert.deepStrictEqual(asOf({ lastTransaction: null, lastSnapshot: null, lastInvestment: null, connections: [] }).warnings, ["No synced data yet."]);
 
-  console.log("lib/mcp-check.ts: all assertions passed");
+  // Inherited names are not arguments: no prototype key passes as "known".
+for (const key of ["constructor", "toString", "__proto__", "hasOwnProperty"]) {
+  assert.throws(() => validateArgs({ id: { type: "integer" as const, description: "" } }, [], JSON.parse(`{"${key}": 1}`)), /unknown argument/, key);
+}
+assert.throws(() => validateArgs({ toString: { type: "string" as const, description: "" } }, ["toString"], {}), /missing required/);
+
+console.log("lib/mcp-check.ts: all assertions passed");
 }
 
 main().catch((err) => {

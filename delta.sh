@@ -156,6 +156,8 @@ cmd_install() {
     say ".env already exists, keeping it"
   else
     cp .env.example .env
+    # It will hold your Plaid keys: only this user may read it.
+    chmod 600 .env
     echo "Plaid keys are at https://dashboard.plaid.com/developers/keys"
     echo "(Press Enter to skip and paste them in your browser on Delta's setup page instead.)"
     local id secret ip

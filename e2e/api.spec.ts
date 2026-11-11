@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { bearer, MOCK_ACCESS_TOKEN, PENDING_THIS_MONTH_CENTS, SPEND_THIS_MONTH_CENTS, THIS_MONTH, tokens } from "./helpers";
+import { apiRoutes, bearer, MOCK_ACCESS_TOKEN, PENDING_THIS_MONTH_CENTS, SPEND_THIS_MONTH_CENTS, THIS_MONTH, tokens } from "./helpers";
 
 const V1_READS = [
   "/api/v1",
@@ -67,6 +67,45 @@ test("cross-site browser writes are refused", async ({ request }) => {
     data: { category: "FOOD_AND_DRINK", monthlyAmount: 100 },
   });
   expect(res.status()).toBe(403);
+});
+
+// proxy.ts must see every /api request. Its matcher once skipped paths ending
+// in an extension, and a dynamic route also answers "/api/tokens/1.0".
+test("the network guard covers every API route, whatever the path ends in", async ({ request }) => {
+  const outside = { "x-forwarded-for": "8.8.8.8" };
+  const routes = apiRoutes();
+  expect(routes).toContain("/api/tokens/1");
+  expect(routes.length).toBeGreaterThan(20);
+  for (const route of routes) {
+    for (const path of [route, `${route}.0`, `${route}.json`, `${route}/x.png`]) {
+      expect((await request.get(path, { headers: outside })).status(), path).toBe(403);
+    }
+  }
+  expect((await request.delete("/api/tokens/1.0", { headers: outside })).status()).toBe(403);
+  expect((await request.delete("/api/tokens/1.0", { headers: { "sec-fetch-site": "cross-site" } })).status()).toBe(403);
+  // And the route itself takes plain ids only.
+  expect((await request.delete("/api/tokens/1.0")).status()).toBe(400);
+});
+
+test("the login page never redirects off the site", async ({ request, baseURL }) => {
+  // No password is set here, so /login redirects straight to ?next=.
+  for (const next of ["/%09/evil.example", "/%0A/evil.example", "//evil.example", "/%5Cevil.example", "https://evil.example"]) {
+    const res = await request.get(`/login?next=${next}`, { maxRedirects: 0 });
+    expect(res.status(), next).toBe(307);
+    expect(res.headers().location, next).toBe("/");
+  }
+  const ok = await request.get("/login?next=/spending%3Fmonth%3D2026-10", { maxRedirects: 0 });
+  expect(new URL(ok.headers().location, baseURL).pathname).toBe("/spending");
+});
+
+test("responses refuse framing and don't name the server", async ({ request }) => {
+  for (const path of ["/", "/settings", "/api/budgets"]) {
+    const h = (await request.get(path)).headers();
+    expect(h["x-frame-options"], path).toBe("DENY");
+    expect(h["content-security-policy"], path).toContain("frame-ancestors 'none'");
+    expect(h["x-content-type-options"], path).toBe("nosniff");
+    expect(h["x-powered-by"], path).toBeUndefined();
+  }
 });
 
 test("sync is idempotent and refresh works against Plaid", async ({ request }) => {

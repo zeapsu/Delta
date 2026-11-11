@@ -15,8 +15,9 @@ services:
       - path: .env
         required: false
     # Publish only on the private interface (your Tailscale IP). The default,
-    # 127.0.0.1, is reachable from this machine only. Pages have no login:
-    # anyone who can reach this port sees your finances. On Linux with
+    # 127.0.0.1, is reachable from this machine only. Pages ask for no login
+    # until you set a password (Settings → Password): anyone who can reach
+    # this port sees your finances. On Linux with
     # Tailscale, use docker-compose.tailscale.yml (host networking) instead:
     # Docker's port publishing can hide the real tailnet client address.
     ports:

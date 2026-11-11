@@ -9,7 +9,7 @@
   <Project>https://github.com/zeapsu/Delta</Project>
   <Overview>Self-hosted personal finance. Delta connects your banks, cards and brokerages through Plaid and shows spending, budgets, recurring charges, investments and net worth. Open the WebUI and follow the checklist: add your own Plaid keys (free for personal use), connect accounts, pull your history. Your agent can read it over MCP with its own token.&#xD;
 &#xD;
-Delta has no login. Keep it on your LAN or Tailscale, never port-forwarded.</Overview>
+Delta asks for no login until you set a password in Settings. Keep it on your LAN or Tailscale, never port-forwarded.</Overview>
   <Category>Productivity: Tools:</Category>
   <WebUI>http://[IP]:[PORT:3000]/</WebUI>
   <TemplateURL>https://raw.githubusercontent.com/zeapsu/Delta/main/home-server/unraid/delta.xml</TemplateURL>

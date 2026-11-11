@@ -56,6 +56,12 @@ assert.strictEqual(safeNext("/\\evil.com"), "/");
 assert.strictEqual(safeNext("https://evil.com"), "/");
 assert.strictEqual(safeNext("/login?next=/x"), "/");
 assert.strictEqual(safeNext(null), "/");
+// Browsers drop tabs/newlines and read "\" as "/": each of these is "//evil.com".
+for (const sneaky of ["/\t/evil.com", "/\n/evil.com", "/\r/evil.com", "/x/../\\evil.com", "/ /evil.com", "/\u0000"]) {
+  assert.strictEqual(safeNext(sneaky), "/", JSON.stringify(sneaky));
+}
+assert.strictEqual(safeNext(["/a", "/b"]), "/", "repeated ?next=");
+assert.strictEqual(safeNext("/transactions?q=a%20b&page=2#top"), "/transactions?q=a%20b&page=2#top");
 
 const t = new Throttle(3, 1000);
 for (let i = 0; i < 3; i++) t.fail("a", now);
@@ -65,5 +71,17 @@ assert.ok(!t.blocked("a", now + 1001), "window passes");
 t.fail("c", now);
 t.clear("c");
 assert.ok(!t.blocked("c", now));
+
+// A client that changes its address every try still runs into the overall cap.
+const all = new Throttle(3, 1000, 5, 4);
+for (let i = 0; i < 5; i++) {
+  assert.ok(!all.blocked(`addr-${i}`, now), `try ${i} allowed`);
+  all.fail(`addr-${i}`, now);
+}
+assert.ok(all.blocked("addr-new", now), "overall cap");
+all.clear("addr-0");
+assert.ok(all.blocked("addr-0", now), "a success elsewhere doesn't lift the overall cap");
+assert.ok(!all.blocked("addr-new", now + 1001), "overall window passes");
+assert.ok(all.size <= 4, "the per-address map stays bounded");
 
 console.log("login-check: ok");
