@@ -85,7 +85,7 @@ export default function PlaidButtons({ connectOnly = false, compact = false }: {
   }, [router]);
 
   return (
-    <div className="flex flex-col items-start gap-2 sm:items-end">
+    <div className={`flex flex-col gap-2 ${compact ? "items-end" : "items-start sm:items-end"}`}>
       <div className="flex flex-wrap items-center gap-2">
         {syncResult && <span className="text-xs text-muted">{syncResult}</span>}
         {connectOnly ? null : (

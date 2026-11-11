@@ -460,6 +460,7 @@ export default async function Home() {
                 <ConnectionButton
                   itemId={inst.id}
                   institution={inst.name}
+                  accountCount={inst.accounts.length}
                   needsReauth={inst.needsReauth}
                   transientError={inst.transientError}
                   syncedLabel={inst.syncedLabel}
