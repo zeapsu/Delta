@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { DeltaMark } from "./delta-mark";
 
 const LINKS = [
   { href: "/", label: "Overview" },
@@ -46,9 +47,9 @@ export function Nav({ extra }: { extra?: React.ReactNode }) {
       <Link
         href="/"
         aria-label="Delta home"
-        className="glass hidden h-10 w-10 shrink-0 items-center justify-center rounded-full text-lg font-semibold sm:flex"
+        className="glass hidden h-10 w-10 shrink-0 items-center justify-center rounded-full sm:flex"
       >
-        Δ
+        <DeltaMark className="h-5 w-5" />
       </Link>
       <nav
         ref={navRef}

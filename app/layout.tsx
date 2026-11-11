@@ -19,6 +19,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Delta",
   description: "Personal finance dashboard",
+  appleWebApp: { title: "Delta" },
 };
 
 export const viewport: Viewport = {
