@@ -112,6 +112,9 @@ jobs:
           curl -fsS -o status.json -H "Authorization: Bearer ${BASH_REMATCH[0]}" http://127.0.0.1:3000/api/v1/status
           grep -q '"connections"' status.json
           docker exec delta node scripts/backup-db.mjs
+          # The database and its backups hold Plaid tokens: owner-only.
+          modes=$(docker exec delta sh -c 'stat -c %a /data/delta.db /data/backups/*.db' | sort -u)
+          [ "$modes" = "600" ]
       - name: Logs
         if: ${{ !cancelled() }}
         run: docker logs delta

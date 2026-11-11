@@ -114,6 +114,8 @@ docker compose cp delta:/data/backups/. ./delta-backups/
 
 Each backup is a self-contained SQLite file (`sqlite3 delta-2026-10-31.db` opens it directly). The database holds your Plaid access tokens, so store backups somewhere private.
 
+Delta keeps the database and its backups readable only by the account it runs as. If another account collects the backups from a mounted folder (a sync job under your own login, say), give that folder a shared group and the setgid bit, `chgrp <group> backups && chmod g+s backups`: backups written there are then readable by that group too, and by nobody else.
+
 To restore, stop Delta, swap the backup in with a one-off container, and start again. Run this from the folder that holds the backup file:
 
 ```bash

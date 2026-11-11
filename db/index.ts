@@ -1,4 +1,5 @@
 import Database from "better-sqlite3";
+import { chmodSync } from "node:fs";
 import { drizzle, type BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 import * as schema from "./schema";
@@ -11,8 +12,21 @@ const globalForDb = globalThis as unknown as {
   __deltaDb?: BetterSQLite3Database<typeof schema>;
 };
 
+// The database holds the Plaid access tokens, so only the account Delta runs
+// as may read it. SQLite gives a new -wal/-shm file the main file's mode;
+// ones from before this are fixed here. Best effort: a file owned by someone
+// else, or a filesystem without modes, stays as it is.
+function ownerOnly(file: string) {
+  for (const f of [file, `${file}-wal`, `${file}-shm`]) {
+    try {
+      chmodSync(f, 0o600);
+    } catch {}
+  }
+}
+
 function createDb() {
   const sqlite = globalForDb.__deltaSqlite ?? new Database(dbPath);
+  ownerOnly(dbPath);
   // `next build` imports this from parallel workers. Switching to WAL needs an exclusive
   // lock, so concurrent workers can fail with SQLITE_BUSY, and migrating there races on
   // the live DB. Both happen at server start instead (WAL persists in the file).
