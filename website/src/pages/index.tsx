@@ -115,6 +115,112 @@ function Preview() {
           </div>
         </div>
       </div>
+      <Phone />
+    </div>
+  );
+}
+
+// The same dashboard as a home-screen app. Drawn at phone size and scaled
+// down in CSS, so it reads like the app's phone layout: stacked cards and the
+// glass tab bar (icons copied from app/nav.tsx). Hidden below the desktop
+// layout, where the preview is already phone-sized. Colors go through
+// `style`, since var() is not valid in an SVG presentation attribute.
+const TABS = [
+  { label: "Overview", icon: <path d="M4 11.5 12 5l8 6.5M6.5 10v8.5h11V10" /> },
+  {
+    label: "Spending",
+    icon: (
+      <>
+        <circle cx="12" cy="12" r="7.5" />
+        <path d="M12 4.5V12l5.5 5" />
+      </>
+    ),
+  },
+  { label: "Transactions", icon: <path d="M5 7.5h14M5 12h14M5 16.5h9" /> },
+  {
+    label: "Budgets",
+    icon: (
+      <>
+        <path d="M5 18.5h14" />
+        <path d="M7.5 15v-4M12 15V6.5M16.5 15V9" />
+      </>
+    ),
+  },
+  {
+    label: "More",
+    icon: (
+      <>
+        <circle cx="6" cy="12" r="1.2" />
+        <circle cx="12" cy="12" r="1.2" />
+        <circle cx="18" cy="12" r="1.2" />
+      </>
+    ),
+  },
+];
+
+function Phone() {
+  return (
+    <div className={styles.phone} aria-hidden>
+      <div className={styles.phoneScreen}>
+        <div className={styles.phoneUi}>
+          <span className={styles.island} />
+          <div className={styles.phoneHead}>
+            <span>
+              <span className={styles.phoneTitle}>Good evening, Sam</span>
+              <span className={styles.eyebrow}>Synced 2h ago</span>
+            </span>
+            <span className={styles.ask}>Ask Agent</span>
+          </div>
+          <div className={`surface ${styles.phoneCard}`}>
+            <div className={styles.cardHead}>
+              <span className={styles.cardTitle}>Net worth</span>
+              <span className={styles.ask}>Ask</span>
+            </div>
+            <span className={styles.phoneValue}>$48,210</span>
+            <span className={styles.positive}>+$1,320 this month</span>
+            <svg className={styles.spark} viewBox="0 0 280 72" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="phone-spark" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" style={{ stopColor: "var(--positive)" }} stopOpacity="0.22" />
+                  <stop offset="1" style={{ stopColor: "var(--positive)" }} stopOpacity="0" />
+                </linearGradient>
+              </defs>
+              <path d="M0 62C30 60 42 50 66 48s34 6 58-6 30-10 52-14 34-4 54-14 30-12 50-18V72H0Z" fill="url(#phone-spark)" />
+              <path d="M0 62C30 60 42 50 66 48s34 6 58-6 30-10 52-14 34-4 54-14 30-12 50-18" fill="none" style={{ stroke: "var(--positive)" }} strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          </div>
+          <div className={`surface ${styles.phoneCard}`}>
+            <div className={styles.cardHead}>
+              <span className={styles.cardTitle}>This month</span>
+              <span className={styles.ask}>Ask</span>
+            </div>
+            <span className={styles.phoneValue}>$1,842</span>
+            <ul className={styles.phoneBars}>
+              {CATEGORIES.slice(0, 4).map((c) => (
+                <li key={c.name}>
+                  <span className={styles.meterTop}>
+                    <span>{c.name}</span>
+                    <span>${c.amount}</span>
+                  </span>
+                  <span className={styles.barTrack}>
+                    <span className={styles.bar} style={{ width: `${(c.amount / MAX) * 100}%`, background: c.color }} />
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className={`glass ${styles.tabBar}`}>
+            {TABS.map((t, i) => (
+              <span key={t.label} className={i === 0 ? styles.tabActive : styles.tab}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                  {t.icon}
+                </svg>
+                {t.label}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
