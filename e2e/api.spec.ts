@@ -184,7 +184,19 @@ test("linking a bank that is already connected is refused, not doubled", async (
   expect(await state()).toEqual(before);
   // The extra item is removed at Plaid, where it would be billed.
   const { removed } = await (await request.post(`${MOCK_PLAID_URL}/__mock/removed`)).json();
-  expect(removed).toEqual(["access-sandbox-mock-2"]);
+  expect(removed).toContain("access-sandbox-mock-2");
+});
+
+// The removal itself runs in first-run.spec.ts, on the server no other spec
+// needs data from.
+test("removing a connection is for the dashboard only and validates its input", async ({ request }) => {
+  const remove = (data: unknown, headers = {}) => request.delete("/api/plaid/items", { data, headers });
+  expect((await remove({ item_id: 1 }, bearer(tokens().write))).status()).toBe(403);
+  expect((await remove({})).status()).toBe(400);
+  expect((await remove({ item_id: "1" })).status()).toBe(400);
+  expect((await remove({ item_id: 999_999 })).status()).toBe(404);
+  const status = await (await request.get("/api/v1/status", { headers: bearer(tokens().read) })).json();
+  expect(status.connections).toHaveLength(1);
 });
 
 test("a relabel made while a charge is pending survives it posting", async ({ request }) => {

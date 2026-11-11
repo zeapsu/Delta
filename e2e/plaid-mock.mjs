@@ -169,8 +169,10 @@ const batches = [{ added: transactions, removed: [] }];
 const removed = [];
 
 // Test control: POST /__mock/fail {"code": "ITEM_LOGIN_REQUIRED"} makes the
-// item's syncs fail with that Plaid error until {"code": null}.
+// item's syncs fail with that Plaid error until {"code": null}. "path" picks
+// another endpoint to fail instead, e.g. "/item/remove".
 let failCode = null;
+let failPath = "/transactions/sync";
 
 // Test controls for a charge that posts. POST /__mock/pending {"name"} queues
 // a pending transaction for the next sync; POST /__mock/post {"transaction_id"}
@@ -179,7 +181,10 @@ let failCode = null;
 // so no total the other specs assert on moves.
 const longAgo = iso(new Date(Date.now() - 400 * 86_400_000));
 const controls = new Map(Object.entries({
-  "/__mock/fail": (body) => ({ failCode: (failCode = body.code ?? null) }),
+  "/__mock/fail": (body) => {
+    failPath = body.path ?? "/transactions/sync";
+    return { failCode: (failCode = body.code ?? null) };
+  },
   "/__mock/removed": () => ({ removed }),
   "/__mock/pending": (body) => {
     const t = tx("acc-checking", longAgo, body.name, 12.34, "TRANSFER_OUT", "TRANSFER_OUT_ACCOUNT_TRANSFER", { pending: true });
@@ -213,7 +218,7 @@ http
       if (req.url !== "/link/token/create" && req.url !== "/item/public_token/exchange" && req.url !== "/institutions/get" && !tokenOk) {
         return plaidError(res, "INVALID_ACCESS_TOKEN");
       }
-      if (failCode && req.url === "/transactions/sync") return plaidError(res, failCode);
+      if (failCode && req.url === failPath) return plaidError(res, failCode);
       const out = route(body);
       if (typeof out === "string") return plaidError(res, out);
       send(res, 200, { ...out, request_id: "mock-request" });
