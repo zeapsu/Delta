@@ -5,7 +5,8 @@
 # Nothing to fill in: start it, open http://<this machine>:3000, and Delta
 # asks for your Plaid keys in the browser.
 #
-# Delta has no login. Anyone who can reach this port sees your finances, so
+# Delta asks for no login until you set a password (Settings → Password).
+# Until then anyone who can reach this port sees your finances, so
 # run it only on a network you trust (your home LAN or Tailscale), never
 # port-forwarded to the internet.
 name: delta

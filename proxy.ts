@@ -64,7 +64,9 @@ function loginGate(req: NextRequest, g: ReturnType<typeof gate>) {
   return NextResponse.redirect(url);
 }
 
-// Everything but build assets and files with an extension (favicon etc.).
+// Every /api path, whatever it ends in: a dynamic route also answers
+// "/api/tokens/1.0", which the page pattern below would let past the guard.
+// Then every page, minus build assets and files with an extension (favicon etc.).
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|.*\\.[a-z0-9]+$).*)"],
+  matcher: ["/api/:path*", "/((?!_next/static|_next/image|.*\\.[a-z0-9]+$).*)"],
 };

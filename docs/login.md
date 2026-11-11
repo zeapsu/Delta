@@ -12,7 +12,7 @@ Delta can ask for a password before showing any page. It's off by default, and y
 
 - Each browser stays logged in for 30 days.
 - Changing the password logs out every other device.
-- 10 wrong tries from one address lock it out for 15 minutes.
+- 10 wrong tries from one address lock that address out for 15 minutes, and 50 wrong tries overall lock the login for everyone until the 15 minutes pass. Devices that are already logged in keep working.
 
 ## What it covers
 

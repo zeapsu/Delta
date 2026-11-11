@@ -94,18 +94,41 @@ export function gate(pathname: string, method: string): Gate {
 }
 
 // Where to go after logging in: a same-site path only, never "//evil.com".
-export function safeNext(next: string | null | undefined): string {
-  if (!next || !next.startsWith("/") || next.startsWith("//") || next.startsWith("/\\") || next.startsWith("/login")) {
+// Printable ASCII only and no backslash: browsers drop tabs and newlines from
+// a URL and read "\" as "/", so "/\t/evil.com" would leave the site too.
+const NEXT_RE = /^\/[\x21-\x5b\x5d-\x7e]*$/;
+const ORIGIN = "http://delta.invalid";
+
+export function safeNext(next: unknown): string {
+  if (typeof next !== "string" || !NEXT_RE.test(next) || next.startsWith("//") || next.startsWith("/login")) {
+    return "/";
+  }
+  try {
+    if (new URL(next, ORIGIN).origin !== ORIGIN) return "/";
+  } catch {
     return "/";
   }
   return next;
 }
 
-// Login attempts per client address: 10 failures lock it out for 15 minutes.
+// Login attempts: 10 failures from one client address lock that address out
+// for 15 minutes, and 50 failures overall lock everyone out for the rest of
+// the window. The address comes from X-Forwarded-For, which a client can set
+// (lib/tailnet.ts), so the overall count is what actually caps guessing; a
+// device that is already logged in is unaffected.
+type Fails = { n: number; until: number };
+
 export class Throttle {
-  private fails = new Map<string, { n: number; until: number }>();
-  constructor(private max = 10, private windowMs = 15 * 60_000) {}
+  private fails = new Map<string, Fails>();
+  private all: Fails = { n: 0, until: 0 };
+  constructor(
+    private max = 10,
+    private windowMs = 15 * 60_000,
+    private maxAll = 50,
+    private maxKeys = 5000,
+  ) {}
   blocked(key: string, now = Date.now()): boolean {
+    if (this.all.until > now && this.all.n >= this.maxAll) return true;
     const f = this.fails.get(key);
     if (!f) return false;
     if (f.until <= now) {
@@ -115,11 +138,25 @@ export class Throttle {
     return f.n >= this.max;
   }
   fail(key: string, now = Date.now()) {
+    if (this.all.until <= now) this.all = { n: 1, until: now + this.windowMs };
+    else this.all.n++;
     const f = this.fails.get(key);
-    if (!f || f.until <= now) this.fails.set(key, { n: 1, until: now + this.windowMs });
-    else f.n++;
+    if (f && f.until > now) {
+      f.n++;
+      return;
+    }
+    // Made-up addresses must not grow the map without bound.
+    if (this.fails.size >= this.maxKeys) {
+      for (const [k, v] of this.fails) if (v.until <= now) this.fails.delete(k);
+      if (this.fails.size >= this.maxKeys) this.fails.clear();
+    }
+    this.fails.set(key, { n: 1, until: now + this.windowMs });
   }
+  // A successful login clears that address only, never the overall count.
   clear(key: string) {
     this.fails.delete(key);
+  }
+  get size(): number {
+    return this.fails.size;
   }
 }

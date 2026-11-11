@@ -1,7 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { randomBytes } from "node:crypto";
 import { expect, request as newRequest, test } from "@playwright/test";
-import { bearer, tokens } from "./helpers";
+import { apiRoutes, bearer, tokens } from "./helpers";
 
 // The web UI password: runs last (every other project is a dependency), since
 // turning it on locks the shared server, and turns it off again at the end.
@@ -20,6 +20,12 @@ test("password locks pages and dashboard routes, not agents or the sync timer", 
 
   const stranger = await newRequest.newContext({ baseURL });
   expect((await stranger.get("/api/budgets")).status()).toBe(401);
+  // Every dashboard route, from the source tree, so new ones are covered too.
+  for (const route of apiRoutes().filter((r) => !r.startsWith("/api/v1"))) {
+    expect((await stranger.get(route)).status(), route).toBe(401);
+    expect((await stranger.get(`${route}.0`)).status(), `${route}.0`).toBe(401);
+  }
+  expect((await stranger.delete("/api/tokens/1.0")).status()).toBe(401);
   expect((await stranger.get("/settings", { maxRedirects: 0 })).headers().location).toContain("/login?next=%2Fsettings");
   expect((await stranger.get("/api/v1/status", { headers: bearer(tokens().read) })).status()).toBe(200);
   expect((await stranger.post("/api/v1/mcp", { headers: bearer(tokens().read), data: { jsonrpc: "2.0", id: 1, method: "ping" } })).status()).toBe(200);
