@@ -304,6 +304,25 @@ body {
     border-color: var(--muted);
     box-shadow: 0 0 0 3px var(--fill-strong);
   }
+  /* iOS Safari gives date inputs a wide intrinsic min-width that ignores
+     width: 100%, so they overflow half-width columns. Dropping the native
+     appearance lets them shrink; the min-height keeps an empty one from
+     collapsing, and the value stays left-aligned like other fields. */
+  input.field[type="date"] {
+    display: block;
+    min-width: 0;
+    min-height: calc(2.5rem + 2px);
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  input.field[type="date"]::-webkit-date-and-time-value {
+    text-align: left;
+  }
+  @media (min-width: 40rem) {
+    input.field[type="date"] {
+      min-height: calc(2.25rem + 2px);
+    }
+  }
   select.field option {
     background: var(--surface-solid);
     color: var(--foreground);
