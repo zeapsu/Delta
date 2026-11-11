@@ -184,11 +184,11 @@ http
       const body = raw ? JSON.parse(raw) : {};
       if (req.url === "/health") return send(res, 200, { ok: true });
       const control = controls.get(req.url);
-      if (control) return send(res, 200, control(body));
+      if (typeof control === "function") return send(res, 200, control(body));
       // Any keys work except this secret, so the setup page's rejection shows.
       if (req.headers["plaid-secret"] === "rejected-secret") return plaidError(res, "INVALID_API_KEYS");
       const route = routes.get(req.url);
-      if (!route) return plaidError(res, "NOT_FOUND", 404);
+      if (typeof route !== "function") return plaidError(res, "NOT_FOUND", 404);
       if (req.url !== "/link/token/create" && req.url !== "/item/public_token/exchange" && req.url !== "/institutions/get" && body.access_token !== ACCESS_TOKEN) {
         return plaidError(res, "INVALID_ACCESS_TOKEN");
       }
