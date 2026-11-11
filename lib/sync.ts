@@ -38,7 +38,7 @@ export type SyncResult = SyncCounts & { errors: SyncError[] };
 
 // A non-Plaid body (e.g. a gateway 502) can put anything in these fields.
 // Lives in lib/plaid-errors.ts so scripts can use it without the Plaid client.
-import { safePlaidError } from "@/lib/plaid-errors";
+import { GONE_ERROR_CODES, safePlaidError } from "@/lib/plaid-errors";
 export { safePlaidError };
 
 // Insert or refresh an item's accounts. Also run when a bank is linked (the
@@ -377,7 +377,7 @@ async function syncItem(item: Item): Promise<SyncCounts> {
 // one at a time, in order. ponytail: module-level, single process.
 let tail: Promise<unknown> = Promise.resolve();
 
-function enqueue(start: () => Promise<SyncResult>): Promise<SyncResult> {
+function enqueue<T>(start: () => Promise<T>): Promise<T> {
   const run = tail.then(start);
   tail = run.catch(() => {});
   return run;
@@ -413,6 +413,49 @@ export async function syncOne(itemId: number): Promise<SyncResult | null> {
   });
   waiting.set(itemId, run);
   return run;
+}
+
+export type RemoveResult = "removed" | "unknown" | { error_code: string };
+
+// Remove a connection: the item at Plaid first (it is billed until removed),
+// then its accounts with their transactions, investment activity and balance
+// history. Budgets, recurring rules and merchant rules aren't tied to a
+// connection and stay. Queued like a sync, so no run is using the item
+// meanwhile, and a sync queued behind this finds it gone. If Plaid refuses,
+// nothing is deleted: without the access token the item could never be
+// removed there. An item Plaid no longer has is only deleted here.
+export function removeItem(itemId: number): Promise<RemoveResult> {
+  return enqueue(async () => {
+    const item = db.select().from(items).where(eq(items.id, itemId)).get();
+    if (!item) return "unknown";
+    try {
+      await getPlaid().itemRemove({ access_token: item.accessToken });
+    } catch (err) {
+      const e = safePlaidError(err);
+      if (!GONE_ERROR_CODES.has(e.error_code)) {
+        console.error(
+          `plaid item remove failed: item=${item.id} institution=${JSON.stringify(item.institutionName)} error_code=${e.error_code} request_id=${e.request_id}`,
+        );
+        return { error_code: e.error_code };
+      }
+    }
+    db.transaction((tx) => {
+      const ids = tx
+        .select({ id: accounts.id })
+        .from(accounts)
+        .where(eq(accounts.itemId, itemId))
+        .all()
+        .map((a) => a.id);
+      if (ids.length) {
+        tx.delete(transactions).where(inArray(transactions.accountId, ids)).run();
+        tx.delete(investmentTransactions).where(inArray(investmentTransactions.accountId, ids)).run();
+        tx.delete(balanceSnapshots).where(inArray(balanceSnapshots.accountId, ids)).run();
+        tx.delete(accounts).where(eq(accounts.itemId, itemId)).run();
+      }
+      tx.delete(items).where(eq(items.id, itemId)).run();
+    });
+    return "removed";
+  });
 }
 
 // One failing item (e.g. ITEM_LOGIN_REQUIRED) must not block the rest.
