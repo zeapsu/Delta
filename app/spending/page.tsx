@@ -4,7 +4,7 @@ import { categoryColor } from "@/lib/colors";
 import { categoryTotals, monthlyCashFlow } from "@/lib/insights";
 import { currentMonth, isMonth, monthLabel, recentMonths, shiftMonth, shortMonthLabel } from "@/lib/months";
 import { CategoryDonut, MonthBars, type DonutSlice } from "@/app/charts";
-import { Card, Change, Dot, Empty, Meter, Page, Stat } from "@/app/ui";
+import { Card, Change, Dot, Empty, Meter, Money, Page, Stat } from "@/app/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -97,7 +97,7 @@ export default async function SpendingPage({
           <Stat
             size="lg"
             label={isCurrent ? "Spent so far" : "Total spent"}
-            value={formatCents(grandTotal)}
+            value={<Money cents={grandTotal} />}
             sub={pendingSum > 0 ? `incl. ${formatCents(pendingSum)} pending` : undefined}
           />
           <div className="flex flex-col gap-1 text-xs">
@@ -126,39 +126,38 @@ export default async function SpendingPage({
         </Card>
       ) : (
         <>
-          <Card title="Where it went">
-            <CategoryDonut data={donutData} total={grandTotal} />
-          </Card>
-          <Card title="By category" action={<span className="text-xs text-muted">Tap a row to see transactions</span>}>
-            <ul className="-mx-2 flex flex-col">
-              {spending.map((r) => (
-                <li key={r.category ?? "null"}>
-                  <Link
-                    href={txHref(r.category)}
-                    className="flex items-center gap-2 rounded-xl px-2 py-2 hover:bg-fill sm:gap-3"
-                  >
-                    <span className="flex w-28 shrink-0 items-center gap-2 text-sm sm:w-40">
-                      <Dot color={categoryColor(r.category ?? "UNCATEGORIZED", topCategories)} />
-                      <span className="truncate">{formatCategory(r.category)}</span>
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <Meter
-                        value={r.total}
-                        max={max}
-                        color={categoryColor(r.category ?? "UNCATEGORIZED", topCategories)}
-                        label={`${formatCategory(r.category)} spending`}
-                      />
-                    </span>
-                    <span className="w-9 shrink-0 text-right text-xs tabular-nums text-muted sm:w-12">
-                      {Math.round((r.total / grandTotal) * 100)}%
-                    </span>
-                    <span className="w-20 shrink-0 text-right text-sm font-medium tabular-nums sm:w-24">
-                      {formatCents(r.total)}
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
+          <Card title="By category">
+            <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-start sm:gap-8">
+              <CategoryDonut data={donutData} total={grandTotal} />
+              <ul className="-mx-2 flex w-full min-w-0 flex-col self-center sm:mx-0">
+                {spending.map((r) => {
+                  const color = categoryColor(r.category ?? "UNCATEGORIZED", topCategories);
+                  return (
+                    <li key={r.category ?? "null"}>
+                      <Link
+                        href={txHref(r.category)}
+                        className="flex flex-col gap-1.5 rounded-xl px-2 py-2 hover:bg-fill"
+                      >
+                        <span className="flex items-center gap-2 text-sm">
+                          <Dot color={color} />
+                          <span className="truncate">{formatCategory(r.category)}</span>
+                          <span className="ml-auto pl-3 text-xs tabular-nums text-muted">
+                            {Math.round((r.total / grandTotal) * 100)}%
+                          </span>
+                          <span className="w-24 shrink-0 text-right font-medium tabular-nums">
+                            {formatCents(r.total)}
+                          </span>
+                          <span aria-hidden className="text-muted">
+                            ›
+                          </span>
+                        </span>
+                        <Meter value={r.total} max={max} color={color} label={`${formatCategory(r.category)} spending`} />
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
           </Card>
         </>
       )}

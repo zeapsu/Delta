@@ -18,6 +18,7 @@ import {
   type BarShapeProps,
 } from "recharts";
 import { formatCents } from "@/lib/format";
+import { shortDate } from "@/lib/months";
 
 // Axis ticks: whole dollars, compact (1.2K etc.) — full cents live in tooltips.
 function axisCents(v: number): string {
@@ -75,61 +76,45 @@ function Legend({ items }: { items: { name: string; color: string; line?: boolea
 
 export type DonutSlice = { name: string; value: number; color: string };
 
+// The donut alone: the page draws the category rows beside it (they are the legend).
 export function CategoryDonut({ data, total }: { data: DonutSlice[]; total: number }) {
   return (
-    <div className="flex flex-col items-center gap-5 sm:flex-row sm:gap-8">
-      <div className="relative h-48 w-48 shrink-0">
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
-            <Pie
-              // per-slice color rides the data entry's `fill` (Cell is deprecated)
-              data={data.map((d) => ({ ...d, fill: d.color }))}
-              dataKey="value"
-              nameKey="name"
-              innerRadius="68%"
-              outerRadius="100%"
-              cornerRadius={4}
-              paddingAngle={1.5}
-              // 2px surface gap between segments, not a border
-              stroke="var(--surface-solid)"
-              strokeWidth={2}
-              isAnimationActive={false}
-            />
-            <Tooltip
-              content={({ active, payload }) =>
-                active && payload?.length ? (
-                  <ChartTooltip
-                    rows={payload.map((p) => ({
-                      name: String(p.name),
-                      value: Number(p.value),
-                      color: (p.payload as DonutSlice).color,
-                    }))}
-                  />
-                ) : null
-              }
-            />
-          </PieChart>
-        </ResponsiveContainer>
-        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-          <span className="eyebrow">Total</span>
-          <span className="text-lg font-semibold tabular-nums">{formatCents(total)}</span>
-        </div>
+    <div className="relative h-48 w-48 shrink-0">
+      <ResponsiveContainer width="100%" height="100%">
+        <PieChart>
+          <Pie
+            // per-slice color rides the data entry's `fill` (Cell is deprecated)
+            data={data.map((d) => ({ ...d, fill: d.color }))}
+            dataKey="value"
+            nameKey="name"
+            innerRadius="68%"
+            outerRadius="100%"
+            cornerRadius={4}
+            paddingAngle={1.5}
+            // 2px surface gap between segments, not a border
+            stroke="var(--surface-solid)"
+            strokeWidth={2}
+            isAnimationActive={false}
+          />
+          <Tooltip
+            content={({ active, payload }) =>
+              active && payload?.length ? (
+                <ChartTooltip
+                  rows={payload.map((p) => ({
+                    name: String(p.name),
+                    value: Number(p.value),
+                    color: (p.payload as DonutSlice).color,
+                  }))}
+                />
+              ) : null
+            }
+          />
+        </PieChart>
+      </ResponsiveContainer>
+      <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+        <span className="eyebrow">Total</span>
+        <span className="text-lg font-semibold tabular-nums">{formatCents(total)}</span>
       </div>
-      <ul className="flex w-full min-w-0 flex-col gap-1.5 text-sm">
-        {data.map((d) => (
-          <li key={d.name} className="flex items-center gap-2">
-            <span
-              className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
-              style={{ background: d.color }}
-            />
-            <span className="truncate">{d.name}</span>
-            <span className="ml-auto pl-4 tabular-nums text-muted">
-              {total > 0 ? `${Math.round((d.value / total) * 100)}%` : ""}
-            </span>
-            <span className="w-24 shrink-0 text-right tabular-nums">{formatCents(d.value)}</span>
-          </li>
-        ))}
-      </ul>
     </div>
   );
 }
@@ -211,6 +196,7 @@ export function NetWorthLine({
             <CartesianGrid stroke="var(--chart-grid)" strokeWidth={1} vertical={false} />
             <XAxis
               dataKey="day"
+              tickFormatter={shortDate}
               tick={TICK}
               tickLine={false}
               axisLine={{ stroke: "var(--chart-grid)" }}
@@ -229,7 +215,7 @@ export function NetWorthLine({
               content={({ active, payload, label }) =>
                 active && payload?.length ? (
                   <ChartTooltip
-                    title={String(label)}
+                    title={shortDate(String(label))}
                     rows={payload
                       .filter((p) => p.value != null)
                       .map((p) => ({
@@ -406,7 +392,7 @@ export function BudgetTrendChart({
             maxBarSize={24}
             radius={[4, 4, 0, 0]}
             isAnimationActive={false}
-            // status green/red for under/over-budget months, matching the progress bars
+            // neutral bars (this month in ink); red only for months over budget
             // (shape prop replaces the deprecated Cell)
             shape={(props: BarShapeProps) => (
               <Rectangle
@@ -414,7 +400,9 @@ export function BudgetTrendChart({
                 fill={
                   data[props.index ?? 0]?.spent > budget
                     ? "var(--negative)"
-                    : "var(--chart-in)"
+                    : (props.index ?? 0) === data.length - 1
+                      ? "var(--chart-ink)"
+                      : "var(--chart-ink-2)"
                 }
               />
             )}
