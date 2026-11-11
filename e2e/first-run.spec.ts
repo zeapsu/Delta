@@ -1,10 +1,14 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 
-const axe = async (page: import("@playwright/test").Page) =>
-  (await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze()).violations.map(
-    (v) => `${v.id}: ${v.nodes.map((n) => n.html.slice(0, 120)).join(" | ")}`,
-  );
+// Saving a step refreshes the page, and the refreshed <title> streams in a
+// moment after the card: wait for it, or axe now and then reports
+// "document-title" on a page that has one.
+const axe = async (page: import("@playwright/test").Page) => {
+  await expect(page).toHaveTitle(/Delta/);
+  const { violations } = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+  return violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.html.slice(0, 120)).join(" | ")}`);
+};
 
 // A home server app install's first visit: no Plaid keys anywhere, so the
 // welcome cards ask for a name, then the keys, which are checked with Plaid
