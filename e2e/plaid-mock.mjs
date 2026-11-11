@@ -111,7 +111,9 @@ function send(res, status, body) {
   res.end(JSON.stringify(body));
 }
 
-const routes = {
+// Maps, not objects: a request path must never reach an inherited name such
+// as "constructor".
+const routes = new Map(Object.entries({
   // The first-run key check (lib/plaid-config.ts).
   "/institutions/get": () => ({ institutions: [], total: 0 }),
   "/link/token/create": () => ({ link_token: "link-sandbox-mock", expiration: new Date(Date.now() + 3600e3).toISOString() }),
@@ -144,7 +146,7 @@ const routes = {
   }),
   // Linked before investments consent: Delta must log-skip this, not fail the sync.
   "/investments/transactions/get": () => "ADDITIONAL_CONSENT_REQUIRED",
-};
+}));
 
 // What /transactions/sync hands out, in order. The fixture is the first batch.
 const batches = [{ added: transactions, removed: [] }];
@@ -159,7 +161,7 @@ let failCode = null;
 // pending one, as Plaid does. Dated over a year back and labelled a transfer,
 // so no total the other specs assert on moves.
 const longAgo = iso(new Date(Date.now() - 400 * 86_400_000));
-const controls = {
+const controls = new Map(Object.entries({
   "/__mock/fail": (body) => ({ failCode: (failCode = body.code ?? null) }),
   "/__mock/pending": (body) => {
     const t = tx("acc-checking", longAgo, body.name, 12.34, "TRANSFER_OUT", "TRANSFER_OUT_ACCOUNT_TRANSFER", { pending: true });
@@ -172,7 +174,7 @@ const controls = {
     batches.push({ added: [posted], removed: [pending.transaction_id] });
     return { transaction_id: posted.transaction_id };
   },
-};
+}));
 
 http
   .createServer((req, res) => {
@@ -181,10 +183,11 @@ http
     req.on("end", () => {
       const body = raw ? JSON.parse(raw) : {};
       if (req.url === "/health") return send(res, 200, { ok: true });
-      if (controls[req.url]) return send(res, 200, controls[req.url](body));
+      const control = controls.get(req.url);
+      if (control) return send(res, 200, control(body));
       // Any keys work except this secret, so the setup page's rejection shows.
       if (req.headers["plaid-secret"] === "rejected-secret") return plaidError(res, "INVALID_API_KEYS");
-      const route = routes[req.url];
+      const route = routes.get(req.url);
       if (!route) return plaidError(res, "NOT_FOUND", 404);
       if (req.url !== "/link/token/create" && req.url !== "/item/public_token/exchange" && req.url !== "/institutions/get" && body.access_token !== ACCESS_TOKEN) {
         return plaidError(res, "INVALID_ACCESS_TOKEN");
