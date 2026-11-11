@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
+import { MOCK_ACCESS_TOKEN, MOCK_PLAID_URL } from "./helpers";
 
 // Saving a step refreshes the page, and until the refreshed metadata arrives
 // the document has no <title> (measured: gone for about 300ms). A scan in
@@ -79,6 +80,44 @@ test("welcome cards: name, Plaid keys, then Link", async ({ page, request }) => 
     data: { env: "production", clientId: "test-client-id-0001", secret: "test-secret-value-0001" },
   });
   expect(flip.status()).toBe(409);
+
+  // Removing the connection. If Plaid refuses, nothing is deleted: the item
+  // would stay billed there with no token left to remove it.
+  const fail = (code: string | null) =>
+    request.post(`${MOCK_PLAID_URL}/__mock/fail`, { data: { code, path: "/item/remove" } });
+  const remove = (item_id: number) => request.delete("/api/plaid/items", { data: { item_id } });
+  await fail("INTERNAL_SERVER_ERROR");
+  const refused = await remove(1);
+  expect(refused.status()).toBe(502);
+  expect((await refused.json()).error_code).toBe("INTERNAL_SERVER_ERROR");
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: "Getting started" })).toBeVisible();
+
+  // Removed at Plaid, then here: with no bank left, the welcome page is back.
+  await fail(null);
+  expect(await (await remove(1)).json()).toEqual({ ok: true });
+  const { removed } = await (await request.post(`${MOCK_PLAID_URL}/__mock/removed`)).json();
+  expect(removed).toContain(MOCK_ACCESS_TOKEN);
+  expect((await remove(1)).status()).toBe(404);
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: "Getting started" })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Connect a bank" })).toBeVisible();
+
+  // A connection Plaid no longer has can still be removed here.
+  const again = await request.post("/api/plaid/exchange", {
+    data: { public_token: "public-sandbox-mock", institution_name: "Mock Bank" },
+  });
+  expect(again.status()).toBe(200);
+  await fail("ITEM_NOT_FOUND");
+  expect((await remove(2)).status()).toBe(200);
+  await fail(null);
+  expect((await remove(2)).status()).toBe(404);
+
+  // Leave a bank linked for whatever runs after this on the first-run server.
+  const last = await request.post("/api/plaid/exchange", {
+    data: { public_token: "public-sandbox-mock", institution_name: "Mock Bank" },
+  });
+  expect(last.status()).toBe(200);
 });
 
 // The bank linked above is removed from its card: "⋯" opens the sheet, and
