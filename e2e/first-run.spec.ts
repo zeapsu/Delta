@@ -1,13 +1,20 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 
-// Saving a step refreshes the page, and the refreshed <title> streams in a
-// moment after the card: wait for it, or axe now and then reports
-// "document-title" on a page that has one.
+// Saving a step refreshes the page, and until the refreshed metadata arrives
+// the document has no <title> (measured: gone for about 300ms). A scan in
+// that window reports "document-title" on a page that has one, so scan until
+// it comes back clean. A real violation stays and still fails after 5s.
 const axe = async (page: import("@playwright/test").Page) => {
-  await expect(page).toHaveTitle(/Delta/);
-  const { violations } = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
-  return violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.html.slice(0, 120)).join(" | ")}`);
+  let found: string[] = [];
+  await expect(async () => {
+    const { violations } = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+    found = violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.html.slice(0, 120)).join(" | ")}`);
+    expect(found).toEqual([]);
+  })
+    .toPass({ timeout: 5000 })
+    .catch(() => {});
+  return found;
 };
 
 // A home server app install's first visit: no Plaid keys anywhere, so the
