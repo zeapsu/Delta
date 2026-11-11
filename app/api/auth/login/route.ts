@@ -12,7 +12,7 @@ export async function POST(req: Request) {
   if (!login) return NextResponse.json({ error: "No password is set" }, { status: 400 });
   const ip = (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim();
   if (throttle.blocked(ip)) {
-    return NextResponse.json({ error: "Too many tries. Wait 15 minutes." }, { status: 429 });
+    return NextResponse.json({ error: "Too many tries. Wait 15 minutes." }, { status: 429, headers: { "Retry-After": "900" } });
   }
   let password: unknown;
   try {
