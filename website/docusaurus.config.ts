@@ -8,7 +8,7 @@ import type * as Preset from "@docusaurus/preset-classic";
 const config: Config = {
   title: "Delta",
   tagline: "A self-hosted personal finance dashboard your own agent can talk to",
-  favicon: "img/favicon.ico",
+  favicon: "img/favicon.svg",
 
   url: "https://zeapsu.github.io",
   baseUrl: "/Delta/",

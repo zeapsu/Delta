@@ -117,18 +117,18 @@ await page.setContent(`<!doctype html><html><head><style>
   body { margin: 0; width: 1280px; height: 640px; overflow: hidden; background: #0a0a0a; color: #fafafa;
          font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; position: relative; }
   .text { position: absolute; left: 72px; top: 0; bottom: 0; width: 470px; display: flex; flex-direction: column; justify-content: center; }
-  .logo { width: 64px; height: 64px; border-radius: 50%; background: #fafafa; color: #0a0a0a; display: grid; place-items: center; font-size: 34px; font-weight: 700; }
+  .logo { width: 84px; display: block; }
   h1 { font-size: 88px; letter-spacing: -3px; margin: 28px 0 12px; }
   p { font-size: 30px; line-height: 1.3; color: #a3a3a3; margin: 0; }
   .chips { margin-top: 32px; display: flex; gap: 10px; flex-wrap: wrap; }
   .chips span { border: 1px solid #333; border-radius: 999px; padding: 8px 16px; font-size: 20px; color: #d4d4d4; }
-  img { position: absolute; left: 580px; top: 70px; width: 900px; border-radius: 18px; border: 1px solid #262626;
+  .shot { position: absolute; left: 580px; top: 70px; width: 900px; border-radius: 18px; border: 1px solid #262626;
         box-shadow: 0 30px 80px rgba(0,0,0,.6); }
 </style></head><body>
-  <div class="text"><div class="logo">Δ</div><h1>Delta</h1>
+  <div class="text"><img class="logo" alt="" src="data:image/png;base64,${(await import("node:fs")).readFileSync(new URL("social-mark.png", import.meta.url)).toString("base64")}"><h1>Delta</h1>
   <p>Self-hosted personal finance your own AI agent can talk to.</p>
   <div class="chips"><span>Plaid</span><span>SQLite</span><span>MCP</span><span>Docker</span></div></div>
-  <img src="data:image/png;base64,${(await import("node:fs")).readFileSync(`${OUT}/overview-dark.png`).toString("base64")}">
+  <img class="shot" src="data:image/png;base64,${(await import("node:fs")).readFileSync(`${OUT}/overview-dark.png`).toString("base64")}">
 </body></html>`);
 await page.waitForTimeout(300);
 await page.screenshot({ path: `${OUT}/social-preview.png` });

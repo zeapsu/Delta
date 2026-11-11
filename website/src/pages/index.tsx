@@ -57,7 +57,7 @@ function Preview() {
   return (
     <div className={styles.preview} aria-label="Sample Delta dashboard" role="img">
       <div className={styles.previewNav}>
-        <span className={styles.mark}>Δ</span>
+        <span className={`glass ${styles.mark}`} />
         <span className={`glass ${styles.pill}`}>
           {NAV.map((n, i) => (
             <span key={n} className={i === 0 ? styles.pillActive : styles.pillItem}>

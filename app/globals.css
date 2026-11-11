@@ -16,6 +16,10 @@
   --fill-strong: rgb(0 0 0 / 0.09);
   --ink: #0b0b0c; /* prominent control fill */
   --ink-foreground: #ffffff;
+  --mark-top: #5d6268; /* Δ mark glass: dark on light */
+  --mark-bottom: #121315;
+  --mark-rim: 0.55;
+  --mark-edge: 0.35;
   --surface: rgb(255 255 255 / 0.72);
   --surface-solid: #ffffff;
   --glass: rgb(255 255 255 / 0.55);
@@ -58,6 +62,10 @@
     --fill-strong: rgb(255 255 255 / 0.11);
     --ink: #f4f4f5;
     --ink-foreground: #0b0b0c;
+    --mark-top: #ffffff;
+    --mark-bottom: #8e9399;
+    --mark-rim: 0.9;
+    --mark-edge: 0;
     --surface: rgb(24 24 27 / 0.66);
     --surface-solid: #161618;
     --glass: rgb(30 30 33 / 0.5);
@@ -303,6 +311,25 @@ body {
   .field:focus {
     border-color: var(--muted);
     box-shadow: 0 0 0 3px var(--fill-strong);
+  }
+  /* iOS Safari gives date inputs a wide intrinsic min-width that ignores
+     width: 100%, so they overflow half-width columns. Dropping the native
+     appearance lets them shrink; the min-height keeps an empty one from
+     collapsing, and the value stays left-aligned like other fields. */
+  input.field[type="date"] {
+    display: block;
+    min-width: 0;
+    min-height: calc(2.5rem + 2px);
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  input.field[type="date"]::-webkit-date-and-time-value {
+    text-align: left;
+  }
+  @media (min-width: 40rem) {
+    input.field[type="date"] {
+      min-height: calc(2.25rem + 2px);
+    }
   }
   select.field option {
     background: var(--surface-solid);
