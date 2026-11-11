@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { items } from "@/db/schema";
 import { getPlaid } from "@/lib/plaid";
-import { safePlaidError, syncItem } from "@/lib/sync";
+import { safePlaidError, syncOne } from "@/lib/sync";
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
@@ -11,8 +11,11 @@ export async function POST(req: Request) {
   if (typeof publicToken !== "string" || publicToken.length === 0) {
     return NextResponse.json({ error: "public_token is required" }, { status: 400 });
   }
+  // Shown on every page and sent to agents, so keep it a short label.
   const institutionName =
-    typeof body?.institution_name === "string" ? body.institution_name : null;
+    typeof body?.institution_name === "string" && body.institution_name.trim()
+      ? body.institution_name.trim().slice(0, 100)
+      : null;
 
   let item: typeof items.$inferSelect | undefined;
   try {
@@ -42,9 +45,12 @@ export async function POST(req: Request) {
   // The item is saved at this point. A failed first sync (often just
   // PRODUCT_NOT_READY right after linking) must not report "link failed" —
   // the user would link again and end up with a duplicate item. The next
-  // timer or manual sync picks it up.
+  // timer or manual sync picks it up. syncOne queues behind any run in
+  // progress and records the outcome on the item, like every other sync.
   try {
-    if (item) await syncItem(item);
+    const result = item ? await syncOne(item.id) : null;
+    const syncError = result?.errors[0]?.error_code;
+    if (syncError) return NextResponse.json({ ok: true, syncError });
   } catch (err) {
     const { error_code, request_id } = safePlaidError(err);
     console.error(

@@ -33,9 +33,21 @@ export function isMonth(s: string | undefined): s is string {
   return !!s && /^\d{4}-(0[1-9]|1[0-2])$/.test(s);
 }
 
+function localISO(d: Date): string {
+  const two = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())}`;
+}
+
 export function todayISO(): string {
-  const now = new Date();
-  return `${currentMonth()}-${String(now.getDate()).padStart(2, "0")}`;
+  return localISO(new Date());
+}
+
+// A real calendar day as yyyy-mm-dd: "2026-02-30" and "0000-00-00" are not.
+export function isDate(s: unknown): s is string {
+  if (typeof s !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+  const [y, m, d] = s.split("-").map(Number);
+  const t = new Date(Date.UTC(y, m - 1, d));
+  return t.getUTCFullYear() === y && t.getUTCMonth() === m - 1 && t.getUTCDate() === d;
 }
 
 // "Mar 4" from yyyy-mm-dd (with the year when it isn't this year), without
@@ -55,9 +67,11 @@ export function daysUntil(iso: string, from = todayISO()): number {
   return Math.round((Date.UTC(y2, m2 - 1, d2) - Date.UTC(y1, m1 - 1, d1)) / 86_400_000);
 }
 
-// yyyy-mm-dd for n days before today (UTC, matching snapshot day buckets).
+// yyyy-mm-dd for n days before today (local time, like the snapshot day buckets).
 export function daysAgoISO(n: number): string {
-  return new Date(Date.now() - n * 86_400_000).toISOString().slice(0, 10);
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return localISO(d);
 }
 
 // "5m ago" / "3h ago" / "2d ago" for a past timestamp.

@@ -1,5 +1,9 @@
 import assert from "node:assert";
+import { isDate } from "./months";
 import { detectRecurring, partitionSeries, type RecurringRule } from "./recurring";
+
+const addDaysISO = (iso: string, n: number) =>
+  new Date(Date.parse(iso) + n * 86_400_000).toISOString().slice(0, 10);
 
 const today = "2026-07-09";
 
@@ -160,5 +164,18 @@ assert.deepStrictEqual(moved("2026-06-10"), { lastDate: "2026-07-08", nextDate: 
 assert.strictEqual(moved("2026-07-08")?.nextDate, "2026-08-07", "anchor on the last charge: detector wins");
 const manualFuture = partitionSeries(results, [{ ...rules[2], anchorDate: "2026-08-01" }], today).nextDates.get(3);
 assert.strictEqual(manualFuture?.nextDate, "2026-08-01", "manual rule with a future anchor: anchor is next");
+// Rolling forward is arithmetic, not a loop: on the day itself the next one is
+// a period later, and an ancient daily anchor answers at once.
+const manual = (anchorDate: string, gapDays: number) =>
+  partitionSeries([], [{ ...rules[2], anchorDate, gapDays }], today).nextDates.get(3)?.nextDate;
+assert.strictEqual(manual(today, 7), addDaysISO(today, 7), "anchor today: next is one period on");
+assert.strictEqual(manual(addDaysISO(today, -20), 7), addDaysISO(today, 1), "steps whole periods past today");
+assert.strictEqual(manual("1900-01-01", 1), addDaysISO(today, 1), "daily rule from 1900");
+
+// Real calendar days only.
+for (const ok of ["2026-02-28", "2024-02-29", "1999-12-31"]) assert(isDate(ok), ok);
+for (const bad of ["2026-02-30", "2025-02-29", "2026-13-01", "2026-00-10", "0000-00-00", "2026-1-1", "20260101", "", null, 20260101, ["2026-01-01"]]) {
+  assert(!isDate(bad), `not a date: ${JSON.stringify(bad)}`);
+}
 
 console.log("lib/recurring-check.ts: all assertions passed");

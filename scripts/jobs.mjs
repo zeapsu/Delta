@@ -7,10 +7,23 @@
 import { spawn } from "node:child_process";
 
 const URL_BASE = (process.env.DELTA_INTERNAL_URL ?? "http://127.0.0.1:3000").replace(/\/+$/, "");
-const hours = (name, def) => Number(process.env[name] ?? def) * 3600_000;
-const SYNC_EVERY = hours("SYNC_INTERVAL_HOURS", 6);
-const BACKUP_EVERY = hours("BACKUP_INTERVAL_HOURS", 24);
-const REFRESH_WAIT = Number(process.env.REFRESH_WAIT_SECONDS ?? 180) * 1000;
+// An empty or mistyped value ("", "6h") must not become a 0 ms interval: that
+// loops backups and Plaid refreshes (billed per call on paid plans) without a
+// pause. Fall back to the default, and stay inside what setTimeout can hold
+// (a longer delay fires at once).
+const MAX_DELAY = 2 ** 31 - 1;
+function interval(name, def, unitMs, minMs) {
+  const raw = process.env[name]?.trim();
+  let n = raw ? Number(raw) : def;
+  if (!Number.isFinite(n) || n < 0 || (n === 0 && minMs > 0)) {
+    console.warn(`jobs: ${name}=${JSON.stringify(raw)} is not a usable number, using ${def}`);
+    n = def;
+  }
+  return Math.min(Math.max(n * unitMs, minMs), MAX_DELAY);
+}
+const SYNC_EVERY = interval("SYNC_INTERVAL_HOURS", 6, 3600_000, 60_000);
+const BACKUP_EVERY = interval("BACKUP_INTERVAL_HOURS", 24, 3600_000, 60_000);
+const REFRESH_WAIT = interval("REFRESH_WAIT_SECONDS", 180, 1000, 0);
 
 const log = (...a) => console.log(new Date().toISOString(), ...a);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));

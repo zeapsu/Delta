@@ -110,14 +110,20 @@ function applySync(
       // Totals count pending rows, so a posted row must replace its pending
       // one. Plaid also lists the pending id in `removed`, but drop it here
       // too in case the two land in different syncs.
+      // The posted row has a new id, so a relabel made while the charge was
+      // pending moves over with it.
+      let override: string | null = null;
       if (!t.pending && t.pending_transaction_id) {
-        tx
-          .delete(transactions)
-          .where(eq(transactions.plaidTransactionId, t.pending_transaction_id))
-          .run();
+        override =
+          tx
+            .delete(transactions)
+            .where(eq(transactions.plaidTransactionId, t.pending_transaction_id))
+            .returning({ override: transactions.categoryOverride })
+            .get()?.override ?? null;
       }
       const plaidCategory = t.personal_finance_category?.primary ?? null;
-      const category = rules.get(merchantKey(t.merchant_name ?? null, t.name)) ?? plaidCategory;
+      const category =
+        override ?? rules.get(merchantKey(t.merchant_name ?? null, t.name)) ?? plaidCategory;
       tx
         .insert(transactions)
         .values({
@@ -129,6 +135,7 @@ function applySync(
           name: t.name,
           merchantName: t.merchant_name ?? null,
           category,
+          categoryOverride: override,
           plaidCategory,
           categoryDetailed: t.personal_finance_category?.detailed ?? null,
           pending: t.pending,
@@ -143,6 +150,7 @@ function applySync(
             name: t.name,
             merchantName: t.merchant_name ?? null,
             category: sql`coalesce(${transactions.categoryOverride}, ${category})`,
+            categoryOverride: sql`coalesce(${transactions.categoryOverride}, ${override})`,
             plaidCategory,
             categoryDetailed: t.personal_finance_category?.detailed ?? null,
             pending: t.pending,
@@ -324,7 +332,7 @@ async function syncInvestments(item: Item): Promise<number> {
   return collected.length;
 }
 
-export async function syncItem(item: Item): Promise<SyncCounts> {
+async function syncItem(item: Item): Promise<SyncCounts> {
   let base: Omit<SyncCounts, "investments">;
   try {
     const { accountsPayload, added, modified, removed, nextCursor } =
@@ -353,28 +361,47 @@ export async function syncItem(item: Item): Promise<SyncCounts> {
   return { ...base, investments };
 }
 
-// The 6h timer and the Sync button can overlap; two runs would read the same
-// cursor and double every balance snapshot. A caller that arrives mid-run
-// joins the in-flight run instead. ponytail: module-level, single process.
-let inFlight: Promise<SyncResult> | null = null;
+// The 6h timer, the Sync buttons and a new link can overlap; two runs at once
+// would read the same cursor and double every balance snapshot. So runs go
+// one at a time, in order. ponytail: module-level, single process.
+let tail: Promise<unknown> = Promise.resolve();
 
-export function syncAll(): Promise<SyncResult> {
-  inFlight ??= runSync(db.select().from(items).all()).finally(() => {
-    inFlight = null;
-  });
-  return inFlight;
+function enqueue(start: () => Promise<SyncResult>): Promise<SyncResult> {
+  const run = tail.then(start);
+  tail = run.catch(() => {});
+  return run;
 }
 
-// One connection (the per-institution refresh / post-Reconnect sync). Joins a
-// running sync rather than overlapping it — a full run covers this item too.
-export async function syncOne(itemId: number): Promise<SyncResult | null> {
-  if (inFlight) return inFlight;
-  const item = db.select().from(items).where(eq(items.id, itemId)).get();
-  if (!item) return null;
-  inFlight = runSync([item]).finally(() => {
-    inFlight = null;
+// A caller that arrives while a full run is queued or running joins it.
+let full: Promise<SyncResult> | null = null;
+
+export function syncAll(): Promise<SyncResult> {
+  full ??= enqueue(() => runSync(db.select().from(items).all())).finally(() => {
+    full = null;
   });
-  return inFlight;
+  return full;
+}
+
+// One connection (the per-institution refresh, the post-Reconnect sync, the
+// first sync after linking). It waits its turn rather than joining a run in
+// progress: that run may have passed this item already, or started before the
+// item existed or was reconnected. Only a run for the same item that hasn't
+// started yet is shared.
+const waiting = new Map<number, Promise<SyncResult>>();
+
+export async function syncOne(itemId: number): Promise<SyncResult | null> {
+  const queued = waiting.get(itemId);
+  if (queued) return queued;
+  const exists = db.select({ id: items.id }).from(items).where(eq(items.id, itemId)).get();
+  if (!exists) return null;
+  const run = enqueue(() => {
+    waiting.delete(itemId);
+    // Read at start: a run ahead of this one may have moved the cursor.
+    const item = db.select().from(items).where(eq(items.id, itemId)).get();
+    return runSync(item ? [item] : []);
+  });
+  waiting.set(itemId, run);
+  return run;
 }
 
 // One failing item (e.g. ITEM_LOGIN_REQUIRED) must not block the rest.

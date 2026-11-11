@@ -10,7 +10,7 @@ export const GET = readRoute(async () => {
   const [[fresh], connections] = await Promise.all([
     db.all<{ lastTransaction: string | null; lastSnapshot: string | null; lastInvestment: string | null }>(sql`
       SELECT (SELECT MAX(date) FROM transactions) AS lastTransaction,
-             (SELECT date(MAX(snapshot_at) / 1000, 'unixepoch') FROM balance_snapshots) AS lastSnapshot,
+             (SELECT date(MAX(snapshot_at) / 1000, 'unixepoch', 'localtime') FROM balance_snapshots) AS lastSnapshot,
              (SELECT MAX(date) FROM investment_transactions) AS lastInvestment
     `),
     // Never select access_token or the sync cursor.

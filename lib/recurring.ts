@@ -1,4 +1,5 @@
 // Pure detection logic, no DB imports — see lib/recurring-check.ts for the self-check.
+import { todayISO } from "@/lib/months";
 
 export type RecurringSeries = {
   merchant: string; // display name (most common original merchantName ?? cleaned name in group)
@@ -69,7 +70,7 @@ export function cadenceFromGap(m: number): string {
 // ponytail: naive heuristic over full history; upgrade path is Plaid
 // /transactions/recurring/get if this proves too noisy in practice.
 export function detectRecurring(txns: Txn[], today?: string): RecurringSeries[] {
-  const todayDate = today ?? new Date().toISOString().slice(0, 10);
+  const todayDate = today ?? todayISO();
 
   const groups = new Map<string, Txn[]>();
   for (const t of txns) {
@@ -197,7 +198,7 @@ export function partitionSeries(
   suggestions: RecurringSeries[];
   nextDates: Map<number, { lastDate?: string; nextDate: string }>;
 } {
-  const todayDate = today ?? new Date().toISOString().slice(0, 10);
+  const todayDate = today ?? todayISO();
 
   const suggestions = series.filter((s) => !rules.some((r) => matches(s, r)));
 
@@ -208,8 +209,13 @@ export function partitionSeries(
     if (live && live.lastDate >= rule.anchorDate) {
       nextDates.set(rule.id, { lastDate: live.lastDate, nextDate: live.nextDate });
     } else {
-      let next = rule.anchorDate;
-      while (next <= todayDate) next = addDays(next, rule.gapDays);
+      // Whole periods to step past today, computed rather than looped: an
+      // anchor years back with a one-day gap would loop for every one of them.
+      const behind = daysBetween(rule.anchorDate, todayDate);
+      const next =
+        behind < 0
+          ? rule.anchorDate
+          : addDays(rule.anchorDate, (Math.floor(behind / rule.gapDays) + 1) * rule.gapDays);
       nextDates.set(rule.id, live ? { lastDate: live.lastDate, nextDate: next } : { nextDate: next });
     }
   }
