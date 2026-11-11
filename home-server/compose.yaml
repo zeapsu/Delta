@@ -23,6 +23,9 @@ services:
       # How agents reach Delta (printed in their MCP configs), e.g.
       # http://192.168.1.20:3000. Optional.
       DELTA_URL: ${DELTA_URL:-}
+      # Only behind your own domain (reverse proxy, tunnel): the name, e.g.
+      # money.example.com. IP addresses and .local names need nothing.
+      DELTA_ALLOWED_HOSTS: ${DELTA_ALLOWED_HOSTS:-}
       # 1 lets /api/v1/mcp alone answer any network, for agents that call
       # from the internet (token still required). Off by default.
       DELTA_PUBLIC_MCP: ${DELTA_PUBLIC_MCP:-}

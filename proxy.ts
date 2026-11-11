@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { allowed, crossSiteWrite } from "@/lib/tailnet";
+import { allowed, crossSiteWrite, knownHost, shownHost } from "@/lib/tailnet";
 import { bearerToken, publicMcp, requiredScope, scopeAllows } from "@/lib/api-auth";
 import { lookupToken } from "@/lib/api-tokens";
 import { gate, SESSION_COOKIE, validSession } from "@/lib/login";
@@ -22,8 +22,15 @@ import { getLogin } from "@/lib/login-store";
 //
 // DELTA_PUBLIC_MCP=1 opens /api/v1/mcp alone to any network; it still needs a
 // token (see publicMcp in lib/api-auth.ts).
+//
+// Pages and the dashboard's routes also check the name the browser used
+// (knownHost in lib/tailnet.ts): without it, any website could read Delta
+// through a visitor's browser by pointing its own domain here (DNS
+// rebinding). /api/v1 is exempt, since a page can't supply its token.
 export async function proxy(req: NextRequest) {
   const path = req.nextUrl.pathname;
+  const v1 = path === "/api/v1" || path.startsWith("/api/v1/");
+  if (!v1 && !knownHost(req)) return unknownHost(req, path.startsWith("/api/"));
   if (!path.startsWith("/api/")) return loginGate(req, gate(path, req.method));
 
   if (!allowed(req) && !publicMcp(path)) {
@@ -49,6 +56,18 @@ export async function proxy(req: NextRequest) {
     }
   }
   return loginGate(req, gate(path, req.method));
+}
+
+function unknownHost(req: NextRequest, api: boolean) {
+  const name = shownHost(req);
+  const fix = `add DELTA_ALLOWED_HOSTS=${name.replace(/:\d+$/, "")} to Delta's settings and restart it, or open Delta by its IP address`;
+  if (api) return NextResponse.json({ error: `Unknown address ${name}: ${fix}` }, { status: 403 });
+  return new NextResponse(
+    `Delta doesn't know the address "${name}".\n\n` +
+      `If this is your Delta, ${fix}.\n\n` +
+      "Delta only answers to addresses it knows, so that another website can't read it through your browser.\n",
+    { status: 403, headers: { "Content-Type": "text/plain; charset=utf-8" } },
+  );
 }
 
 function loginGate(req: NextRequest, g: ReturnType<typeof gate>) {

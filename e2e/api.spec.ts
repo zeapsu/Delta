@@ -94,6 +94,32 @@ test("the network guard covers every API route, whatever the path ends in", asyn
   expect((await request.delete("/api/tokens/1.0")).status()).toBe(400);
 });
 
+// DNS rebinding: a website points its own domain at Delta's private address
+// and reads it "same-origin" through a visitor's browser. The request comes
+// from an allowed device, so only the name gives it away.
+test("pages and dashboard routes answer only to addresses Delta knows", async ({ request }) => {
+  const as = (host: string) => ({ headers: { host }, maxRedirects: 0 });
+  for (const path of ["/", "/transactions", "/login", "/api/budgets", "/api/tokens", "/api/settings"]) {
+    const res = await request.get(path, as("evil.example:3100"));
+    expect(res.status(), path).toBe(403);
+    expect(await res.text(), path).toContain("DELTA_ALLOWED_HOSTS=evil.example");
+  }
+  expect((await request.post("/api/plaid/sync", as("evil.example"))).status()).toBe(403);
+  expect((await request.get("/api/budgets", { headers: { "x-forwarded-host": "evil.example" } })).status()).toBe(403);
+  // The message never echoes markup.
+  expect(await (await request.get("/", as("evil.example<script>"))).text()).not.toContain("<");
+
+  // Addresses, private names and Tailscale names are how owners reach it.
+  for (const host of ["100.116.56.85:3100", "[::1]:3100", "localhost:3100", "jetson", "delta.local:3100", "jetson.tail1234.ts.net"]) {
+    expect((await request.get("/api/budgets", as(host))).status(), host).toBe(200);
+    expect((await request.get("/spending", as(host))).status(), host).toBe(200);
+  }
+  // Agents carry a token, which a web page can't have, so /api/v1 takes any name.
+  const v1 = await request.get("/api/v1/status", { headers: { host: "delta.example.com", ...bearer(tokens().read) } });
+  expect(v1.status()).toBe(200);
+  expect((await request.get("/api/v1/status", as("delta.example.com"))).status()).toBe(401);
+});
+
 test("the login page never redirects off the site", async ({ request, baseURL }) => {
   // No password is set here, so /login redirects straight to ?next=.
   for (const next of ["/%09/evil.example", "/%0A/evil.example", "//evil.example", "/%5Cevil.example", "https://evil.example"]) {
