@@ -62,3 +62,57 @@ export function crossSiteWrite(req: Request): boolean {
     return true; // "null" or garbage Origin
   }
 }
+
+// DNS rebinding guard. A web page on any site can point its own domain at
+// Delta's private address and then read Delta "same-origin" through the
+// visitor's browser: the request comes from an allowed device, so the network
+// check passes, and with no password set nothing else asks who is calling.
+// The one thing the page can't choose is the name: the browser still sends
+// Host: <the attacker's domain>. So a request must name Delta the way its
+// owner would reach it:
+//   - an IP address (rebinding needs a DNS name),
+//   - localhost, a single-label name ("jetson", "umbrel"),
+//   - names public DNS can't serve (.local, .lan, .home, .home.arpa,
+//     .internal, .localhost, .onion) and Tailscale's (.ts.net),
+//   - DELTA_URL's host, and anything in DELTA_ALLOWED_HOSTS (comma-separated
+//     names; "*.example.com" covers subdomains; "*" turns the check off).
+// A reverse proxy that rewrites Host passes the original as X-Forwarded-Host,
+// so that is held to the same rule.
+const PRIVATE_SUFFIXES = [".localhost", ".local", ".lan", ".home", ".home.arpa", ".internal", ".onion", ".ts.net"];
+
+// "Example.com:3000" -> "example.com", "[::1]:3000" -> "[::1]".
+function hostName(host: string): string {
+  const h = host.trim().toLowerCase();
+  if (h.startsWith("[")) return h.slice(0, h.indexOf("]") + 1);
+  return h.replace(/:\d+$/, "").replace(/\.$/, "");
+}
+
+function nameAllowed(name: string, extra: string[]): boolean {
+  if (name === "") return true; // no Host at all: not a browser
+  if (name.startsWith("[") || ipv4(name) !== null) return true;
+  if (!/^[a-z0-9._-]+$/.test(name)) return false;
+  if (!name.includes(".") || PRIVATE_SUFFIXES.some((s) => name.endsWith(s))) return true;
+  return extra.some((e) => (e.startsWith("*.") ? name.endsWith(e.slice(1)) : name === e));
+}
+
+export function knownHost(
+  req: Request,
+  spec = process.env.DELTA_ALLOWED_HOSTS ?? "",
+  deltaUrl = process.env.DELTA_URL ?? "",
+): boolean {
+  const extra = spec.split(",").map(hostName).filter(Boolean);
+  if (extra.includes("*")) return true;
+  try {
+    if (deltaUrl) extra.push(hostName(new URL(deltaUrl).host));
+  } catch {
+    // A malformed DELTA_URL allows nothing extra.
+  }
+  const forwarded = (req.headers.get("x-forwarded-host") ?? "").split(",")[0];
+  return [req.headers.get("host") ?? "", forwarded].every((h) => nameAllowed(hostName(h), extra));
+}
+
+// The name to show in the refusal, safe to print.
+export function shownHost(req: Request): string {
+  const forwarded = (req.headers.get("x-forwarded-host") ?? "").split(",")[0];
+  return hostName(forwarded || (req.headers.get("host") ?? "")).replace(/[^a-z0-9.:[\]_-]/g, "").slice(0, 100);
+}

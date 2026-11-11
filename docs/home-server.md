@@ -58,6 +58,7 @@ Set these in your panel's environment section.
 | `DELTA_PORT` | `3000` | Published port |
 | `DELTA_URL` | | Address agents use, e.g. `http://192.168.1.20:3000` |
 | `DELTA_ALLOWED_NETWORKS` | private ranges + Tailscale | Who may use the API. Narrow to e.g. `192.168.1.0/24` |
+| `DELTA_ALLOWED_HOSTS` | | Only behind your own domain: the name, e.g. `money.example.com` ([why](self-hosting.md#using-your-own-domain)) |
 | `DELTA_TAG` | `latest` | Image version |
 
 ## Update
@@ -88,5 +89,6 @@ Then remove the stack, and delete the `delta-data` volume to erase your data. De
 
 - **Page won't open:** check the containers are running and the port is 3000 (or your `DELTA_PORT`).
 - **"Could not start Plaid Link":** your device's network isn't in `DELTA_ALLOWED_NETWORKS`.
+- **"Delta doesn't know the address":** you opened it under a public domain name. Add the name to `DELTA_ALLOWED_HOSTS`, or use the IP address.
 - **Keys rejected:** copy them again, and check the secret matches the environment you picked.
 - More in [Troubleshooting](troubleshooting.md).
