@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
+import { layoutProblems } from "./layout";
 
 // Visual QA smoke: every page renders with data, without server or browser
 // errors. Full-page screenshots go into the HTML report for a human look
@@ -52,13 +53,50 @@ for (const [path, heading] of PAGES) {
   });
 }
 
-test("no horizontal scroll at phone width", async ({ page }, info) => {
-  test.skip(info.project.name !== "phone");
-  for (const [path] of PAGES) {
-    await page.goto(path);
-    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-    expect(overflow, path).toBeLessThanOrEqual(1);
+// Layout, at the project's own width and, on phones, at the narrowest ones in
+// use (320 and 375). Beyond a screenshot: see e2e/layout.ts for the rules.
+const NARROW = [320, 375];
+const STATES: [string, string, ((page: Page) => Promise<void>)?][] = [
+  ...PAGES.map(([path]): [string, string] => [path, path]),
+  ["/transactions with filters", "/transactions?q=coffee&from=2020-01-01&to=2030-12-31&category=FOOD_AND_DRINK"],
+  [
+    "/transactions category picker",
+    "/transactions",
+    async (page) => {
+      // The table renders a phone and a desktop cell per row; click the shown one.
+      await page.getByTitle("Change category").filter({ visible: true }).first().click();
+      await expect(page.getByRole("dialog")).toBeVisible();
+    },
+  ],
+  [
+    "/recurring confirm form",
+    "/recurring",
+    async (page) => {
+      const yes = page.getByRole("button", { name: "Yes, track it" }).filter({ visible: true }).first();
+      if (await yes.count()) await yes.click();
+    },
+  ],
+];
+
+test("nothing overflows the screen or its card, and fields don't trigger iOS zoom", async ({ page, viewport }, info) => {
+  const phone = (viewport?.width ?? 1280) < 640;
+  const widths = phone ? [...NARROW, viewport!.width] : [viewport?.width ?? 1280];
+  const found: string[] = [];
+  for (const width of widths) {
+    await page.setViewportSize({ width, height: viewport?.height ?? 800 });
+    for (const [label, path, prepare] of STATES) {
+      await page.goto(path);
+      await prepare?.(page);
+      const scroll = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+      const problems = await layoutProblems(page);
+      if (scroll > 1) problems.unshift(`the page scrolls sideways by ${scroll}px`);
+      if (problems.length) {
+        await info.attach(`layout ${label.replace(/\W+/g, "_")} ${width}.png`, { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
+      }
+      found.push(...problems.map((p) => `${label} at ${width}px: ${p}`));
+    }
   }
+  expect(found).toEqual([]);
 });
 
 test("spending shows the fixture's categories", async ({ page }) => {

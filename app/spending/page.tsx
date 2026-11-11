@@ -135,13 +135,13 @@ export default async function SpendingPage({
                 <li key={r.category ?? "null"}>
                   <Link
                     href={txHref(r.category)}
-                    className="flex items-center gap-3 rounded-xl px-2 py-2 hover:bg-fill"
+                    className="flex items-center gap-2 rounded-xl px-2 py-2 hover:bg-fill sm:gap-3"
                   >
                     <span className="flex w-28 shrink-0 items-center gap-2 text-sm sm:w-40">
                       <Dot color={categoryColor(r.category ?? "UNCATEGORIZED", topCategories)} />
                       <span className="truncate">{formatCategory(r.category)}</span>
                     </span>
-                    <span className="flex-1">
+                    <span className="min-w-0 flex-1">
                       <Meter
                         value={r.total}
                         max={max}
@@ -149,10 +149,10 @@ export default async function SpendingPage({
                         label={`${formatCategory(r.category)} spending`}
                       />
                     </span>
-                    <span className="w-12 shrink-0 text-right text-xs tabular-nums text-muted">
+                    <span className="w-9 shrink-0 text-right text-xs tabular-nums text-muted sm:w-12">
                       {Math.round((r.total / grandTotal) * 100)}%
                     </span>
-                    <span className="w-24 shrink-0 text-right text-sm font-medium tabular-nums">
+                    <span className="w-20 shrink-0 text-right text-sm font-medium tabular-nums sm:w-24">
                       {formatCents(r.total)}
                     </span>
                   </Link>

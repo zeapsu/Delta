@@ -53,8 +53,18 @@ export default defineConfig({
       dependencies: ["setup"],
       use: { ...devices["Pixel 7"], colorScheme: "dark" },
     },
+    // WebKit, the engine behind every browser on iOS, at an iPhone's size. It
+    // catches what Chromium renders differently (flex/grid sizing, backdrop
+    // filters, font metrics). It is not iOS itself: native controls such as
+    // the date picker only look like Safari's on a real device.
+    {
+      name: "iphone",
+      testMatch: /pages\.spec\.ts/,
+      dependencies: ["setup"],
+      use: { ...devices["iPhone 15"], colorScheme: "light" },
+    },
     // Locks the shared server while it runs, so it goes last.
-    { name: "login", testMatch: /login\.spec\.ts/, dependencies: ["api", "first-run", "desktop", "phone"] },
+    { name: "login", testMatch: /login\.spec\.ts/, dependencies: ["api", "first-run", "desktop", "phone", "iphone"] },
   ],
   webServer: [
     {

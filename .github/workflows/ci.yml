@@ -34,6 +34,12 @@ jobs:
         run: npx tsc --noEmit
       - name: Self-checks
         run: npm test
+      # Dates follow the saved time zone. Between UTC+14 and UTC-11 the local
+      # day differs from the UTC day at any hour, so UTC-only date math fails.
+      - name: Self-checks in other time zones
+        run: |
+          TZ=Pacific/Kiritimati npm test
+          TZ=Pacific/Pago_Pago npm test
       - name: DB smoke test
         run: npx tsx db/check.ts
       - name: Migrations match the schema
@@ -60,8 +66,8 @@ jobs:
       - run: npm ci
       - name: Build
         run: npm run build
-      - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+      - name: Install Chromium and WebKit
+        run: npx playwright install --with-deps chromium webkit
       - name: API, MCP and page tests (mock Plaid)
         run: npm run e2e
       - name: Upload report and screenshots
@@ -71,3 +77,42 @@ jobs:
           name: e2e-report
           path: e2e/.tmp/report
           retention-days: 14
+
+  # The image as users get it: it must build, boot, migrate a fresh /data and
+  # run the bundled CLI. Catches a file the Dockerfile forgot to copy or a
+  # runtime dependency that only dev installs have. Not a required check.
+  image:
+    name: Image smoke test
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build
+        run: docker build -t delta:ci --build-arg "DELTA_COMMIT=$GITHUB_SHA" .
+      - name: Boot
+        run: |
+          docker run -d --name delta -p 127.0.0.1:3000:3000 -e DELTA_ALLOWED_NETWORKS=0.0.0.0/0 -e DELTA_UPDATE_CHECK=off delta:ci
+          for i in $(seq 1 30); do
+            if curl -fsS -o /dev/null http://127.0.0.1:3000/; then exit 0; fi
+            sleep 2
+          done
+          echo "::error::The container did not answer on port 3000 within a minute."
+          exit 1
+      - name: Pages, API and CLI answer
+        run: |
+          set -euo pipefail
+          curl -fsS -o home.html http://127.0.0.1:3000/
+          grep -q "Delta" home.html
+          # The agent API is up and wants a token.
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/api/v1/status)" = 401
+          # The bundled CLI can mint one (tsx and the migrated DB are in the image), and it works.
+          out=$(docker exec delta npm run --silent token -- create ci --scope read)
+          [[ $out =~ dlt_[A-Za-z0-9_-]+ ]]
+          curl -fsS -o status.json -H "Authorization: Bearer ${BASH_REMATCH[0]}" http://127.0.0.1:3000/api/v1/status
+          grep -q '"connections"' status.json
+          docker exec delta node scripts/backup-db.mjs
+      - name: Logs
+        if: ${{ !cancelled() }}
+        run: docker logs delta
+
