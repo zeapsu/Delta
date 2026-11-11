@@ -63,7 +63,7 @@ x-casaos:
 
       First run: open Delta and follow the checklist. It asks for your own Plaid keys (free for personal use), connects your accounts and pulls your history.
 
-      Delta has no login. Keep it on your home network or Tailscale, never port-forwarded.
+      Delta asks for no login until you set a password in Settings. Keep it on your home network or Tailscale, never port-forwarded.
 
       **Agents:** Delta serves an MCP server, so the agent you already use can read your finances with its own revocable token.
 
@@ -71,7 +71,7 @@ x-casaos:
       - [GitHub](https://github.com/zeapsu/Delta)
   tips:
     before_install:
-      en_US: You need Plaid keys (free for personal use). Delta has no login, so keep it off the public internet.
+      en_US: You need Plaid keys (free for personal use). Delta asks for no login until you set a password in Settings, so keep it off the public internet.
   author: zeapsu
   developer: Delta
   category: Finance
