@@ -28,6 +28,10 @@ Brokerage and retirement accounts never show rows on the Transactions page. Thei
 
 The bank wants you to sign in again (for example after a password change or an expired consent). Click **Reconnect** and finish Plaid Link; nothing is lost. An amber dot instead means the last sync hit a temporary error, which usually clears on the next run.
 
+## "… is already connected"
+
+You linked a bank whose accounts Delta already has. A second copy would count every balance and transaction twice, so Delta keeps the existing connection and removes the new one at Plaid. If the existing connection stopped syncing, use its **Reconnect** button instead. Other accounts at the same bank (a partner's login, a business login) link normally.
+
 ## Investments page asks me to grant access
 
 The connection was linked without investments consent. Click **Grant investments access** to add it in Plaid Link; you don't need to re-link.

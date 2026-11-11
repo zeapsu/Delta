@@ -1,7 +1,8 @@
 // Web UI login, the pure part (self-check: login-check.ts). One password for
 // the single user, opt-in: with none set, Delta stays open to its network as
 // before. Stored as the `login` settings row: an scrypt hash plus the secret
-// that signs session cookies, so changing the password logs out every device.
+// that signs session cookies, so a new secret (changing the password, logging
+// out) logs out every device.
 import { createHmac, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 
 export const LOGIN_KEY = "login";
@@ -36,8 +37,12 @@ export function verifyPassword(password: string, stored: string): boolean {
   return timingSafeEqual(got, want);
 }
 
+export function newSecret(): string {
+  return randomBytes(32).toString("base64url");
+}
+
 export function newLogin(password: string): StoredLogin {
-  return { hash: hashPassword(password), secret: randomBytes(32).toString("base64url") };
+  return { hash: hashPassword(password), secret: newSecret() };
 }
 
 export function parseStoredLogin(value: string | undefined): StoredLogin | null {
@@ -57,8 +62,9 @@ export function checkNewPassword(password: unknown): string | null {
   return null;
 }
 
-// Session cookie: "<expiry ms>.<HMAC of it>". Stateless; the secret rotates
-// with the password.
+// Session cookie: "<expiry ms>.<HMAC of it>". Stateless, so one session can't
+// be revoked on its own: logging out and changing the password both rotate
+// the secret, which voids every cookie signed with the old one.
 function sign(secret: string, payload: string): string {
   return createHmac("sha256", secret).update(payload).digest("base64url");
 }

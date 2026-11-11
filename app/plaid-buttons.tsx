@@ -39,7 +39,9 @@ export default function PlaidButtons({ connectOnly = false }: { connectOnly?: bo
           institution_name: metadata.institution?.name,
         }),
       })
-        .then((res) => {
+        .then(async (res) => {
+          // 409: this bank is already connected, and the server says which.
+          if (res.status === 409) return setError(`${(await res.json()).error}.`);
           if (!res.ok) throw new Error("Exchange failed");
           router.refresh();
         })

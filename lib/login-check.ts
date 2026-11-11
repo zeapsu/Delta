@@ -3,6 +3,7 @@ import {
   checkNewPassword,
   gate,
   newLogin,
+  newSecret,
   parseStoredLogin,
   safeNext,
   sessionValue,
@@ -34,6 +35,9 @@ const cookie = sessionValue(login.secret, now);
 assert.ok(validSession(login.secret, cookie, now + 1000));
 assert.ok(!validSession(login.secret, cookie, now + SESSION_DAYS * 86_400_000 + 1), "expired");
 assert.ok(!validSession(newLogin("other pass").secret, cookie, now), "rotated secret");
+// Logging out keeps the password and swaps the secret: every cookie dies.
+assert.ok(!validSession(newSecret(), cookie, now), "logged out");
+assert.notStrictEqual(newSecret(), newSecret());
 assert.ok(!validSession(login.secret, cookie.replace(/^\d/, "9"), now), "tampered expiry");
 assert.ok(!validSession(login.secret, undefined, now));
 assert.ok(!validSession(login.secret, "abc", now));

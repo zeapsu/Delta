@@ -8,6 +8,9 @@ import http from "node:http";
 
 const port = Number(process.argv[2] ?? process.env.PLAID_MOCK_PORT ?? 4010);
 export const ACCESS_TOKEN = "access-sandbox-mock-1";
+// What linking the same bank a second time gets (public token
+// "public-sandbox-mock-again"): a new item and token for the same accounts.
+const AGAIN_TOKEN = "access-sandbox-mock-2";
 
 const iso = (d) => d.toISOString().slice(0, 10);
 const now = new Date();
@@ -117,9 +120,20 @@ const routes = new Map(Object.entries({
   // The first-run key check (lib/plaid-config.ts).
   "/institutions/get": () => ({ institutions: [], total: 0 }),
   "/link/token/create": () => ({ link_token: "link-sandbox-mock", expiration: new Date(Date.now() + 3600e3).toISOString() }),
-  "/item/public_token/exchange": () => ({ access_token: ACCESS_TOKEN, item_id: "mock-item-1" }),
+  "/item/public_token/exchange": (body) =>
+    body.public_token === "public-sandbox-mock-again"
+      ? { access_token: AGAIN_TOKEN, item_id: "mock-item-2" }
+      : { access_token: ACCESS_TOKEN, item_id: "mock-item-1" },
   "/transactions/refresh": () => ({}),
-  "/item/remove": () => ({ request_id: "mock" }),
+  "/item/remove": (body) => (removed.push(body.access_token), {}),
+  // Plaid gives a second link of the same bank new account ids.
+  "/accounts/get": (body) => {
+    const again = body.access_token === AGAIN_TOKEN;
+    return {
+      accounts: again ? accounts.map((a) => ({ ...a, account_id: `${a.account_id}-again` })) : accounts,
+      item: { item_id: again ? "mock-item-2" : "mock-item-1", institution_id: "ins_mock", institution_name: "Mock Bank" },
+    };
+  },
   "/accounts/balance/get": () => ({ accounts, item: { item_id: "mock-item-1" } }),
   // "cursor-N" = the first N batches were delivered. No cursor replays all.
   "/transactions/sync": (body) => {
@@ -151,6 +165,9 @@ const routes = new Map(Object.entries({
 // What /transactions/sync hands out, in order. The fixture is the first batch.
 const batches = [{ added: transactions, removed: [] }];
 
+// Access tokens handed to /item/remove; POST /__mock/removed lists them.
+const removed = [];
+
 // Test control: POST /__mock/fail {"code": "ITEM_LOGIN_REQUIRED"} makes the
 // item's syncs fail with that Plaid error until {"code": null}.
 let failCode = null;
@@ -163,6 +180,7 @@ let failCode = null;
 const longAgo = iso(new Date(Date.now() - 400 * 86_400_000));
 const controls = new Map(Object.entries({
   "/__mock/fail": (body) => ({ failCode: (failCode = body.code ?? null) }),
+  "/__mock/removed": () => ({ removed }),
   "/__mock/pending": (body) => {
     const t = tx("acc-checking", longAgo, body.name, 12.34, "TRANSFER_OUT", "TRANSFER_OUT_ACCOUNT_TRANSFER", { pending: true });
     batches.push({ added: [t], removed: [] });
@@ -189,7 +207,10 @@ http
       if (req.headers["plaid-secret"] === "rejected-secret") return plaidError(res, "INVALID_API_KEYS");
       const route = routes.get(req.url);
       if (typeof route !== "function") return plaidError(res, "NOT_FOUND", 404);
-      if (req.url !== "/link/token/create" && req.url !== "/item/public_token/exchange" && req.url !== "/institutions/get" && body.access_token !== ACCESS_TOKEN) {
+      const tokenOk =
+        body.access_token === ACCESS_TOKEN ||
+        (body.access_token === AGAIN_TOKEN && (req.url === "/accounts/get" || req.url === "/item/remove"));
+      if (req.url !== "/link/token/create" && req.url !== "/item/public_token/exchange" && req.url !== "/institutions/get" && !tokenOk) {
         return plaidError(res, "INVALID_ACCESS_TOKEN");
       }
       if (failCode && req.url === "/transactions/sync") return plaidError(res, failCode);

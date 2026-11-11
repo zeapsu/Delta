@@ -1,9 +1,24 @@
 import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { items } from "@/db/schema";
+import { accounts, items } from "@/db/schema";
+import { duplicateOf } from "@/lib/duplicate-link";
 import { getPlaid } from "@/lib/plaid";
-import { safePlaidError, syncOne } from "@/lib/sync";
+import { safePlaidError, saveAccounts, syncOne } from "@/lib/sync";
+import type { AccountBase } from "plaid";
+
+// Every connection with its accounts, for the duplicate check.
+function linkedBanks() {
+  const rows = db
+    .select({ itemId: accounts.itemId, name: accounts.name, type: accounts.type, subtype: accounts.subtype, mask: accounts.mask })
+    .from(accounts)
+    .all();
+  return db
+    .select({ id: items.id, institution: items.institutionName, lastErrorCode: items.lastErrorCode })
+    .from(items)
+    .all()
+    .map((item) => ({ ...item, accounts: rows.filter((a) => a.itemId === item.id) }));
+}
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
@@ -19,18 +34,62 @@ export async function POST(req: Request) {
 
   let item: typeof items.$inferSelect | undefined;
   try {
-    const exchangeRes = await getPlaid().itemPublicTokenExchange({
+    const plaid = getPlaid();
+    const exchangeRes = await plaid.itemPublicTokenExchange({
       public_token: publicToken,
     });
     const { item_id: plaidItemId, access_token: accessToken } = exchangeRes.data;
 
-    db
-      .insert(items)
-      .values({ plaidItemId, accessToken, institutionName })
-      .onConflictDoNothing({ target: items.plaidItemId })
-      .run();
-
     item = db.select().from(items).where(eq(items.plaidItemId, plaidItemId)).get();
+    if (!item) {
+      // Linking a bank again makes a new item with new account ids, so only
+      // its accounts can say Delta already has it. A failed lookup must not
+      // fail the link: the item exists at Plaid by now.
+      let linked: AccountBase[] = [];
+      let plaidName: string | null = null;
+      try {
+        const got = await plaid.accountsGet({ access_token: accessToken });
+        linked = got.data.accounts;
+        plaidName = got.data.item.institution_name ?? null;
+      } catch (err) {
+        const { error_code, request_id } = safePlaidError(err);
+        console.error(`plaid accounts lookup failed: error_code=${error_code} request_id=${request_id}`);
+      }
+      const name = institutionName ?? plaidName;
+      const duplicate = duplicateOf(
+        {
+          institution: name,
+          accounts: linked.map((a) => ({ name: a.name, type: a.type, subtype: a.subtype ?? null, mask: a.mask ?? null })),
+        },
+        linkedBanks(),
+      );
+      if (duplicate) {
+        // Keep the connection that has the history; the new item goes, or
+        // Plaid keeps billing for it.
+        try {
+          await plaid.itemRemove({ access_token: accessToken });
+        } catch (err) {
+          const { error_code, request_id } = safePlaidError(err);
+          console.error(
+            `plaid duplicate item not removed (remove it in the Plaid dashboard): plaid_item=${plaidItemId} error_code=${error_code} request_id=${request_id}`,
+          );
+        }
+        return NextResponse.json(
+          { error: `${duplicate.institution ?? name ?? "This bank"} is already connected` },
+          { status: 409 },
+        );
+      }
+
+      item = db.transaction((tx) => {
+        const row = tx
+          .insert(items)
+          .values({ plaidItemId, accessToken, institutionName: name })
+          .returning()
+          .get();
+        saveAccounts(tx, row.id, linked);
+        return row;
+      });
+    }
   } catch (err) {
     const { error_code, request_id } = safePlaidError(err);
     console.error(

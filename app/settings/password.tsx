@@ -6,7 +6,8 @@ import { useRouter } from "next/navigation";
 const DOCS = "https://zeapsu.github.io/Delta/docs/login";
 
 // Settings → Password: turn the web UI login on, change it, turn it off
-// (PUT/DELETE /api/settings/password), log out. Agent tokens are unaffected.
+// (PUT/DELETE /api/settings/password), log out (every device, since sessions
+// can't be ended one at a time). Agent tokens are unaffected.
 export function PasswordSettings({ enabled }: { enabled: boolean }) {
   const router = useRouter();
   const [mode, setMode] = useState<"idle" | "change" | "off">("idle");
@@ -124,7 +125,7 @@ export function PasswordSettings({ enabled }: { enabled: boolean }) {
           Turn off
         </button>
         <button type="button" className="btn" disabled={status.busy} onClick={logOut}>
-          Log out
+          Log out everywhere
         </button>
         {message}
       </div>
