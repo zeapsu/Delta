@@ -42,7 +42,7 @@ Delta is one Next.js app (App Router, TypeScript, Tailwind) with a SQLite databa
 
 ## Trust boundaries
 
-- **Network first, optional password.** The network is the boundary; `proxy.ts` refuses `/api/*` from outside loopback and `DELTA_ALLOWED_NETWORKS`, except `/api/v1/mcp` when `DELTA_PUBLIC_MCP=1` (token still required). With a password set (`lib/login.ts`), it also sends pages to `/login` and answers 401 on dashboard routes without the session cookie; `/api/v1` keeps its tokens.
+- **Network first, optional password.** The network is the boundary; `proxy.ts` refuses `/api/*` from outside loopback and `DELTA_ALLOWED_NETWORKS`, except `/api/v1/mcp` when `DELTA_PUBLIC_MCP=1` (token still required). Pages and dashboard routes also refuse a `Host` that is a public name Delta wasn't told about (`knownHost`, the DNS rebinding guard; `/api/v1` is exempt, a page can't supply its token). With a password set (`lib/login.ts`), it also sends pages to `/login` and answers 401 on dashboard routes without the session cookie; `/api/v1` keeps its tokens.
 - **Agents are least-privilege.** `/api/v1` needs a token (only its sha256 is stored). Read tokens can't write, and v1 routes never select Plaid access tokens or sync cursors.
 - **Writes go through validated routes only:** budgets, recurring rules and category relabels. The MCP layer never touches the DB; it calls the v1 handlers in-process.
 - **Plaid errors are never logged raw.** Axios errors carry the request body, including secrets and access tokens; only `error_code`, `error_code_reason` and `request_id` get logged.

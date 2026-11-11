@@ -19,6 +19,7 @@ About 15 minutes for a sandbox instance. Real banks also need Plaid to approve y
 3. **Agents use tokens.** The agent API (`/api/v1`, including the MCP server) also needs a per-agent bearer token, read or write scope, which you can revoke at any time.
 4. **Plaid access tokens never leave the database.** No API route returns them.
 5. **Optional password.** Settings → Password locks every page and the dashboard's routes behind a session cookie. [Password](login.md).
+6. **Delta answers only to addresses it knows.** Pages and the dashboard's routes refuse a request that names Delta by a public domain it wasn't told about, so another website can't read Delta through your browser by pointing its own domain at Delta's private address (DNS rebinding). IP addresses, `localhost`, single-word names, `.local`/`.lan`/`.home.arpa`/`.internal` names and Tailscale's `.ts.net` names always work. [Using your own domain](#using-your-own-domain).
 
 Never port-forward Delta to the public internet, and never put it behind a public reverse proxy. The password is a second lock, not a reason to expose Delta.
 
@@ -222,6 +223,7 @@ All settings go in `.env`. The Plaid keys can instead be entered on the setup pa
 | `TZ` | system (UTC in Docker) | Time zone for dates: today, this month, the greeting. **Settings → You** overrides it. `delta.sh install` copies your computer's |
 | `DELTA_URL` | `http://localhost:3000` | The address browsers and agents use, shown in agent configs |
 | `DELTA_ALLOWED_NETWORKS` | `100.64.0.0/10` | Comma-separated IPv4 CIDRs allowed to call `/api`. Loopback is always allowed. `0.0.0.0/0` when Docker hides the browser's address (bind `127.0.0.1`, Docker Desktop) |
+| `DELTA_ALLOWED_HOSTS` | | Extra names Delta answers to, comma-separated, for [your own domain](#using-your-own-domain): `money.example.com`, `*.example.com`. `*` turns the check off. `DELTA_URL`'s host is always included |
 | `DELTA_BIND` | `127.0.0.1` | Docker: host interface the port is published on |
 | `DELTA_PORT` | `3000` | Docker: host port |
 | `COMPOSE_FILE` | | Docker: set to `docker-compose.yml:docker-compose.tailscale.yml` for [host networking on Linux](#linux-with-tailscale-use-host-networking) |
@@ -231,6 +233,16 @@ All settings go in `.env`. The Plaid keys can instead be entered on the setup pa
 | `REFRESH_WAIT_SECONDS` | `180` | Docker: wait between the refresh request and the sync |
 | `BACKUP_INTERVAL_HOURS` | `24` | Docker: how often `jobs` backs up |
 | `DATABASE_PATH` | `./delta.db` (`/data/delta.db` in Docker) | SQLite file; backups go in `backups/` next to it |
+
+## Using your own domain
+
+If you reach Delta through a reverse proxy or tunnel under a public domain name, tell Delta the name, or it answers `Delta doesn't know the address`:
+
+```
+DELTA_ALLOWED_HOSTS=money.example.com
+```
+
+Setting `DELTA_URL=https://money.example.com` does the same. Addresses, `localhost`, single-word names, `.local`/`.lan`/`.home.arpa`/`.internal` names and Tailscale names need nothing. Agents are unaffected: `/api/v1` asks for a token instead. Set a [password](login.md) before putting Delta behind a public name.
 
 ## Without Docker
 

@@ -1,5 +1,5 @@
 import assert from "node:assert";
-import { allowed, crossSiteWrite } from "./tailnet";
+import { allowed, crossSiteWrite, knownHost, shownHost } from "./tailnet";
 
 const req = (method: string, headers: Record<string, string>) =>
   new Request("http://100.116.56.85:3000/api/budgets", { method, headers });
@@ -32,5 +32,36 @@ assert(crossSiteWrite(req("POST", { host, origin: "https://evil.example", "sec-f
 assert(crossSiteWrite(req("DELETE", { host, "sec-fetch-site": "same-site" })), "another tailnet port is a different origin");
 assert(crossSiteWrite(req("POST", { host, origin: "https://evil.example" })), "Origin mismatch without Sec-Fetch-Site");
 assert(crossSiteWrite(req("POST", { host, origin: "null" })), "opaque Origin");
+
+// knownHost(): the DNS rebinding guard. Addresses and private names pass,
+// a public name only when the owner listed it.
+const named = (h: string, extra: Record<string, string> = {}) =>
+  new Request("http://placeholder/", { headers: { host: h, ...extra } });
+for (const h of [
+  "100.116.56.85:3000", "127.0.0.1:3000", "192.168.1.20", "[::1]:3000", "[fd7a:115c:a1e0::1]:3000",
+  "localhost:3000", "LOCALHOST", "jetson:3000", "umbrel", "umbrel.local", "tower.local:3000", "nas.lan", "delta.home.arpa",
+  "delta.internal", "app.localhost:3000", "abcdefghij234567.onion", "jetson.tail1234.ts.net", "Jetson.Tail1234.ts.net.:3000", "",
+]) {
+  assert(knownHost(named(h), "", ""), `${h} should be a known host`);
+}
+for (const h of [
+  "evil.example", "evil.example:3000", "100.116.56.85.evil.example", "127.0.0.1.nip.io", "localhost.evil.example",
+  "ts.net.evil.example", "evil-ts.net", "a.b", "exa mple.com", "evil.example/.local", "0x7f.1.evil.example",
+]) {
+  assert(!knownHost(named(h), "", ""), `${h} should be refused`);
+}
+// A rewritten Host doesn't launder the original name.
+assert(!knownHost(named("delta:3000", { "x-forwarded-host": "evil.example" }), "", ""));
+assert(knownHost(named("delta:3000", { "x-forwarded-host": "jetson.tail1234.ts.net" }), "", ""));
+// DELTA_URL's host and DELTA_ALLOWED_HOSTS are the owner's own names.
+assert(knownHost(named("money.example.com"), "", "https://money.example.com"));
+assert(!knownHost(named("other.example.com"), "", "https://money.example.com"));
+assert(knownHost(named("money.example.com:8443"), " Money.Example.com , x.example.org", ""));
+assert(knownHost(named("a.b.example.org"), "*.example.org", ""));
+assert(!knownHost(named("example.org"), "*.example.org", ""), "the wildcard covers subdomains only");
+assert(!knownHost(named("evilexample.org"), "*.example.org", ""));
+assert(knownHost(named("evil.example"), "*", ""), '"*" turns the check off');
+assert(!knownHost(named("evil.example"), "", "not a url"));
+assert.strictEqual(shownHost(named('Evil.Example:3000"><script>')), "evil.example:3000script");
 
 console.log("lib/tailnet-check.ts: all assertions passed");

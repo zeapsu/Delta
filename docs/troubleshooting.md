@@ -39,6 +39,10 @@ Pages load but every action fails: the API is refusing your requests as coming f
 - **On the same computer, Docker install:** with `DELTA_BIND=127.0.0.1` Docker hides your browser's address. Add `DELTA_ALLOWED_NETWORKS=0.0.0.0/0` to `.env` and run `docker compose up -d` (new `delta.sh` installs set this).
 - **From your phone:** on Linux with Tailscale this is usually Docker NATing tailnet traffic so it no longer arrives from your device's `100.x` address. Switch to host networking, see [Linux with Tailscale](self-hosting.md#linux-with-tailscale-use-host-networking). On Docker Desktop for macOS, see [the macOS note](self-hosting.md#docker-desktop-on-macos).
 
+## "Delta doesn't know the address"
+
+You opened Delta under a public domain name it wasn't told about (a reverse proxy, a tunnel, a DNS record of your own). Add the name to `DELTA_ALLOWED_HOSTS` (or set `DELTA_URL` to that address) and restart, or open Delta by its IP address. Delta checks this so another website can't read it through your browser. [Using your own domain](self-hosting.md#using-your-own-domain).
+
 ## My agent gets 401 or 403
 
 - `401`: the token is missing, mistyped or revoked. Check **Settings → Agents** and create a new one if needed.
