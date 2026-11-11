@@ -176,7 +176,13 @@ export default async function Home() {
       title={greeting}
       subtitle={
         <>
-          {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
+          {/* Short on phones so the date and sync time stay on one line beside Ask Agent. */}
+          <span className="sm:hidden">
+            {new Date().toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
+          </span>
+          <span className="hidden sm:inline">
+            {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
+          </span>
           {lastSynced ? ` · synced ${timeAgo(lastSynced)}` : ""}
         </>
       }
