@@ -119,10 +119,19 @@ const routes = {
   "/transactions/refresh": () => ({}),
   "/item/remove": () => ({ request_id: "mock" }),
   "/accounts/balance/get": () => ({ accounts, item: { item_id: "mock-item-1" } }),
-  "/transactions/sync": (body) =>
-    body.cursor === "cursor-1"
-      ? { added: [], modified: [], removed: [], next_cursor: "cursor-1", has_more: false, accounts: [] }
-      : { added: transactions, modified: [], removed: [], next_cursor: "cursor-1", has_more: false, accounts },
+  // "cursor-N" = the first N batches were delivered. No cursor replays all.
+  "/transactions/sync": (body) => {
+    const seen = Number(/^cursor-(\d+)$/.exec(body.cursor ?? "")?.[1] ?? 0);
+    const fresh = batches.slice(seen);
+    return {
+      added: fresh.flatMap((b) => b.added),
+      modified: [],
+      removed: fresh.flatMap((b) => b.removed).map((transaction_id) => ({ transaction_id })),
+      next_cursor: `cursor-${batches.length}`,
+      has_more: false,
+      accounts: fresh.length ? accounts : [],
+    };
+  },
   "/item/get": () => ({
     item: {
       item_id: "mock-item-1",
@@ -137,9 +146,33 @@ const routes = {
   "/investments/transactions/get": () => "ADDITIONAL_CONSENT_REQUIRED",
 };
 
+// What /transactions/sync hands out, in order. The fixture is the first batch.
+const batches = [{ added: transactions, removed: [] }];
+
 // Test control: POST /__mock/fail {"code": "ITEM_LOGIN_REQUIRED"} makes the
 // item's syncs fail with that Plaid error until {"code": null}.
 let failCode = null;
+
+// Test controls for a charge that posts. POST /__mock/pending {"name"} queues
+// a pending transaction for the next sync; POST /__mock/post {"transaction_id"}
+// queues its posted twin (a new id pointing back at it) and removes the
+// pending one, as Plaid does. Dated over a year back and labelled a transfer,
+// so no total the other specs assert on moves.
+const longAgo = iso(new Date(Date.now() - 400 * 86_400_000));
+const controls = {
+  "/__mock/fail": (body) => ({ failCode: (failCode = body.code ?? null) }),
+  "/__mock/pending": (body) => {
+    const t = tx("acc-checking", longAgo, body.name, 12.34, "TRANSFER_OUT", "TRANSFER_OUT_ACCOUNT_TRANSFER", { pending: true });
+    batches.push({ added: [t], removed: [] });
+    return { transaction_id: t.transaction_id };
+  },
+  "/__mock/post": (body) => {
+    const pending = batches.flatMap((b) => b.added).find((t) => t.transaction_id === body.transaction_id);
+    const posted = { ...pending, transaction_id: `tx-${++n}`, pending: false, pending_transaction_id: pending.transaction_id };
+    batches.push({ added: [posted], removed: [pending.transaction_id] });
+    return { transaction_id: posted.transaction_id };
+  },
+};
 
 http
   .createServer((req, res) => {
@@ -148,10 +181,7 @@ http
     req.on("end", () => {
       const body = raw ? JSON.parse(raw) : {};
       if (req.url === "/health") return send(res, 200, { ok: true });
-      if (req.url === "/__mock/fail") {
-        failCode = body.code ?? null;
-        return send(res, 200, { failCode });
-      }
+      if (controls[req.url]) return send(res, 200, controls[req.url](body));
       // Any keys work except this secret, so the setup page's rejection shows.
       if (req.headers["plaid-secret"] === "rejected-secret") return plaidError(res, "INVALID_API_KEYS");
       const route = routes[req.url];

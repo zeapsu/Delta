@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { apiRoutes, bearer, MOCK_ACCESS_TOKEN, PENDING_THIS_MONTH_CENTS, SPEND_THIS_MONTH_CENTS, THIS_MONTH, tokens } from "./helpers";
+import { apiRoutes, bearer, MOCK_ACCESS_TOKEN, MOCK_PLAID_URL, PENDING_THIS_MONTH_CENTS, SPEND_THIS_MONTH_CENTS, THIS_MONTH, tokens } from "./helpers";
 
 const V1_READS = [
   "/api/v1",
@@ -59,6 +59,13 @@ test("writes need a write token and are validated", async ({ request }) => {
   const { budgets } = await (await request.get("/api/v1/budgets", { headers: bearer(tokens().read) })).json();
   expect(JSON.stringify(budgets)).toContain("ENTERTAINMENT");
   expect((await request.delete("/api/v1/budgets", { headers: bearer(tokens().write), data: { category: "ENTERTAINMENT" } })).status()).toBe(200);
+
+  // A recurring charge needs a day that exists.
+  const rule = { status: "confirmed", name: "Probe", amount: 5_00, gapDays: 30 };
+  for (const anchorDate of ["2026-02-30", "0000-00-00", "2026-13-01"]) {
+    const res = await request.post("/api/v1/recurring", { headers: bearer(tokens().write), data: { ...rule, anchorDate } });
+    expect(res.status(), anchorDate).toBe(400);
+  }
 });
 
 test("cross-site browser writes are refused", async ({ request }) => {
@@ -115,6 +122,48 @@ test("sync is idempotent and refresh works against Plaid", async ({ request }) =
   expect((await request.post("/api/plaid/sync")).status()).toBe(200);
   const after = (await (await request.get("/api/v1/transactions?limit=1", { headers: h })).json()).total;
   expect(after).toBe(before);
+});
+
+test("overlapping syncs queue up instead of doubling anything", async ({ request }) => {
+  const h = bearer(tokens().read);
+  const count = async () => (await (await request.get("/api/v1/transactions?limit=1", { headers: h })).json()).total;
+  const before = await count();
+  const { connections } = await (await request.get("/api/v1/status", { headers: h })).json();
+  const one = { data: { item_id: connections[0].id } };
+  const runs = await Promise.all([
+    request.post("/api/plaid/sync"),
+    request.post("/api/plaid/sync", one),
+    request.post("/api/plaid/sync"),
+    request.post("/api/plaid/sync", one),
+  ]);
+  expect(runs.map((r) => r.status())).toEqual([200, 200, 200, 200]);
+  expect(await count()).toBe(before);
+  expect((await request.post("/api/plaid/sync", { data: { item_id: 999_999 } })).status()).toBe(404);
+});
+
+test("a relabel made while a charge is pending survives it posting", async ({ request }) => {
+  const read = bearer(tokens().read);
+  const write = bearer(tokens().write);
+  const probe = async () =>
+    (await (await request.get("/api/v1/transactions?q=Relabel%20Probe", { headers: read })).json()).transactions;
+
+  const made = await request.post(`${MOCK_PLAID_URL}/__mock/pending`, { data: { name: "Relabel Probe" } });
+  const { transaction_id } = await made.json();
+  expect((await request.post("/api/plaid/sync")).status()).toBe(200);
+  const [pending] = await probe();
+  expect(pending).toMatchObject({ pending: true, category: "TRANSFER_OUT" });
+  const relabel = await request.post("/api/v1/transactions/category", { headers: write, data: { id: pending.id, category: "TRANSFER_IN" } });
+  expect(relabel.status()).toBe(200);
+
+  await request.post(`${MOCK_PLAID_URL}/__mock/post`, { data: { transaction_id } });
+  expect((await request.post("/api/plaid/sync")).status()).toBe(200);
+  const rows = await probe();
+  expect(rows).toHaveLength(1);
+  expect(rows[0]).toMatchObject({ pending: false, category: "TRANSFER_IN" });
+
+  // Still the user's label, not a copy of it: resetting goes back to the bank's.
+  await request.post("/api/v1/transactions/category", { headers: write, data: { id: rows[0].id, category: null } });
+  expect((await probe())[0].category).toBe("TRANSFER_OUT");
 });
 
 test("Plaid keys from .env can't be replaced from the browser", async ({ request }) => {
