@@ -36,7 +36,7 @@ npx tsc --noEmit
 npx tsx db/check.ts   # DB smoke test on a throwaway database
 ```
 
-CI also runs the end-to-end suite, which drives the built app against a mock Plaid server (no keys needed): `npm run build && npx playwright install chromium && npm run e2e`. Run it when you change pages, API routes or MCP tools. If you change `db/schema.ts`, CI fails unless the matching `drizzle/` migration is committed.
+CI also runs the end-to-end suite, which drives the built app against a mock Plaid server (no keys needed): `npm run build && npx playwright install chromium webkit && npm run e2e`. Run it when you change pages, API routes or MCP tools. It also checks layout (nothing overflowing the screen or its card, down to 320px) in Chromium and in WebKit, the engine behind iOS browsers. If you change `db/schema.ts`, CI fails unless the matching `drizzle/` migration is committed.
 
 If you changed `docs/` or `website/`, run `cd website && npm ci && npm run build` (it fails on broken links).
 
