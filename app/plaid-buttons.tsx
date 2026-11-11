@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { usePlaidLink, type PlaidLinkOnSuccessMetadata } from "react-plaid-link";
 
 // connectOnly: just the Connect button (nothing to sync before the first link).
-export default function PlaidButtons({ connectOnly = false }: { connectOnly?: boolean }) {
+// compact: small, quiet buttons for a section header (the Accounts row).
+export default function PlaidButtons({ connectOnly = false, compact = false }: { connectOnly?: boolean; compact?: boolean }) {
   const router = useRouter();
   const [linkToken, setLinkToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -86,7 +87,7 @@ export default function PlaidButtons({ connectOnly = false }: { connectOnly?: bo
       <div className="flex flex-wrap items-center gap-2">
         {syncResult && <span className="text-xs text-muted">{syncResult}</span>}
         {connectOnly ? null : (
-          <button type="button" onClick={handleSync} disabled={syncing} className="btn">
+          <button type="button" onClick={handleSync} disabled={syncing} className={compact ? "btn btn-sm" : "btn"}>
             {syncing ? "Syncing…" : "Sync now"}
           </button>
         )}
@@ -94,7 +95,7 @@ export default function PlaidButtons({ connectOnly = false }: { connectOnly?: bo
           type="button"
           onClick={() => open()}
           disabled={!ready || !linkToken}
-          className="btn btn-primary"
+          className={compact ? "btn btn-sm" : "btn btn-primary"}
         >
           + Connect account
         </button>

@@ -1,6 +1,6 @@
 import { formatCents } from "@/lib/format";
 import { recurringOverview } from "@/lib/insights";
-import { Card, Empty, Page, Stat } from "@/app/ui";
+import { Card, Empty, Money, Page, Stat } from "@/app/ui";
 import { AddRuleForm, RuleRow, SuggestionCard } from "./recurring-form";
 
 export const dynamic = "force-dynamic";
@@ -10,24 +10,22 @@ export default async function RecurringPage() {
 
   return (
     <Page title="Recurring" subtitle="Bills and subscriptions.">
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 md:gap-5">
+      {confirmed.length > 0 ? (
         <Card>
-          <Stat label="Per month (est.)" value={formatCents(monthlyEstimate)} />
+          <div className="flex flex-wrap items-end gap-x-10 gap-y-4">
+            <Stat
+              size="lg"
+              label="Per month (est.)"
+              value={<Money cents={monthlyEstimate} />}
+              sub={`${confirmed.length} tracked${suggestions.length > 0 ? ` · ${suggestions.length} to review` : ""}`}
+            />
+            <Stat label="Per year (est.)" value={formatCents(Math.round((monthlyEstimate * 365) / 30))} />
+          </div>
         </Card>
-        <Card>
-          <Stat label="Per year (est.)" value={formatCents(Math.round((monthlyEstimate * 365) / 30))} />
-        </Card>
-        <Card className="col-span-2 md:col-span-1">
-          <Stat
-            label="Tracked"
-            value={confirmed.length}
-            sub={suggestions.length > 0 ? `${suggestions.length} to review` : "All reviewed"}
-          />
-        </Card>
-      </div>
+      ) : null}
 
       {suggestions.length > 0 && (
-        <Card title={`Spotted by Delta · ${suggestions.length}`}>
+        <Card title={`Looks recurring · ${suggestions.length}`}>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             {suggestions.map((s) => (
               <SuggestionCard
@@ -47,43 +45,31 @@ export default async function RecurringPage() {
         </Card>
       )}
 
-      <Card title="Confirmed">
+      <Card title="Tracked" action={confirmed.length > 0 ? <span className="text-xs text-muted">Next charge</span> : null}>
         {confirmed.length === 0 ? (
           <Empty>
-            None yet. Confirm a suggestion or add one below.
+            Nothing tracked yet.
           </Empty>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[540px] text-sm">
-              <thead>
-                <tr className="border-b border-hairline text-left text-xs text-muted">
-                  <th className="py-2 pr-4 font-medium">Name</th>
-                  <th className="py-2 pr-4 font-medium">Amount</th>
-                  <th className="py-2 pr-4 font-medium">Cadence</th>
-                  <th className="py-2 pr-4 font-medium">Last</th>
-                  <th className="py-2 pr-4 font-medium">Next expected</th>
-                  <th className="py-2 font-medium" />
-                </tr>
-              </thead>
-              <tbody>
-                {confirmed.map((r) => (
-                  <RuleRow
-                    key={r.id}
-                    rule={{
-                      id: r.id,
-                      name: r.name,
-                      amount: r.amount,
-                      gapDays: r.gapDays,
-                      anchorDate: r.anchorDate,
-                    }}
-                    cadence={r.cadence}
-                    lastDate={r.lastDate}
-                    nextDate={r.nextDate}
-                  />
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <ul className="flex flex-col divide-y divide-hairline">
+            {[...confirmed]
+              .sort((a, b) => (a.nextDate ?? "9999").localeCompare(b.nextDate ?? "9999"))
+              .map((r) => (
+              <RuleRow
+                key={r.id}
+                rule={{
+                  id: r.id,
+                  name: r.name,
+                  amount: r.amount,
+                  gapDays: r.gapDays,
+                  anchorDate: r.anchorDate,
+                }}
+                cadence={r.cadence}
+                lastDate={r.lastDate}
+                nextDate={r.nextDate}
+              />
+            ))}
+          </ul>
         )}
       </Card>
 
