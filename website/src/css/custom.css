@@ -256,19 +256,19 @@ body {
 .navbar__brand:hover {
   color: var(--foreground);
 }
-/* The app's Δ mark: an ink disc. */
+/* The app's glass Δ mark (art in static/img, same as app/icon.svg): dark
+   glass on light, white glass on dark. */
+:root {
+  --mark: url("../../static/img/mark-light.svg");
+}
+[data-theme="dark"] {
+  --mark: url("../../static/img/mark-dark.svg");
+}
 .navbar__brand::before {
-  content: "Δ";
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.25rem;
-  height: 2.25rem;
-  border-radius: 9999px;
-  background: var(--ink);
-  color: var(--ink-foreground);
-  font-size: 1.05rem;
-  font-weight: 600;
+  content: "";
+  width: 1.75rem;
+  height: 1.75rem;
+  background: var(--mark) center / contain no-repeat;
 }
 .navbar__title {
   font-weight: 600;

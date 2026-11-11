@@ -113,9 +113,12 @@
   width: 2.25rem;
   height: 2.25rem;
   border-radius: 9999px;
-  background: var(--ink);
-  color: var(--ink-foreground);
-  font-weight: 600;
+}
+.mark::before {
+  content: "";
+  width: 1.25rem;
+  height: 1.25rem;
+  background: var(--mark) center / contain no-repeat;
 }
 .pill {
   display: flex;
