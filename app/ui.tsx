@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AskAgent } from "./ask-agent";
+import { formatCents } from "@/lib/format";
 
 // Shared layout primitives for the server pages. Styling lives in the
 // `.surface` / `.glass` / `.btn` / `.field` classes in globals.css.
@@ -21,7 +22,7 @@ export function Page({
 }) {
   return (
     <main
-      className={`mx-auto flex w-full flex-col gap-5 px-4 pb-16 pt-4 sm:gap-6 sm:px-6 sm:pt-8 ${
+      className={`mx-auto flex w-full flex-col gap-5 px-4 pb-[calc(6.5rem+env(safe-area-inset-bottom))] pt-[max(1.25rem,env(safe-area-inset-top))] sm:gap-6 sm:px-6 sm:pb-16 sm:pt-8 ${
         wide ? "max-w-6xl" : "max-w-4xl"
       }`}
     >
@@ -64,7 +65,7 @@ export function Card({
       {title || action ? (
         <div data-ask-skip="" className="flex items-center justify-between gap-3">
           {title ? <h2 className="text-sm font-semibold">{title}</h2> : <span />}
-          <div className="flex min-w-0 items-center gap-1">
+          <div className="flex min-w-0 items-center gap-2.5">
             {action}
             {title && ask ? <AskAgent /> : null}
           </div>
@@ -72,6 +73,18 @@ export function Card({
       ) : null}
       {children}
     </section>
+  );
+}
+
+// Headline amounts: the cents recede so the dollars read first.
+export function Money({ cents }: { cents: number }) {
+  const s = formatCents(cents);
+  const i = s.lastIndexOf(".");
+  return (
+    <>
+      {s.slice(0, i)}
+      <span className="text-[0.55em] font-medium text-muted">{s.slice(i)}</span>
+    </>
   );
 }
 

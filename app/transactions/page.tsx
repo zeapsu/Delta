@@ -9,6 +9,7 @@ import { categoryColor } from "@/lib/colors";
 import { merchantKey } from "@/lib/categories";
 import { Card, Empty, Page, Pager } from "@/app/ui";
 import { CategoryPicker } from "./category-picker";
+import { PhoneFilters } from "./phone-filters";
 
 export const dynamic = "force-dynamic";
 
@@ -109,6 +110,64 @@ export default async function TransactionsPage({
   const filterHref = (extra: Record<string, string>) =>
     `/transactions?${new URLSearchParams({ ...baseParams, ...extra }).toString()}`;
 
+  const activeFilters = ["account", "category", "from", "to"].filter((k) => k in baseParams).length;
+  const filterFields = (
+    <>
+      <label className="flex w-full flex-col gap-1 sm:w-auto">
+        <span className="eyebrow">Account</span>
+        <select name="account" defaultValue={params.account ?? ""} className="field">
+          <option value="">All accounts</option>
+          {allAccounts.map((a) => (
+            <option key={a.id} value={a.id}>
+              {a.name}
+              {a.mask ? ` ····${a.mask}` : ""}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="flex w-full flex-col gap-1 sm:w-auto">
+        <span className="eyebrow">Category</span>
+        <select name="category" defaultValue={params.category ?? ""} className="field">
+          <option value="">All categories</option>
+          {categories.map((c) => (
+            <option key={c} value={c}>
+              {formatCategory(c)}
+            </option>
+          ))}
+        </select>
+      </label>
+      <div className="flex gap-3">
+        <label className="flex min-w-0 flex-1 flex-col gap-1 sm:flex-none">
+          <span className="eyebrow">From</span>
+          <input type="date" name="from" defaultValue={params.from ?? ""} className="field" />
+        </label>
+        <label className="flex min-w-0 flex-1 flex-col gap-1 sm:flex-none">
+          <span className="eyebrow">To</span>
+          <input type="date" name="to" defaultValue={params.to ?? ""} className="field" />
+        </label>
+      </div>
+    </>
+  );
+
+  // Phone list: rows grouped under their day.
+  const days: { date: string; rows: typeof rows }[] = [];
+  for (const tx of rows) {
+    if (days.at(-1)?.date === tx.date) days.at(-1)!.rows.push(tx);
+    else days.push({ date: tx.date, rows: [tx] });
+  }
+  const pickerFor = (tx: (typeof rows)[number]) => (
+    <CategoryPicker
+      id={tx.id}
+      merchant={tx.merchantName ?? tx.name}
+      category={tx.category}
+      plaidCategory={tx.plaidCategory}
+      overridden={tx.categoryOverride !== null}
+      ruleCategory={ruleByMerchant.get(merchantKey(tx.merchantName, tx.name)) ?? null}
+      color={tx.category ? categoryColor(tx.category, top8) : "var(--chart-muted)"}
+      filterHref={tx.category ? filterHref({ category: tx.category }) : null}
+    />
+  );
+
   return (
     <Page
       wide
@@ -120,60 +179,19 @@ export default async function TransactionsPage({
         </>
       }
     >
-      <Card>
+      <Card className="hidden sm:flex">
         <form method="get" className="flex flex-wrap items-end gap-3">
-          <label className="flex w-full flex-col gap-1 sm:w-auto sm:min-w-56 sm:flex-1">
+          <label className="flex flex-col gap-1 sm:min-w-56 sm:flex-1">
             <span className="eyebrow">Search</span>
-            <input
-              name="q"
-              type="search"
-              placeholder="Merchant or description"
-              defaultValue={params.q ?? ""}
-              className="field sm:w-full"
-            />
+            <input name="q" type="search" placeholder="Merchant or description" defaultValue={params.q ?? ""} className="field sm:w-full" />
           </label>
-
-          <label className="flex w-full flex-col gap-1 sm:w-auto">
-            <span className="eyebrow">Account</span>
-            <select name="account" defaultValue={params.account ?? ""} className="field">
-              <option value="">All accounts</option>
-              {allAccounts.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
-                  {a.mask ? ` ····${a.mask}` : ""}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="flex w-full flex-col gap-1 sm:w-auto">
-            <span className="eyebrow">Category</span>
-            <select name="category" defaultValue={params.category ?? ""} className="field">
-              <option value="">All categories</option>
-              {categories.map((c) => (
-                <option key={c} value={c}>
-                  {formatCategory(c)}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="flex w-[calc(50%-0.375rem)] flex-col gap-1 sm:w-auto">
-            <span className="eyebrow">From</span>
-            <input type="date" name="from" defaultValue={params.from ?? ""} className="field" />
-          </label>
-
-          <label className="flex w-[calc(50%-0.375rem)] flex-col gap-1 sm:w-auto">
-            <span className="eyebrow">To</span>
-            <input type="date" name="to" defaultValue={params.to ?? ""} className="field" />
-          </label>
-
-          <div className="flex w-full gap-2 sm:w-auto">
-            <button type="submit" className="btn btn-primary flex-1 sm:flex-none">
+          {filterFields}
+          <div className="flex gap-2">
+            <button type="submit" className="btn btn-primary">
               Apply
             </button>
             {filtered ? (
-              <Link href="/transactions" className="btn flex-1 sm:flex-none">
+              <Link href="/transactions" className="btn">
                 Clear
               </Link>
             ) : null}
@@ -181,13 +199,50 @@ export default async function TransactionsPage({
         </form>
       </Card>
 
-      <Card className="p-0 sm:p-0">
+      <PhoneFilters q={params.q ?? ""} active={activeFilters} clearable={filtered}>
+        {filterFields}
+      </PhoneFilters>
+
+      <Card className="overflow-hidden p-0 sm:p-0">
         {rows.length === 0 ? (
           <div className="p-5">
             <Empty>No matching transactions.</Empty>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          <ul className="-mt-4 flex flex-col sm:hidden">
+            {days.map((d) => (
+              <li key={d.date}>
+                <p className="eyebrow border-b border-hairline pb-1.5 pt-4">{shortDate(d.date)}</p>
+                <ul className="divide-y divide-hairline">
+                  {d.rows.map((tx) => (
+                    <li key={tx.id} className="flex items-center gap-3 py-3">
+                      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                        <span className="flex items-center gap-2">
+                          <span className="truncate text-[15px] font-medium">{tx.merchantName ?? tx.name}</span>
+                          {tx.pending && (
+                            <span className="shrink-0 rounded-full bg-fill-strong px-2 py-0.5 text-[10px] font-medium uppercase text-muted">
+                              Pending
+                            </span>
+                          )}
+                        </span>
+                        <span className="flex min-w-0 items-center gap-2 text-xs text-muted">
+                          {pickerFor(tx)}
+                          <span className="truncate">{tx.accountName}</span>
+                        </span>
+                      </div>
+                      <span
+                        className={`shrink-0 text-[15px] font-medium tabular-nums ${tx.amount < 0 ? "text-positive" : ""}`}
+                      >
+                        {tx.amount < 0 ? `+${formatCents(-tx.amount)}` : formatCents(tx.amount)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </li>
+            ))}
+          </ul>
+          <div className="hidden overflow-x-auto sm:block">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-hairline text-left text-xs text-muted">
@@ -253,6 +308,7 @@ export default async function TransactionsPage({
               </tbody>
             </table>
           </div>
+          </>
         )}
       </Card>
 
