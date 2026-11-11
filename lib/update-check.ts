@@ -1,8 +1,8 @@
 import "server-only";
 
 // "Update available" pill (app/update-pill.tsx). The build bakes in the commit
-// it was built from (DELTA_COMMIT, next.config.ts); this asks GitHub how far
-// that commit is behind main. Never blocks a page: callers get the last known
+// it was built from (DELTA_COMMIT, next.config.ts); this asks GitHub whether
+// the latest release has commits that build lacks. Never blocks a page: callers get the last known
 // answer (null until the first check lands), and a stale one refreshes in the
 // background. Off with DELTA_UPDATE_CHECK=off; no commit known = no check.
 
@@ -21,11 +21,11 @@ const github = (path: string) =>
     cache: "no-store",
   });
 
-// Homebrew installs a release (DELTA_COMMIT is its tag, e.g. v1.2.0), and
-// `brew upgrade` only moves to the next one, so compare with the latest
-// release there. Everything else follows main.
+// Compare with the latest release, not main: main also moves for dependency
+// bumps and docs, which made the pill show with no new version out. A build
+// from main past the release is ahead of it, so it shows nothing. Homebrew's
+// DELTA_COMMIT is its tag (e.g. v1.2.0), which compares the same way.
 async function target(): Promise<string | null> {
-  if (process.env.DELTA_INSTALL !== "brew") return "main";
   const res = await github("releases/latest");
   if (!res.ok) return null;
   const tag = ((await res.json()) as { tag_name?: unknown }).tag_name;
