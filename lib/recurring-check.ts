@@ -53,7 +53,7 @@ const loanJitter = [
   { name: "LOANSERV", merchantName: "LOANSERV", amount: 180_00, date: "2026-07-08" },
 ];
 
-// Rent via bank transfer (seen in production): each payment embeds a unique
+// Rent via bank transfer: each payment embeds a unique
 // alphanumeric reference code, and amounts drift slightly month to month.
 const rent = [
   { name: "OAKS PROPERTY PAY ST-A7R5F7J5A2P7 TENANT", merchantName: null, amount: 1405_30, date: "2026-05-04" },
@@ -61,7 +61,7 @@ const rent = [
   { name: "OAKS PROPERTY PAY ST-P0J5M4Y3L2M9 TENANT", merchantName: null, amount: 1404_28, date: "2026-07-02" },
 ];
 
-// One merchant, two subscriptions + one-off purchases (seen in production:
+// One merchant, two subscriptions + one-off purchases (e.g.
 // Apple): amount clustering must separate the $9.99 and $19.99 series and
 // discard the noise.
 const apple = [

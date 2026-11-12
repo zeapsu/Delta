@@ -110,7 +110,7 @@ test("pages and dashboard routes answer only to addresses Delta knows", async ({
   expect(await (await request.get("/", as("evil.example<script>"))).text()).not.toContain("<");
 
   // Addresses, private names and Tailscale names are how owners reach it.
-  for (const host of ["100.116.56.85:3100", "[::1]:3100", "localhost:3100", "jetson", "delta.local:3100", "jetson.tail1234.ts.net"]) {
+  for (const host of ["100.101.102.103:3100", "[::1]:3100", "localhost:3100", "nas", "delta.local:3100", "nas.tail1234.ts.net"]) {
     expect((await request.get("/api/budgets", as(host))).status(), host).toBe(200);
     expect((await request.get("/spending", as(host))).status(), host).toBe(200);
   }
