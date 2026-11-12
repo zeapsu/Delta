@@ -88,6 +88,9 @@
 /* ---------- Sample dashboard ---------- */
 
 .preview {
+  /* How far the phone hangs past the frame: 3.25rem, less when the window
+     leaves no room beside it (half the space outside the 64rem frame). */
+  --phone-out: clamp(0.5rem, 50vw - 32.5rem, 3.25rem);
   position: relative;
   max-width: 64rem;
   margin: 4rem auto 0;
@@ -328,6 +331,155 @@
   height: 0.375rem;
   border-radius: 9999px;
   background: var(--positive);
+}
+
+/* The phone: a device in front of the desktop frame, hanging off its lower
+   right corner. The cards beside it make room, so nothing is cut off. */
+.phone {
+  position: absolute;
+  right: calc(-1 * var(--phone-out));
+  bottom: -3.5rem;
+  width: 11.5rem;
+  aspect-ratio: 9 / 18.6;
+  padding: 0.3125rem;
+  border-radius: 2rem;
+  background: var(--phone-bezel);
+  box-shadow:
+    0 0 0 1px var(--phone-edge),
+    inset 0 0 0 1px rgb(255 255 255 / 0.14),
+    0 36px 60px -24px var(--phone-shadow),
+    0 8px 16px -8px var(--phone-shadow);
+}
+.phoneScreen {
+  position: relative;
+  height: 100%;
+  border-radius: 1.6875rem;
+  overflow: hidden;
+  background: var(--background);
+}
+/* Twice the screen, scaled by half: real phone type sizes, no tiny fonts. */
+.phoneUi {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 200%;
+  height: 200%;
+  transform: scale(0.5);
+  transform-origin: 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 3.5rem 0.875rem 0;
+  text-align: left;
+}
+.island {
+  position: absolute;
+  top: 0.75rem;
+  left: 50%;
+  width: 5.75rem;
+  height: 1.625rem;
+  margin-left: -2.875rem;
+  border-radius: 9999px;
+  background: #000;
+  box-shadow: 0 0 0 1px var(--hairline);
+}
+.phoneHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0 0.25rem 0.25rem;
+}
+.phoneHead .ask {
+  flex: none;
+  margin-top: 0.125rem;
+  color: var(--foreground);
+}
+.phoneTitle {
+  display: block;
+  font-size: 1.3125rem;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.3;
+}
+.phoneCard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 1rem 1.125rem;
+}
+.phoneCard .cardHead {
+  margin-bottom: 0.375rem;
+}
+.phoneValue {
+  font-size: 1.75rem;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+}
+.spark {
+  display: block;
+  width: 100%;
+  height: 4.5rem;
+  margin-top: 0.5rem;
+}
+.phoneBars {
+  list-style: none;
+  margin: 0.625rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.phoneBars li {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  margin: 0;
+}
+.phoneBars .barTrack {
+  height: 0.5rem;
+}
+.tabBar {
+  position: absolute;
+  left: 0.75rem;
+  right: 0.75rem;
+  bottom: 0.875rem;
+  height: 4rem;
+  display: flex;
+  gap: 0.125rem;
+  padding: 0.25rem;
+  border-radius: 9999px;
+}
+.tab,
+.tabActive {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.125rem;
+  border-radius: 9999px;
+  font-size: 0.625rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+.tabActive {
+  background: var(--fill-strong);
+  color: var(--foreground);
+}
+.tab svg,
+.tabActive svg {
+  width: 1.375rem;
+  height: 1.375rem;
+}
+/* Room for the phone, only where it shows. */
+@media (min-width: 997px) {
+  .previewBody {
+    padding-right: calc(11.5rem - var(--phone-out));
+  }
 }
 
 /* ---------- Sections ---------- */
@@ -666,6 +818,9 @@
 /* ---------- Phones ---------- */
 
 @media (max-width: 996px) {
+  .phone {
+    display: none;
+  }
   .feature {
     grid-template-columns: minmax(0, 1fr);
     gap: 1.5rem;
