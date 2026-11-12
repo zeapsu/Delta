@@ -52,3 +52,6 @@ backups/
 
 # delta.sh / docs: backups copied out of the Docker volume (hold Plaid tokens)
 /delta-backups/
+
+# private agent notes (personal setup; Claude Code loads it after CLAUDE.md)
+CLAUDE.local.md

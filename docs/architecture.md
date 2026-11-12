@@ -51,4 +51,4 @@ Delta is one Next.js app (App Router, TypeScript, Tailwind) with a SQLite databa
 
 Neutral black/white "liquid glass" chrome. Color carries meaning only: category identity, money in vs out, and status. Tokens live in `app/globals.css`; page scaffolding (`Page`, `Card`, `Stat` and friends) in `app/ui.tsx`. Charts use recharts as client islands in `app/charts.tsx`.
 
-For the full list of conventions and gotchas, see [`AGENTS.md`](https://github.com/zeapsu/Delta/blob/main/AGENTS.md) in the repo.
+The core conventions are in [`CONTRIBUTING.md`](https://github.com/zeapsu/Delta/blob/main/CONTRIBUTING.md). For the gotchas that aren't written down anywhere else, see [`AGENTS.md`](https://github.com/zeapsu/Delta/blob/main/AGENTS.md) in the repo.

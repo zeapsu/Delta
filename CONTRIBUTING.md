@@ -46,7 +46,7 @@ The [architecture page](docs/architecture.md) has the directory map and how sync
 
 ## Conventions
 
-These are the ones that bite. [`AGENTS.md`](AGENTS.md) has the full list, written for coding agents but useful for anyone.
+These are the ones that bite. [`AGENTS.md`](AGENTS.md) adds the gotchas that aren't written down here, in the docs or in the code. It's written for coding agents but useful for anyone.
 
 **Data**
 - Money is **integer cents**, with Plaid's sign: positive = money out.
@@ -76,6 +76,6 @@ These are the ones that bite. [`AGENTS.md`](AGENTS.md) has the full list, writte
 
 - Branch from `main`, keep the PR focused, and describe what changed and how you tested it. Screenshots help for UI changes (sandbox data only, never real accounts).
 - Commit messages say what the change does in the imperative ("Add budget alerts", not "added stuff").
-- Update the docs in `docs/` when you change behavior a self-hoster or agent would notice, and add a line to `AGENTS.md` when you introduce a convention.
+- Update the docs in `docs/` when you change behavior a self-hoster or agent would notice, and add a line to `AGENTS.md` when you introduce a convention or gotcha that nothing else records.
 
 By contributing, you agree that your contributions are licensed under the project's [license](LICENSE.md).
