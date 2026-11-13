@@ -35,7 +35,9 @@ Conventions:
 - Categories are Plaid's labels (e.g. FOOD_AND_DRINK) unless the user relabeled a transaction or merchant in Delta; relabels already apply to every total, and plaidCategory in search_transactions keeps the bank's label. Plaid's labels can be wrong; list the transactions behind a surprising number before drawing conclusions.
 - Recurring: "confirmed" rules are user-reviewed truth; "suggestions" are unreviewed guesses, never count them in totals.
 
-Every answer has an as_of block. If it carries warnings (data older than ${STALE_DAYS} days, or a bank connection whose last sync failed), tell the user and caveat your conclusions with the last sync date.
+Every answer has an as_of block. If it carries warnings (data older than ${STALE_DAYS} days, a bank connection whose last sync failed, or a sync still running), tell the user and caveat your conclusions with the last sync date.
+
+Freshness: read tools sync with the banks first when Delta's data is more than 15 minutes old (as_of.synced_now says this answer did). Balances are then current, but banks report new transactions to Plaid only a few times a day; when Delta has asked them to re-check, as_of.next_sync says when the results will be in. Call sync only when the user wants the newest data or a charge they expect is missing, not before every question.
 
 {{ANALYSIS}}
 
@@ -154,11 +156,19 @@ export type AsOf = {
   last_transaction: string | null;
   last_balance_snapshot: string | null;
   last_sync: string | null;
+  synced_now: boolean;
+  next_sync?: string;
   warnings: string[];
 };
 
-export function asOf(s: Status, today: string = todayISO()): AsOf {
+// What POST /api/v1/sync answered (lib/fresh-sync.ts SyncOutcome).
+export type SyncOutcome = { status: string; next_sync_at: string | null };
+
+export function asOf(s: Status, today: string = todayISO(), sync: SyncOutcome | null = null): AsOf {
   const warnings: string[] = [];
+  if (sync?.status === "running") {
+    warnings.push("A sync with the banks was still running when this answered, so the newest data may be missing; ask again in a minute.");
+  }
   const newest = [s.lastTransaction, s.lastSnapshot].filter((d): d is string => !!d).sort().at(-1);
   if (!newest) {
     warnings.push("No synced data yet.");
@@ -178,6 +188,8 @@ export function asOf(s: Status, today: string = todayISO()): AsOf {
     last_transaction: s.lastTransaction,
     last_balance_snapshot: s.lastSnapshot,
     last_sync: synced.at(-1) ?? null,
+    synced_now: sync?.status === "synced",
+    ...(sync?.next_sync_at ? { next_sync: sync.next_sync_at } : {}),
     warnings,
   };
 }
@@ -191,7 +203,7 @@ type Tool = {
   scope: Scope;
   props: Record<string, Prop>;
   required?: string[];
-  annotations?: { readOnlyHint?: boolean; destructiveHint?: boolean; idempotentHint?: boolean };
+  annotations?: { readOnlyHint?: boolean; destructiveHint?: boolean; idempotentHint?: boolean; openWorldHint?: boolean };
   run: (args: Args, api: Api) => Promise<unknown>;
 };
 
@@ -228,6 +240,19 @@ export const TOOLS: Tool[] = [
     props: {},
     annotations: READ_HINTS,
     run: async (_a, api) => call(api, "GET", "/api/v1/status"),
+  },
+  {
+    name: "sync",
+    title: "Sync with the banks now",
+    description:
+      "Pull the newest data from the user's banks now and ask them to re-check for new transactions. Read tools already sync on their own when data is over 15 minutes old, so use this only when the user asks for the latest or a charge they expect is missing. Transactions from the re-check arrive a few minutes later: next_sync_at is when Delta syncs again on its own to pick them up. status: synced (added/modified/removed counts; errors lists connections that failed), running (still going, ask again in a minute), throttled (the banks were asked less than 5 minutes ago; wait for next_sync_at), no_connections (no bank linked).",
+    scope: "read",
+    props: {},
+    annotations: { idempotentHint: true, openWorldHint: true },
+    run: async (_a, api) => {
+      const { result, ...rest } = (await call(api, "POST", "/api/v1/sync")) as { result?: object };
+      return { ...rest, ...result };
+    },
   },
   {
     name: "list_accounts",
@@ -474,6 +499,17 @@ function toolResult(payload: Record<string, unknown>, isError = false) {
   };
 }
 
+// Reads sync first when the data is stale. The route caps the wait; a failed
+// sync must not fail the read, which then answers from the saved data.
+async function syncIfStale(api: Api): Promise<SyncOutcome | null> {
+  try {
+    const res = await api("POST", "/api/v1/sync", { body: { if_stale: true } });
+    return res.status === 200 ? (res.data as SyncOutcome) : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function callTool(name: string, rawArgs: unknown, scope: Scope, api: Api) {
   const tool = TOOLS.find((t) => t.name === name);
   if (!tool) throw new RpcError(-32602, `Unknown tool: ${name}`);
@@ -488,9 +524,11 @@ export async function callTool(name: string, rawArgs: unknown, scope: Scope, api
     throw err;
   }
   try {
+    const sync = tool.scope === "read" && name !== "sync" ? await syncIfStale(api) : null;
     const result = await tool.run(args, api);
     const status = (name === "get_status" ? result : await call(api, "GET", "/api/v1/status")) as Status;
-    return toolResult({ ...(result as Record<string, unknown>), as_of: asOf(status) });
+    const synced = name === "sync" ? (result as SyncOutcome) : sync;
+    return toolResult({ ...(result as Record<string, unknown>), as_of: asOf(status, todayISO(), synced) });
   } catch (err) {
     if (err instanceof ApiError) return toolResult({ error: err.message }, true);
     throw err;

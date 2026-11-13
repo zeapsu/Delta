@@ -385,10 +385,16 @@ function enqueue<T>(start: () => Promise<T>): Promise<T> {
 
 // A caller that arrives while a full run is queued or running joins it.
 let full: Promise<SyncResult> | null = null;
+// When this process last finished a full run and last asked Plaid for a
+// refresh (ms), for the MCP freshness check (lib/fresh-sync.ts).
+let lastFullRunAt: number | null = null;
+let lastRefreshAt: number | null = null;
+export const syncClock = () => ({ lastFullRunAt, lastRefreshAt });
 
 export function syncAll(): Promise<SyncResult> {
   full ??= enqueue(() => runSync(db.select().from(items).all())).finally(() => {
     full = null;
+    lastFullRunAt = Date.now();
   });
   return full;
 }
@@ -510,6 +516,7 @@ export type RefreshResult = {
 // never fail the run and never touch last_error_code — the sync owns that.
 export async function refreshAll(): Promise<RefreshResult> {
   const result: RefreshResult = { refreshed: 0, skipped: [] };
+  lastRefreshAt = Date.now();
   for (const item of db.select().from(items).all()) {
     try {
       await getPlaid().transactionsRefresh({ access_token: item.accessToken });

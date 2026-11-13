@@ -12,6 +12,7 @@ Write tools are only listed for write-scoped tokens, and calls to them with a re
 
 | Tool | What it returns |
 | --- | --- |
+| `sync` | Sync with the banks now and ask them to re-check for new transactions, at most once every 5 minutes. Works with read tokens. |
 | `get_status` | Data freshness (newest transaction and balance dates) and each bank connection's last sync time and error code. Agents call this first. |
 | `list_accounts` | Linked accounts with current and available balances, type and institution. Credit and loan balances are positive amounts owed. |
 | `search_transactions` | Transactions, newest first, paged. Filters: `from`, `to`, `month`, `account_id`, `category`, `q` (name substring), `pending`, `limit`, `offset`. Includes the posted `date` and the purchase `authorizedDate`. |
@@ -33,6 +34,10 @@ Write tools are only listed for write-scoped tokens, and calls to them with a re
 | `delete_recurring_rule` | Remove a rule, e.g. after a cancellation. If the charge continues, Delta suggests it again. |
 | `set_transaction_category` | Relabel a transaction, or with `all_from_merchant` every transaction from its merchant, now and on future syncs. |
 | `reset_transaction_category` | Undo a relabel and go back to the bank's category. |
+
+## Fresh data
+
+Every read tool syncs with the banks first when Delta's data is more than 15 minutes old, waiting at most 10 seconds before answering from saved data. It also asks the banks to re-check for new transactions, at most once an hour, and syncs again a few minutes later to pick them up. `as_of.synced_now` says whether an answer synced, and `as_of.next_sync` says when re-checked transactions will be in. Agents call `sync` only when you want the newest data right away.
 
 ## Conventions the tools follow
 

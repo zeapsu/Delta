@@ -71,7 +71,7 @@ export function crossSiteWrite(req: Request): boolean {
 // Host: <the attacker's domain>. So a request must name Delta the way its
 // owner would reach it:
 //   - an IP address (rebinding needs a DNS name),
-//   - localhost, a single-label name ("jetson", "umbrel"),
+//   - localhost, a single-label name ("nas", "umbrel"),
 //   - names public DNS can't serve (.local, .lan, .home, .home.arpa,
 //     .internal, .localhost, .onion) and Tailscale's (.ts.net),
 //   - DELTA_URL's host, and anything in DELTA_ALLOWED_HOSTS (comma-separated

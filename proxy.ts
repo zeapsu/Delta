@@ -9,7 +9,7 @@ import { getLogin } from "@/lib/login-store";
 // Plaid routes were once reachable without it. Writes
 // also refuse cross-site browser requests: any web page open on a tailnet
 // device could otherwise POST a text/plain body (no CORS preflight) to the
-// Jetson, e.g. to delete budgets or trigger syncs. curl (the sync timer) and
+// server, e.g. to delete budgets or trigger syncs. curl (the sync timer) and
 // the agent send no Origin, so they pass.
 //
 // Inside the tailnet, /api/v1 (the agent API) also needs a per-client bearer
