@@ -20,6 +20,12 @@ export async function GET() {
     },
     endpoints: [
       { method: "GET", path: "/api/v1/status", about: "data freshness and per-connection sync health" },
+      {
+        method: "POST",
+        path: "/api/v1/sync",
+        body: '{"if_stale": true} (optional: only when data is over 15 minutes old)',
+        about: "sync with the banks now and ask them to re-check for new transactions (read scope, at most every 5 minutes; status synced|running|throttled|fresh|no_connections, next_sync_at)",
+      },
       { method: "GET", path: "/api/v1/settings", about: "the user's analysis thresholds (customized false = defaults); edited on /settings in the app" },
       { method: "GET", path: "/api/v1/accounts", about: "accounts with current balances" },
       {

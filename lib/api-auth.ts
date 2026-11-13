@@ -26,6 +26,9 @@ export function tokenPrefix(token: string): string {
 // The MCP endpoint carries every JSON-RPC call, reads included, as a POST; its
 // write tools check for write scope themselves (lib/mcp.ts).
 export const MCP_PATH = "/api/v1/mcp";
+// Agents' sync pulls bank data and changes nothing the user entered, so a read
+// token may POST it (app/api/v1/sync/route.ts throttles the Plaid calls).
+export const SYNC_PATH = "/api/v1/sync";
 
 // DELTA_PUBLIC_MCP=1 lets the MCP endpoint, and only that exact path, through
 // the network guard, for agents that call from the internet (e.g. through
@@ -42,7 +45,7 @@ export function isV1(pathname: string): boolean {
 // The scope a request needs, or null when it may go through without a token.
 export function requiredScope(pathname: string, method: string, hasAuth: boolean): Scope | null {
   if (!isV1(pathname) && !hasAuth) return null;
-  if (pathname === MCP_PATH) return "read";
+  if (pathname === MCP_PATH || pathname === SYNC_PATH) return "read";
   return SAFE_METHODS.has(method) ? "read" : "write";
 }
 

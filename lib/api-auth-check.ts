@@ -28,6 +28,9 @@ assert.strictEqual(requiredScope("/api/v10/x", "GET", false), null);
 assert.strictEqual(requiredScope("/api/v1/mcp", "POST", false), "read");
 assert.strictEqual(requiredScope("/api/v1/mcp", "GET", true), "read");
 assert.strictEqual(requiredScope("/api/budgets", "POST", false), null);
+// Agents' sync: a read token may POST it; nothing next to it.
+assert.strictEqual(requiredScope("/api/v1/sync", "POST", false), "read");
+assert.strictEqual(requiredScope("/api/v1/sync/x", "POST", false), "write");
 
 // publicMcp(): opt-in, and only the exact MCP path skips the network guard.
 assert.strictEqual(publicMcp("/api/v1/mcp", undefined), false);

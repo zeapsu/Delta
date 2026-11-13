@@ -11,6 +11,7 @@ import * as recurring from "../recurring/route";
 import * as settings from "../settings/route";
 import * as spending from "../spending/route";
 import * as status from "../status/route";
+import * as sync from "../sync/route";
 import * as transactions from "../transactions/route";
 import * as transactionCategory from "../transactions/category/route";
 
@@ -33,6 +34,7 @@ const ROUTES: Record<string, Partial<Record<ApiMethod, Handler>>> = {
   "/api/v1/settings": settings,
   "/api/v1/spending": spending,
   "/api/v1/status": status,
+  "/api/v1/sync": sync,
   "/api/v1/transactions": transactions,
   "/api/v1/transactions/category": transactionCategory,
 };
