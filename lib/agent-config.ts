@@ -22,7 +22,7 @@ export function agentConfigs(base: string, token: string): AgentConfig[] {
     {
       id: "json",
       label: "JSON config",
-      hint: "Most MCP clients (Cursor, OpenBot, …).",
+      hint: "Most MCP clients (Cursor and others).",
       text: json({ mcpServers: { delta: { type: "http", url, headers: { Authorization: auth } } } }),
     },
     {
