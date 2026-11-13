@@ -1,9 +1,10 @@
+# A template: deploy/install.sh fills in the @...@ values.
 [Unit]
 Description=Delta SQLite online backup
 
 [Service]
 Type=oneshot
-User=zeapsu
-WorkingDirectory=/home/zeapsu/Projects/Delta
-EnvironmentFile=/home/zeapsu/Projects/Delta/.env
-ExecStart=/home/zeapsu/.nvm/versions/node/v25.9.0/bin/node scripts/backup-db.mjs
+User=@USER@
+WorkingDirectory=@REPO@
+EnvironmentFile=@REPO@/.env
+ExecStart=@NODE@ scripts/backup-db.mjs

@@ -248,4 +248,4 @@ Setting `DELTA_URL=https://money.example.com` does the same. Addresses, `localho
 
 ## Without Docker
 
-Delta is a plain Next.js app: Node 20.9 or newer, then `npm ci && npm run build && npx next start -H <your tailscale ip>`. Put the same variables in `.env` in the repo root. You then need to schedule the sync and backups yourself; `deploy/` has the systemd units the author uses on a Jetson (they hardcode that machine's user, paths and IP, so edit them before installing).
+Delta is a plain Next.js app: Node 20.9 or newer, then `npm ci && npm run build && npx next start -H <your tailscale ip>`. Put the same variables in `.env` in the repo root. You then need to schedule the sync and backups yourself. On Linux, `sudo deploy/install.sh` does all three with systemd: it installs units for the app, a sync every 6 hours and a daily backup, filled in with your user, this checkout's path and the machine's Tailscale address (`deploy/install.sh --print` shows them first).

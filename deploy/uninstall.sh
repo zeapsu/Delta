@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Remove Delta systemd units from the Jetson. Run with sudo.
+# Remove Delta systemd units. Run with sudo.
 # Leaves the repo, .env, DB, and backups untouched.
 set -euo pipefail
 cd "$(dirname "$0")"
