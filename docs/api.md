@@ -41,6 +41,10 @@ curl -s -H "Authorization: Bearer $DELTA_API_TOKEN" "$DELTA_URL/api/v1/spending?
 | `GET /api/v1/net-worth` | `from` | Net worth now and daily history |
 | `GET /api/v1/settings` | | Your analysis thresholds (`customized: false` means the defaults), edited on `/settings` |
 
+## Sync
+
+`POST /api/v1/sync` works with a read token. It asks the banks to re-check for new transactions and syncs now, at most once every 5 minutes. With `{"if_stale": true}` it syncs only when the data is more than 15 minutes old. It waits up to 30 seconds (10 with `if_stale`), then answers `status`: `synced` (with `result`: counts and failed connections), `running`, `throttled`, `fresh` or `no_connections`. `next_sync_at` is when Delta syncs again on its own to pick up the re-checked transactions.
+
 ## Write endpoints
 
 | Endpoint | Body | Does |

@@ -16,6 +16,9 @@ const env = {
   PLAID_MOCK_URL: `http://127.0.0.1:${MOCK_PORT}`,
   DELTA_URL: `http://127.0.0.1:${PORT}`,
   DELTA_UPDATE_CHECK: "off", // no GitHub calls, no update pill in screenshots
+  // The follow-up sync after an agent's sync (lib/fresh-sync.ts) would land in
+  // the middle of later specs; push it past the end of the run.
+  REFRESH_WAIT_SECONDS: "3600",
 };
 // The token CLI (e2e/setup.spec.ts) and the server must share the DB.
 Object.assign(process.env, env);

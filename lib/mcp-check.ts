@@ -5,6 +5,7 @@ import { asOf, cents, handleRpc, toDollars, toolList, validateArgs, type Api } f
 const calls: { method: string; path: string; query?: unknown; body?: unknown }[] = [];
 const today = new Date().toISOString().slice(0, 10);
 let settingsReply: { status: number; data: unknown } | null = null;
+let syncReply: { status: number; data: unknown } = { status: 200, data: { status: "fresh", next_sync_at: null } };
 const api: Api = async (method, path, opts = {}) => {
   calls.push({ method, path, query: opts.query, body: opts.body });
   if (path === "/api/v1/status") {
@@ -19,6 +20,7 @@ const api: Api = async (method, path, opts = {}) => {
     };
   }
   if (path === "/api/v1/settings" && settingsReply) return settingsReply;
+  if (path === "/api/v1/sync") return syncReply;
   if (path === "/api/v1/spending") {
     return { status: 200, data: { month: "2026-10", total: 12345, pendingTotal: 500, categories: [{ category: "FOOD_AND_DRINK", total: 12345, pendingTotal: 500 }] } };
   }
@@ -122,6 +124,37 @@ async function main() {
   assert.strictEqual(c.result!.isError, true);
   assert.strictEqual(calls.length, before); // rejected before reaching the API
   assert.strictEqual((await rpc("tools/call", { name: "drop_tables" })).error!.code, -32602);
+
+  // Reads sync first when stale (if_stale); writes don't.
+  calls.length = 0;
+  await rpc("tools/call", { name: "list_accounts", arguments: {} });
+  assert.deepStrictEqual(calls[0], { method: "POST", path: "/api/v1/sync", query: undefined, body: { if_stale: true } });
+  calls.length = 0;
+  await rpc("tools/call", { name: "set_budget", arguments: { category: "FOOD_AND_DRINK", monthly_amount: 1 } }, "write");
+  assert(!calls.some((x) => x.path === "/api/v1/sync"));
+  // as_of says whether this answer synced, and when refreshed transactions land.
+  syncReply = { status: 200, data: { status: "synced", next_sync_at: "2026-10-28T12:03:00.000Z" } };
+  let a = payload(await rpc("tools/call", { name: "spending_by_category", arguments: {} })).as_of as Record<string, unknown>;
+  assert.strictEqual(a.synced_now, true);
+  assert.strictEqual(a.next_sync, "2026-10-28T12:03:00.000Z");
+  syncReply = { status: 200, data: { status: "running", next_sync_at: null } };
+  a = payload(await rpc("tools/call", { name: "spending_by_category", arguments: {} })).as_of as Record<string, unknown>;
+  assert.strictEqual(a.synced_now, false);
+  assert(!("next_sync" in a));
+  assert.match((a.warnings as string[])[0], /still running/);
+  // A failed sync doesn't fail the read.
+  syncReply = { status: 500, data: { error: "sync failed" } };
+  c = await rpc("tools/call", { name: "spending_by_category", arguments: {} });
+  assert.strictEqual(payload(c).total, 123.45);
+  // The sync tool: read scope, no if_stale, result counts flattened.
+  assert(names("read").includes("sync"));
+  syncReply = { status: 200, data: { status: "synced", result: { added: 3, modified: 1, removed: 0, investments: 0, errors: [] }, next_sync_at: null } };
+  calls.length = 0;
+  p = payload(await rpc("tools/call", { name: "sync", arguments: {} }));
+  assert.deepStrictEqual(calls.filter((x) => x.path === "/api/v1/sync"), [{ method: "POST", path: "/api/v1/sync", query: undefined, body: undefined }]);
+  assert.strictEqual(p.status, "synced");
+  assert.strictEqual(p.added, 3);
+  syncReply = { status: 200, data: { status: "fresh", next_sync_at: null } };
 
   // Helpers.
   assert.strictEqual(cents(19.99), 1999);

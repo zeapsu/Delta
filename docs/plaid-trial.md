@@ -69,6 +69,8 @@ OAuth banks (Chase, Bank of America, Wells Fargo and others) usually show up in 
 
 Banks only send new transactions to Plaid a few times a day. To get them sooner, Delta's sync job asks Plaid for a **Transactions Refresh** before each sync (every 6 hours by default), waits 3 minutes, then pulls the changes. Refresh is part of the Trial plan's Transactions product, so this costs nothing there. On a paid plan, Plaid may bill refreshes per call; set `SYNC_INTERVAL_HOURS` higher if you want fewer of them.
 
+Agents connected over MCP also keep data fresh: a read tool syncs when the data is more than 15 minutes old and asks for a refresh at most once an hour, and the `sync` tool asks for one at most once every 5 minutes.
+
 Some connections don't support refresh (for example credit-card-only Capital One logins answer `PRODUCTS_NOT_SUPPORTED`). Delta skips those and still syncs them.
 
 ## When you outgrow it

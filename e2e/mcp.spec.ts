@@ -85,3 +85,29 @@ test("write tools: refused for read tokens, applied for write tokens", async ({ 
   expect(del.isError).toBeFalsy();
   await write.close();
 });
+
+test("sync: read tokens may sync, reads sync only when stale, re-checks are throttled", async ({ baseURL, request }) => {
+  const h = bearer(tokens().read);
+  // Setup synced moments ago, so a stale-only sync does nothing.
+  const stale = await request.post("/api/v1/sync", { headers: h, data: { if_stale: true } });
+  expect(stale.status()).toBe(200);
+  expect((await stale.json()).status).toBe("fresh");
+  expect((await request.post("/api/v1/sync", { headers: h, data: { if_stale: "yes" } })).status()).toBe(400);
+
+  const client = await connect(baseURL!, tokens().read);
+  expect((await client.listTools()).tools.map((t) => t.name)).toContain("sync");
+  const accounts = (await client.callTool({ name: "list_accounts", arguments: {} })) as CallResult;
+  expect((accounts.structuredContent!.as_of as { synced_now: boolean }).synced_now).toBe(false);
+
+  // The banks were just asked to re-check (as the sync timer does), so an
+  // explicit sync is throttled. The synced path is in lib/fresh-sync-check.ts:
+  // this process can't forget a refresh within one run.
+  expect((await request.post("/api/plaid/refresh")).status()).toBe(200);
+  const synced = (await client.callTool({ name: "sync", arguments: {} })) as CallResult;
+  expect(synced.isError).toBeFalsy();
+  expect(synced.structuredContent!.status).toBe("throttled");
+  await client.close();
+  const again = await request.post("/api/v1/sync", { headers: h });
+  expect(again.status()).toBe(200);
+  expect((await again.json()).status).toBe("throttled");
+});
