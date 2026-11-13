@@ -1,7 +1,7 @@
 name: delta
 services:
   delta:
-    image: ghcr.io/zeapsu/delta:1.1.0
+    image: ghcr.io/zeapsu/delta:1.4.0
     # Starts as root to hand the root-owned AppData folder to the image's
     # node user, then runs Delta as that user (scripts/start.mjs).
     user: "0:0"
@@ -32,7 +32,7 @@ services:
             en_US: Networks allowed to use the API. Narrow to your LAN, e.g. 192.168.1.0/24
   # Plaid refresh + sync every 6 hours and a daily database backup.
   jobs:
-    image: ghcr.io/zeapsu/delta:1.1.0
+    image: ghcr.io/zeapsu/delta:1.4.0
     user: "0:0"
     restart: unless-stopped
     network_mode: "service:delta"
@@ -78,7 +78,7 @@ x-casaos:
   architectures:
     - amd64
     - arm64
-  version: "1.1.0"
+  version: "1.4.0"
   website: https://zeapsu.github.io/Delta/
   repo: https://github.com/zeapsu/Delta
   support: https://github.com/zeapsu/Delta/issues

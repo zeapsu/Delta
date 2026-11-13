@@ -8,12 +8,14 @@
 // block with stale warnings on every answer, the finance conventions in the
 // server instructions and tool descriptions (no separate skill install), and
 // money in dollars. The API stays in cents; conversion happens here.
+import pkg from "@/package.json";
 import type { Scope } from "@/lib/api-auth";
 import { CATEGORIES } from "@/lib/categories";
 import { todayISO } from "@/lib/months";
 import { ANALYSIS_DEFAULTS, analysisText, withDefaults, type AnalysisSettings } from "@/lib/analysis";
 
-export const SERVER_INFO = { name: "delta", version: "1.0.0" };
+// The release version (scripts/set-version.sh sets it after each release).
+export const SERVER_INFO = { name: "delta", version: pkg.version };
 export const PROTOCOL_VERSIONS = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"];
 export const STALE_DAYS = 3;
 
