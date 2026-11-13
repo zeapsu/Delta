@@ -55,3 +55,6 @@ backups/
 
 # private agent notes (personal setup; Claude Code loads it after CLAUDE.md)
 CLAUDE.local.md
+
+# deploy/mac: where this Mac pulls backups from (your server's address)
+/deploy/mac/backup-source

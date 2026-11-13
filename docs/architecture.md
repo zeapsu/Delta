@@ -26,7 +26,7 @@ Delta is one Next.js app (App Router, TypeScript, Tailwind) with a SQLite databa
 | `scripts/` | Token CLI, backups, the Docker `jobs` loop |
 | `e2e/` | Playwright end-to-end tests against a mock Plaid server (API, MCP and pages) |
 | `docs/` | These docs. `website/` builds them with Docusaurus |
-| `deploy/` | systemd units for a bare-metal install (edit before use) |
+| `deploy/` | systemd units for an install without Docker (`deploy/install.sh`), and a macOS job that pulls backups off the server |
 
 ## Data model
 

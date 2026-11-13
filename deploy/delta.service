@@ -1,18 +1,19 @@
-# Delta app server. Install with deploy/install.sh.
-# ponytail: Jetson paths/IP hardcoded (single known device); parameterize if a second host appears.
+# Delta app server, without Docker. A template: deploy/install.sh fills in the
+# @...@ values for this machine and installs it.
 [Unit]
 Description=Delta personal finance webapp
 After=network-online.target tailscaled.service
 Wants=network-online.target
 
 [Service]
-User=zeapsu
-WorkingDirectory=/home/zeapsu/Projects/Delta
-EnvironmentFile=/home/zeapsu/Projects/Delta/.env
-# nvm node for next
-Environment=PATH=/home/zeapsu/.nvm/versions/node/v25.9.0/bin:/usr/local/bin:/usr/bin:/bin
-# Bind to the tailscale IP only — the tailnet is the trust boundary (closes the XFF spoofing ceiling in app/api/chat/route.ts)
-ExecStart=/home/zeapsu/.nvm/versions/node/v25.9.0/bin/node node_modules/next/dist/bin/next start -H 100.116.56.85
+User=@USER@
+WorkingDirectory=@REPO@
+EnvironmentFile=@REPO@/.env
+Environment=PATH=@NODE_DIR@:/usr/local/bin:/usr/bin:/bin
+# Bind to one private address only (the Tailscale IP by default). The network
+# is the trust boundary: pages have no guard of their own, and the API guard
+# trusts a client-supplied X-Forwarded-For (lib/tailnet.ts).
+ExecStart=@NODE@ node_modules/next/dist/bin/next start -H @BIND@
 Restart=always
 RestartSec=5
 
