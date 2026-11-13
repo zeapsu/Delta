@@ -4,7 +4,7 @@ storage:
   dataRoot: data
 category: finance
 name: Delta
-version: "1.1.0"
+version: "1.4.0"
 tagline: Your money, on your machine, readable by your agent
 description: >-
   Delta connects your banks, cards and brokerages through Plaid and shows spending, budgets, recurring charges, investments and net worth on a calm dashboard. Your data is stored on your Umbrel.

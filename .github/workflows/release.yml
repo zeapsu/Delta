@@ -2,7 +2,11 @@
 # then runs the docker workflow on that tag so GHCR gets ghcr.io/<owner>/delta:<version>.
 # Run it from the Actions tab (or the API); agents use it because their git access
 # can only push their own branch. A tag created with GITHUB_TOKEN starts no other
-# workflows, hence the explicit docker dispatch.
+# workflows, hence the explicit docker dispatch. Once the image is on GHCR, the
+# version job opens a PR that puts the version in package.json, the home server
+# app store files and the Homebrew formula copy (scripts/set-version.sh), with
+# auto-merge on; CI is dispatched on it by hand, since GITHUB_TOKEN-made PRs
+# start no pull_request runs.
 name: release
 
 on:
@@ -21,6 +25,7 @@ on:
 permissions:
   contents: write
   actions: write
+  pull-requests: write
 
 jobs:
   release:
@@ -50,3 +55,42 @@ jobs:
           echo "Released $tag at $sha" >> "$GITHUB_STEP_SUMMARY"
       - name: Publish the image for the tag
         run: gh workflow run docker.yml --ref "v$VERSION"
+
+  version:
+    needs: release
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      VERSION: ${{ inputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: Wait for the image
+        run: |
+          set -euo pipefail
+          for _ in $(seq 1 80); do
+            docker manifest inspect "ghcr.io/${GH_REPO,,}:$VERSION" >/dev/null 2>&1 && exit 0
+            sleep 30
+          done
+          echo "::error::ghcr.io/${GH_REPO,,}:$VERSION did not appear in 40 minutes"; exit 1
+      - name: Open the version PR
+        run: |
+          set -euo pipefail
+          scripts/set-version.sh "$VERSION"
+          if git diff --quiet; then echo "Already at $VERSION" >> "$GITHUB_STEP_SUMMARY"; exit 0; fi
+          branch="release/v$VERSION"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git commit -am "Set version $VERSION"
+          git push -f origin "$branch"
+          gh pr create --head "$branch" --base main --title "Set version $VERSION" \
+            --body "Puts v$VERSION in package.json, the home server app store files and the Homebrew formula copy (scripts/set-version.sh)."
+          gh pr merge "$branch" --auto --merge
+          gh workflow run ci.yml --ref "$branch"

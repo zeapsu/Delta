@@ -16,7 +16,7 @@ All store installs use port **3740**, turn off the in-app update notice (the sto
 ## Before submitting
 
 1. Tag a release that includes `scripts/start.mjs` (v1.1.0 or later) with the **release** workflow (Actions → release → Run workflow), and wait for the docker run it starts to publish `ghcr.io/zeapsu/delta:<version>`.
-2. `home-server/pin.sh <version>`, commit.
+2. The release workflow pins the store files to the new version (its "Set version" PR). By hand: `home-server/pin.sh <version>`, commit.
 3. Install it on a real device of each kind, then open it, add sandbox keys, link `user_good` / `pass_good`, restart, and check the data is still there.
 
 ## Umbrel
