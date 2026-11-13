@@ -93,7 +93,7 @@ async function main() {
 
   // A slow sync doesn't hold the read: "running" after the wait, sync continues.
   let finish!: () => void;
-  ({ s, fresh } = setup({
+  ({ fresh } = setup({
     syncAll: () => new Promise((res) => (finish = () => res({ added: 0, modified: 0, removed: 0, errors: [] }))),
   }));
   const realSetTimeout = globalThis.setTimeout;
