@@ -29,6 +29,7 @@ const api: Api = async (method, path, opts = {}) => {
   }
   if (path === "/api/v1/budgets" && method === "POST") return { status: 200, data: { ok: true } };
   if (path === "/api/v1/transactions/category") return { status: 200, data: { ok: true, updated: 3 } };
+  if (path === "/api/v1/recurring" && method === "PATCH") return { status: 200, data: { ok: true } };
   if (path === "/api/v1/budgets") return { status: 400, data: { error: "month must be YYYY-MM" } };
   return { status: 404, data: { error: "nope" } };
 };
@@ -124,6 +125,15 @@ async function main() {
   assert.strictEqual(c.result!.isError, true);
   assert.strictEqual(calls.length, before); // rejected before reaching the API
   assert.strictEqual((await rpc("tools/call", { name: "drop_tables" })).error!.code, -32602);
+  // Still active / ended: write-only; "active" is the API's "confirmed".
+  assert(!names("read").includes("set_recurring_status"));
+  c = await rpc("tools/call", { name: "set_recurring_status", arguments: { id: 4, status: "active" } }, "write");
+  assert.strictEqual(payload(c).ok, true);
+  assert.deepStrictEqual(calls.findLast((x) => x.method === "PATCH")!.body, { id: 4, status: "confirmed" });
+  await rpc("tools/call", { name: "set_recurring_status", arguments: { id: 4, status: "ended" } }, "write");
+  assert.deepStrictEqual(calls.findLast((x) => x.method === "PATCH")!.body, { id: 4, status: "ended" });
+  c = await rpc("tools/call", { name: "set_recurring_status", arguments: { id: 4, status: "dismissed" } }, "write");
+  assert.strictEqual(c.result!.isError, true);
 
   // Reads sync first when stale (if_stale); writes don't.
   calls.length = 0;

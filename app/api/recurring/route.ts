@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { recurringRules } from "@/db/schema";
-import { isDate } from "@/lib/months";
+import { isDate, todayISO } from "@/lib/months";
 
 type Fields = {
   name: string;
@@ -67,6 +67,7 @@ export async function GET() {
       amount: recurringRules.amount,
       gapDays: recurringRules.gapDays,
       anchorDate: recurringRules.anchorDate,
+      reviewedOn: recurringRules.reviewedOn,
     })
     .from(recurringRules);
   return NextResponse.json({ rules: rows });
@@ -114,6 +115,32 @@ export async function PUT(req: Request) {
     .update(recurringRules)
     .set({ ...fields, updatedAt: new Date() })
     .where(eq(recurringRules.id, id))
+    .returning();
+  if (result.length === 0) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  return NextResponse.json({ ok: true });
+}
+
+// Answers "is this still charging?" for a tracked rule: status "confirmed"
+// keeps it (the possibly-ended check restarts today), "ended" archives it.
+export async function PATCH(req: Request) {
+  const body = await parseBody(req);
+  if (body instanceof NextResponse) return body;
+
+  const { id, status } = body;
+  if (typeof id !== "number" || !Number.isInteger(id) || id <= 0) {
+    return NextResponse.json({ error: "Invalid id" }, { status: 400 });
+  }
+  if (status !== "confirmed" && status !== "ended") {
+    return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+  }
+
+  const result = await db
+    .update(recurringRules)
+    .set({ status, reviewedOn: todayISO(), updatedAt: new Date() })
+    .where(and(eq(recurringRules.id, id), inArray(recurringRules.status, ["confirmed", "ended"])))
     .returning();
   if (result.length === 0) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });

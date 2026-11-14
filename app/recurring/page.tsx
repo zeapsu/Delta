@@ -1,12 +1,16 @@
 import { formatCents } from "@/lib/format";
 import { recurringOverview } from "@/lib/insights";
 import { Card, Empty, Money, Page, Stat } from "@/app/ui";
-import { AddRuleForm, RuleRow, SuggestionCard } from "./recurring-form";
+import { AddRuleForm, EndedRow, PossiblyEndedRow, RuleRow, SuggestionCard } from "./recurring-form";
 
 export const dynamic = "force-dynamic";
 
 export default async function RecurringPage() {
-  const { suggestions, confirmed, monthlyEstimate } = await recurringOverview();
+  const { suggestions, confirmed, possiblyEnded, ended, monthlyEstimate } = await recurringOverview();
+  const toReview = [
+    suggestions.length > 0 ? `${suggestions.length} to review` : null,
+    possiblyEnded.length > 0 ? `${possiblyEnded.length} to check` : null,
+  ].filter(Boolean);
 
   return (
     <Page title="Recurring" subtitle="Bills and subscriptions.">
@@ -17,7 +21,7 @@ export default async function RecurringPage() {
               size="lg"
               label="Per month (est.)"
               value={<Money cents={monthlyEstimate} />}
-              sub={`${confirmed.length} tracked${suggestions.length > 0 ? ` · ${suggestions.length} to review` : ""}`}
+              sub={[`${confirmed.length} tracked`, ...toReview].join(" · ")}
             />
             <Stat label="Per year (est.)" value={formatCents(Math.round((monthlyEstimate * 365) / 30))} />
           </div>
@@ -42,6 +46,21 @@ export default async function RecurringPage() {
               />
             ))}
           </div>
+        </Card>
+      )}
+
+      {possiblyEnded.length > 0 && (
+        <Card title={`Possibly ended · ${possiblyEnded.length}`} action={<span className="text-xs text-muted">Not in totals</span>}>
+          <ul className="flex flex-col divide-y divide-hairline">
+            {possiblyEnded.map((r) => (
+              <PossiblyEndedRow
+                key={r.id}
+                rule={{ id: r.id, name: r.name, amount: r.amount }}
+                cadence={r.cadence}
+                lastDate={r.lastDate}
+              />
+            ))}
+          </ul>
         </Card>
       )}
 
@@ -72,6 +91,16 @@ export default async function RecurringPage() {
           </ul>
         )}
       </Card>
+
+      {ended.length > 0 && (
+        <Card title={`Ended · ${ended.length}`}>
+          <ul className="flex flex-col divide-y divide-hairline">
+            {ended.map((r) => (
+              <EndedRow key={r.id} rule={{ id: r.id, name: r.name, amount: r.amount }} lastDate={r.lastDate} />
+            ))}
+          </ul>
+        </Card>
+      )}
 
       <Card title="Add manually" ask={false}>
         <AddRuleForm />

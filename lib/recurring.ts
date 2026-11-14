@@ -163,16 +163,20 @@ export function detectRecurring(txns: Txn[], today?: string): RecurringSeries[] 
 }
 
 // A recurring_rules row (see db/schema.ts); confirmed rows are the truth the
-// UI renders, dismissed rows suppress re-detected suggestions.
+// UI renders, dismissed rows suppress re-detected suggestions, ended rows are
+// archived (they suppress suggestions too, until a new charge revives them).
 export type RecurringRule = {
   id: number;
-  status: string; // "confirmed" | "dismissed"
+  status: string; // "confirmed" | "dismissed" | "ended"
   matchKey: string | null;
   name: string;
   amount: number; // cents
   gapDays: number;
   anchorDate: string; // ISO yyyy-mm-dd
+  reviewedOn?: string | null; // ISO day the user last said "still active" or "ended"
 };
+
+export type RuleState = "active" | "possiblyEnded" | "ended";
 
 // Same width as the detector's amount clustering (1.1× the cluster minimum).
 function amountsMatch(a: number, b: number): boolean {
@@ -183,42 +187,94 @@ function matches(series: RecurringSeries, rule: RecurringRule): boolean {
   return rule.matchKey === series.matchKey && amountsMatch(series.amount, rule.amount);
 }
 
+// Latest charge per rule with a matchKey: same group key, amount within 10%.
+// Read straight from the transactions, not the detector, so a skipped month
+// (which breaks the detector's even-gap check) still shows when it last posted.
+function lastCharges(txns: Txn[], rules: RecurringRule[]): Map<number, string> {
+  const byKey = new Map<string, RecurringRule[]>();
+  for (const r of rules) {
+    if (r.matchKey === null) continue;
+    const list = byKey.get(r.matchKey);
+    if (list) list.push(r);
+    else byKey.set(r.matchKey, [r]);
+  }
+  const last = new Map<number, string>();
+  if (byKey.size === 0) return last;
+  for (const t of txns) {
+    const keyed = byKey.get(groupKey(t));
+    if (!keyed) continue;
+    for (const r of keyed) {
+      if (amountsMatch(t.amount, r.amount) && t.date > (last.get(r.id) ?? "")) last.set(r.id, t.date);
+    }
+  }
+  return last;
+}
+
+const later = (...dates: (string | null | undefined)[]) =>
+  dates.reduce<string>((a, b) => (b && b > a ? b : a), "");
+
 // Splits detected series into unreviewed suggestions (no rule matches) and
-// per-confirmed-rule dates. A matching live series supplies lastDate/nextDate,
-// unless the rule's anchor is newer than the series' last charge (the user or
-// an agent moved the date): then the anchor drives nextDate until a charge on
-// or after it posts. With no live series (manual adds, stale series) the
-// anchor drives it too. An anchor still ahead of today is the next date;
-// one on or before today rolls forward by gapDays past today.
+// per-rule dates and state. txns are the ones the series were detected from.
+//
+// Dates: a matching live series supplies lastDate/nextDate, unless the rule's
+// anchor is newer than the series' last charge (the user or an agent moved
+// the date): then the anchor drives nextDate until a charge on or after it
+// posts. With no live series (manual adds, stale or uneven series) the later
+// of the anchor and the last matching charge drives it. A date still ahead
+// of today is the next date; one on or before today rolls forward by gapDays
+// past today.
+//
+// State: a confirmed rule with a matchKey is "possiblyEnded" once about two
+// expected charges are missed: nothing for 2 gaps (plus the detector's jitter
+// tolerance) since the latest of its last charge, its anchor and the day the
+// user last said it is still active. Manual rules can't be checked, so they
+// stay active. An ended rule is active again once a charge posts after the
+// day it was ended.
 export function partitionSeries(
   series: RecurringSeries[],
   rules: RecurringRule[],
   today?: string,
+  txns: Txn[] = [],
 ): {
   suggestions: RecurringSeries[];
   nextDates: Map<number, { lastDate?: string; nextDate: string }>;
+  states: Map<number, RuleState>;
 } {
   const todayDate = today ?? todayISO();
 
   const suggestions = series.filter((s) => !rules.some((r) => matches(s, r)));
 
+  const charged = lastCharges(txns, rules);
   const nextDates = new Map<number, { lastDate?: string; nextDate: string }>();
+  const states = new Map<number, RuleState>();
   for (const rule of rules) {
-    if (rule.status !== "confirmed") continue;
+    if (rule.status !== "confirmed" && rule.status !== "ended") continue;
     const live = series.find((s) => matches(s, rule));
+    const lastCharge = later(live?.lastDate, charged.get(rule.id)) || undefined;
+
     if (live && live.lastDate >= rule.anchorDate) {
       nextDates.set(rule.id, { lastDate: live.lastDate, nextDate: live.nextDate });
     } else {
       // Whole periods to step past today, computed rather than looped: an
       // anchor years back with a one-day gap would loop for every one of them.
-      const behind = daysBetween(rule.anchorDate, todayDate);
-      const next =
-        behind < 0
-          ? rule.anchorDate
-          : addDays(rule.anchorDate, (Math.floor(behind / rule.gapDays) + 1) * rule.gapDays);
-      nextDates.set(rule.id, live ? { lastDate: live.lastDate, nextDate: next } : { nextDate: next });
+      const base = live ? rule.anchorDate : later(rule.anchorDate, lastCharge);
+      const behind = daysBetween(base, todayDate);
+      const next = behind < 0 ? base : addDays(base, (Math.floor(behind / rule.gapDays) + 1) * rule.gapDays);
+      nextDates.set(rule.id, lastCharge ? { lastDate: lastCharge, nextDate: next } : { nextDate: next });
     }
+
+    const reviewed = rule.reviewedOn ?? rule.anchorDate;
+    if (rule.status === "ended" && !(lastCharge && lastCharge > reviewed)) {
+      states.set(rule.id, "ended");
+      continue;
+    }
+    let state: RuleState = "active";
+    if (rule.matchKey !== null) {
+      const seen = later(lastCharge, rule.anchorDate, rule.status === "confirmed" ? rule.reviewedOn : null);
+      if (daysBetween(seen, todayDate) > 2 * rule.gapDays + Math.max(3, 0.3 * rule.gapDays)) state = "possiblyEnded";
+    }
+    states.set(rule.id, state);
   }
 
-  return { suggestions, nextDates };
+  return { suggestions, nextDates, states };
 }

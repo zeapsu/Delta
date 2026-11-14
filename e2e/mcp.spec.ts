@@ -27,7 +27,7 @@ test("handshake and tool listing by scope", async ({ baseURL }) => {
 
   const write = await connect(baseURL!, tokens().write);
   const writeTools = (await write.listTools()).tools.map((t) => t.name);
-  expect(writeTools).toEqual(expect.arrayContaining(["set_budget", "set_transaction_category"]));
+  expect(writeTools).toEqual(expect.arrayContaining(["set_budget", "set_transaction_category", "set_recurring_status"]));
   await write.close();
 });
 

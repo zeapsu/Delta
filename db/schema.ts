@@ -158,17 +158,20 @@ export const budgets = sqliteTable("budgets", {
 
 // User-reviewed recurring series: the detector only suggests; these rows are
 // the truth. status "confirmed" = counts as recurring; "dismissed" = suppress
-// the matching suggestion. matchKey is the detector group key (null for
+// the matching suggestion; "ended" = archived after the user said it stopped
+// (a later matching charge makes it count again, see lib/recurring.ts). matchKey is the detector group key (null for
 // manual adds). Writes go through /api/recurring only.
 export const recurringRules = sqliteTable("recurring_rules", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  status: text("status").notNull(), // "confirmed" | "dismissed"
+  status: text("status").notNull(), // "confirmed" | "dismissed" | "ended"
   matchKey: text("match_key"),
   name: text("name").notNull(),
   // Money stored as integer cents.
   amount: integer("amount").notNull(),
   gapDays: integer("gap_days").notNull(),
   anchorDate: text("anchor_date").notNull(), // ISO yyyy-mm-dd, last known/expected charge
+  // ISO yyyy-mm-dd the user last answered "still active" or "ended".
+  reviewedOn: text("reviewed_on"),
   createdAt: integer("created_at", { mode: "timestamp_ms" })
     .notNull()
     .default(sql`(unixepoch('now', 'subsec') * 1000)`),

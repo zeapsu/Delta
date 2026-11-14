@@ -19,7 +19,7 @@ Write tools are only listed for write-scoped tokens, and calls to them with a re
 | `spending_by_category` | Spend per category for a `month`, pending included and reported separately. `date_basis=authorized` buckets by purchase date. |
 | `cash_flow` | Income vs spending per month (`months`, `end`). |
 | `get_budgets` | Budgets with progress for a `month`. |
-| `get_recurring` | Confirmed recurring charges (with next expected date and a monthly estimate) and unreviewed suggestions. |
+| `get_recurring` | Confirmed recurring charges (with next expected date and a monthly estimate), possibly ended and ended ones, and unreviewed suggestions. |
 | `get_net_worth` | Current net worth and daily history (`from`). |
 | `investment_activity` | Brokerage buys, sells, dividends and fees, paged. Never counted as spend. |
 
@@ -31,6 +31,7 @@ Write tools are only listed for write-scoped tokens, and calls to them with a re
 | `delete_budget` | Remove a category's budget. |
 | `add_recurring_rule` | Confirm or dismiss a recurring charge (answer a suggestion with its `match_key`, or add one by hand). |
 | `update_recurring_rule` | Edit a confirmed rule's name, amount, cadence or anchor date. A future anchor date sets the next expected charge. |
+| `set_recurring_status` | Mark a tracked charge still active or ended. An ended charge leaves totals and comes back by itself if it posts again. |
 | `delete_recurring_rule` | Remove a rule, e.g. after a cancellation. If the charge continues, Delta suggests it again. |
 | `set_transaction_category` | Relabel a transaction, or with `all_from_merchant` every transaction from its merchant, now and on future syncs. |
 | `reset_transaction_category` | Undo a relabel and go back to the bank's category. |
@@ -45,7 +46,7 @@ Every read tool syncs with the banks first when Delta's data is more than 15 min
 - **Spend** excludes transfers between your own accounts (`TRANSFER_IN`/`TRANSFER_OUT`), `INCOME`, `LOAN_DISBURSEMENTS` and credit card payments (the card purchases already count). Other loan payments (student, auto, mortgage) count. Totals from `spending_by_category`, `cash_flow` and `get_budgets` match the dashboard.
 - **Pending** charges are included in spend totals and reported separately, because they can still change or disappear.
 - **Categories** are Plaid's primary categories (e.g. `FOOD_AND_DRINK`) unless you relabeled them in Delta. Relabels apply everywhere.
-- **Recurring:** confirmed rules are the truth; suggestions are guesses and never count in totals.
+- **Recurring:** confirmed rules are the truth; suggestions are guesses and never count in totals. A rule that misses about two charges is possibly ended and leaves totals until you say whether it still charges.
 
 ## Protocol notes
 

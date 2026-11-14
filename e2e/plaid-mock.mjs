@@ -82,6 +82,8 @@ if (DEMO) for (let back = 0; back < 7; back++) {
     );
   }
   if (back === 2) rows.push([10, "acc-card", "Skyway Airlines", 386.2, "TRAVEL", "TRAVEL_FLIGHTS"]);
+  // A subscription that stopped three months ago.
+  if (back >= 3) rows.push([14, "acc-card", "Cloudvault Storage", 2.99, "GENERAL_SERVICES", "GENERAL_SERVICES_OTHER_GENERAL_SERVICES"]);
   for (const [d, acct, name, amount, primary, detailed] of rows) {
     const date = day(back, d);
     if (date <= today) transactions.push(tx(acct, date, name, Math.round(amount * 100) / 100, primary, detailed));

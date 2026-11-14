@@ -300,3 +300,87 @@ export function RuleRow({
     </li>
   );
 }
+
+function setStatus(id: number, status: "confirmed" | "ended") {
+  return postRule({ id, status }, "PATCH");
+}
+
+// A tracked charge that missed about two cycles: out of totals until the user
+// answers. "Ended" archives it; a later charge brings it back on its own.
+export function PossiblyEndedRow({
+  rule,
+  cadence,
+  lastDate,
+}: {
+  rule: Pick<Rule, "id" | "name" | "amount">;
+  cadence: string;
+  lastDate?: string;
+}) {
+  const router = useRouter();
+  const [saving, setSaving] = useState<"confirmed" | "ended" | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const answer = (status: "confirmed" | "ended") => {
+    setError(null);
+    setSaving(status);
+    setStatus(rule.id, status)
+      .then(() => router.refresh())
+      .catch((err) => setError(err.message))
+      .finally(() => setSaving(null));
+  };
+
+  return (
+    <li className="flex flex-col gap-2 py-3 text-sm sm:flex-row sm:items-center sm:gap-3">
+      <span className="min-w-0 flex-1">
+        <span className="flex items-baseline justify-between gap-3">
+          <span className="truncate font-medium">{rule.name}</span>
+          <span className="tabular-nums font-medium sm:hidden">{formatCents(rule.amount)}</span>
+        </span>
+        <span className="mt-1 flex flex-wrap gap-1.5">
+          <Chip>{cadence.charAt(0).toUpperCase() + cadence.slice(1)}</Chip>
+          <Chip>{lastDate ? `Last ${shortDate(lastDate)}` : "No charge seen"}</Chip>
+        </span>
+      </span>
+      <span className="hidden tabular-nums font-medium sm:inline">{formatCents(rule.amount)}</span>
+      <span className="flex gap-2">
+        <button type="button" onClick={() => answer("confirmed")} disabled={saving !== null} className="btn btn-sm">
+          {saving === "confirmed" ? "Saving…" : "Still active"}
+        </button>
+        <button type="button" onClick={() => answer("ended")} disabled={saving !== null} className="btn btn-sm">
+          {saving === "ended" ? "Saving…" : "Ended"}
+        </button>
+      </span>
+      {error && <p className="text-sm text-negative">{error}</p>}
+    </li>
+  );
+}
+
+// An archived charge, with a way back if it was ended by mistake.
+export function EndedRow({ rule, lastDate }: { rule: Pick<Rule, "id" | "name" | "amount">; lastDate?: string }) {
+  const router = useRouter();
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const restore = () => {
+    setError(null);
+    setSaving(true);
+    setStatus(rule.id, "confirmed")
+      .then(() => router.refresh())
+      .catch((err) => setError(err.message))
+      .finally(() => setSaving(false));
+  };
+
+  return (
+    <li className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2.5 text-sm">
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-muted">{rule.name}</span>
+        {lastDate ? <span className="text-xs text-muted">Last {shortDate(lastDate)}</span> : null}
+      </span>
+      <span className="tabular-nums text-muted">{formatCents(rule.amount)}</span>
+      <button type="button" onClick={restore} disabled={saving} className="text-xs text-muted hover:text-foreground">
+        {saving ? "Saving…" : "Track again"}
+      </button>
+      {error && <p className="w-full text-sm text-negative">{error}</p>}
+    </li>
+  );
+}

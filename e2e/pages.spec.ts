@@ -110,6 +110,32 @@ const STATES: [string, string, ((page: Page) => Promise<void>)?][] = [
     },
   ],
   [
+    "/recurring possibly ended and ended",
+    "/recurring",
+    async (page) => {
+      // A rule whose charge never posts: missed two cycles, so it asks.
+      const probes = [
+        { name: "Layout Probe Stopped", status: "confirmed" },
+        { name: "Layout Probe Ended", status: "ended" },
+      ];
+      const { rules } = await (await page.request.get("/api/recurring")).json();
+      for (const p of probes) {
+        let rule = rules.find((r: { name: string }) => r.name === p.name);
+        if (!rule) {
+          const data = { status: "confirmed", matchKey: p.name.toLowerCase(), name: p.name, amount: 9_99, gapDays: 30, anchorDate: "2026-01-02" };
+          expect((await page.request.post("/api/recurring", { data })).ok()).toBe(true);
+          rule = (await (await page.request.get("/api/recurring")).json()).rules.find((r: { name: string }) => r.name === p.name);
+        }
+        if (p.status === "ended" && rule.status !== "ended") {
+          expect((await page.request.patch("/api/recurring", { data: { id: rule.id, status: "ended" } })).ok()).toBe(true);
+        }
+      }
+      await page.reload();
+      await expect(page.getByRole("button", { name: "Still active" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Track again" })).toBeVisible();
+    },
+  ],
+  [
     "/recurring confirm form",
     "/recurring",
     async (page) => {
