@@ -171,4 +171,41 @@ assert.strictEqual(manual(today, 7), addDaysISO(today, 7), "anchor today: next i
 assert.strictEqual(manual(addDaysISO(today, -20), 7), addDaysISO(today, 1), "steps whole periods past today");
 assert.strictEqual(manual("1900-01-01", 1), addDaysISO(today, 1), "daily rule from 1900");
 
+// --- possibly ended / ended ---
+// The gym above stopped after 2026-03-11 (today 2026-07-09): it isn't a live
+// series any more, but its rule still learns the last charge from the txns.
+const gymRule: RecurringRule = { id: 4, status: "confirmed", matchKey: "gym", name: "Gym", amount: 40_00, gapDays: 30, anchorDate: "2026-02-09" };
+const state = (rule: RecurringRule, day = today, txns = all) => {
+  const p = partitionSeries(detectRecurring(txns, day), [rule], day, txns);
+  return { state: p.states.get(rule.id), dates: p.nextDates.get(rule.id) };
+};
+assert.strictEqual(state(rules[0]).state, "active", "live Netflix is active");
+assert.strictEqual(state(rules[2]).state, "active", "manual rules can't be checked, stay active");
+const gymState = state(gymRule);
+assert.strictEqual(gymState.state, "possiblyEnded", "two missed monthly charges flag it");
+assert.strictEqual(gymState.dates?.lastDate, "2026-03-11", "last charge comes from the txns");
+// One missed charge (plus jitter) is not enough: 69 days after the last one.
+assert.strictEqual(state(gymRule, "2026-05-19").state, "active", "69 days: still within two gaps plus tolerance");
+assert.strictEqual(state(gymRule, "2026-05-20").state, "possiblyEnded", "70 days: flagged");
+// "Still active" resets the clock; a later anchor does too.
+assert.strictEqual(state({ ...gymRule, reviewedOn: "2026-07-01" }).state, "active", "kept today: active");
+assert.strictEqual(state({ ...gymRule, reviewedOn: "2026-04-01" }).state, "possiblyEnded", "kept long ago: flagged again");
+assert.strictEqual(state({ ...gymRule, anchorDate: "2026-06-20" }).state, "active", "a recent anchor counts as seen");
+// Weekly: 2 gaps + 3 days.
+const weekly = [0, 7, 14].map((d) => ({ name: "CAR WASH", merchantName: "Car Wash", amount: 12_00, date: addDaysISO("2026-06-01", d) }));
+const washRule: RecurringRule = { id: 5, status: "confirmed", matchKey: "car wash", name: "Car Wash", amount: 12_00, gapDays: 7, anchorDate: "2026-06-15" };
+assert.strictEqual(state(washRule, "2026-07-02", weekly).state, "active", "17 days after a weekly charge: active");
+assert.strictEqual(state(washRule, "2026-07-03", weekly).state, "possiblyEnded", "18 days: flagged");
+// Ended: archived, suppresses its suggestion, and comes back on a new charge.
+const endedGym: RecurringRule = { ...gymRule, status: "ended", reviewedOn: "2026-05-01" };
+assert.strictEqual(state(endedGym).state, "ended", "ended stays ended without a new charge");
+const resumed = [...all, { name: "GYM", merchantName: "Gym", amount: 41_00, date: "2026-07-01" }];
+const revived = state(endedGym, today, resumed);
+assert.strictEqual(revived.state, "active", "a charge after the end date revives it");
+assert.strictEqual(revived.dates?.lastDate, "2026-07-01", "revived rule shows the new charge");
+assert.strictEqual(revived.dates?.nextDate, "2026-07-31", "next date rolls from the new charge");
+const endedNetflix = partitionSeries(results, [{ ...rules[0], status: "ended", reviewedOn: today }], today, all);
+assert(!endedNetflix.suggestions.some((s) => s.merchant === "Netflix"), "an ended rule suppresses its suggestion");
+assert.strictEqual(endedNetflix.states.get(1), "ended", "charges on or before the end date don't revive");
+
 console.log("lib/recurring-check.ts: all assertions passed");

@@ -11,7 +11,7 @@ Delta is a self-hosted personal finance dashboard. It links your bank, card and 
 - **Spending**: spend per category for any month, with pending charges called out.
 - **Transactions**: search and filter everything, and relabel a category for one transaction or for every transaction from a merchant.
 - **Budgets**: monthly budgets per category with progress.
-- **Recurring**: subscriptions and bills. Delta suggests series it detects and you confirm or dismiss them.
+- **Recurring**: subscriptions and bills. Delta suggests series it detects and you confirm or dismiss them. One that stops charging for about two cycles is flagged so you can mark it ended.
 - **Investments** and **Net worth**: brokerage activity and balance history.
 - **Settings**: how closely your agent watches your spending (Relaxed, Balanced or Watchful, or your own thresholds).
 

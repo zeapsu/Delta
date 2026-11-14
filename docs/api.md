@@ -36,7 +36,7 @@ curl -s -H "Authorization: Bearer $DELTA_API_TOKEN" "$DELTA_URL/api/v1/spending?
 | `GET /api/v1/cash-flow` | `months` (1-36, default 6), `end` | Posted income vs spend per month |
 | `GET /api/v1/spending` | `month` (default this month), `date_basis` (`posted` or `authorized`) | Spend per category |
 | `GET /api/v1/budgets` | `month` | Budgets with progress |
-| `GET /api/v1/recurring` | | Confirmed recurring charges and unreviewed suggestions |
+| `GET /api/v1/recurring` | | Confirmed recurring charges, possibly ended and ended ones, and unreviewed suggestions |
 | `GET /api/v1/investments` | `account_id`, `from`, `to`, `limit`, `offset` | Investment activity |
 | `GET /api/v1/net-worth` | `from` | Net worth now and daily history |
 | `GET /api/v1/settings` | | Your analysis thresholds (`customized: false` means the defaults), edited on `/settings` |
@@ -53,6 +53,7 @@ curl -s -H "Authorization: Bearer $DELTA_API_TOKEN" "$DELTA_URL/api/v1/spending?
 | `DELETE /api/v1/budgets` | `{"category"}` | Remove a budget |
 | `POST /api/v1/recurring` | `{"status", "name", "amount", "gapDays", "anchorDate", "matchKey"?}` | Confirm or dismiss a recurring charge |
 | `PUT /api/v1/recurring` | `{"id", "name", "amount", "gapDays", "anchorDate"}` | Edit a confirmed rule |
+| `PATCH /api/v1/recurring` | `{"id", "status"}` | Mark a tracked charge still active (`confirmed`) or `ended` |
 | `DELETE /api/v1/recurring` | `{"id"}` | Remove a rule |
 | `POST /api/v1/transactions/category` | `{"id", "category", "merchant"?}` | Relabel a transaction (`category: null` undoes it; `merchant: true` applies to every transaction from that merchant) |
 

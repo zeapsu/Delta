@@ -2,7 +2,8 @@ import "server-only";
 import { and, desc, eq, gt, gte, isNull, like, lte, ne, notLike, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { budgets, recurringRules, transactions } from "@/db/schema";
-import { cadenceFromGap, detectRecurring, partitionSeries } from "@/lib/recurring";
+import { cadenceFromGap, detectRecurring, partitionSeries, type RuleState } from "@/lib/recurring";
+import { todayISO } from "@/lib/months";
 
 // Spend = everything except moving money between own accounts, income,
 // loan disbursements and credit card payments (same rule as the
@@ -104,7 +105,10 @@ export type UpcomingCharge = {
 };
 
 // The /recurring pipeline: detector suggestions + user-reviewed rules.
-// Confirmed rules are the truth; suggestions are unreviewed candidates.
+// confirmed = rules still charging (the truth; the only ones in totals).
+// possiblyEnded = confirmed rules that missed about two charges, waiting on
+// the user's "still active" or "ended". ended = archived rules.
+// suggestions = unreviewed candidates.
 export async function recurringOverview() {
   const rows = await db
     .select({
@@ -117,23 +121,33 @@ export async function recurringOverview() {
     .where(and(gt(transactions.amount, 0), eq(transactions.pending, false), isSpend));
 
   const rules = await db.select().from(recurringRules);
-  const { suggestions, nextDates } = partitionSeries(detectRecurring(rows), rules);
-  const confirmed: UpcomingCharge[] = rules
-    .filter((r) => r.status === "confirmed")
-    .map((r) => ({
-      id: r.id,
-      name: r.name,
-      amount: r.amount,
-      gapDays: r.gapDays,
-      anchorDate: r.anchorDate,
-      cadence: cadenceFromGap(r.gapDays),
-      ...nextDates.get(r.id),
-    }))
-    .sort((a, b) => b.amount - a.amount);
+  const today = todayISO();
+  const { suggestions, nextDates, states } = partitionSeries(detectRecurring(rows, today), rules, today, rows);
+  const withState = (state: RuleState): UpcomingCharge[] =>
+    rules
+      .filter((r) => states.get(r.id) === state)
+      .map((r) => ({
+        id: r.id,
+        name: r.name,
+        amount: r.amount,
+        gapDays: r.gapDays,
+        anchorDate: r.anchorDate,
+        cadence: cadenceFromGap(r.gapDays),
+        ...nextDates.get(r.id),
+      }))
+      .sort((a, b) => b.amount - a.amount);
+  const confirmed = withState("active");
   const monthlyEstimate = Math.round(
     confirmed.reduce((sum, r) => sum + (r.amount * 30) / r.gapDays, 0),
   );
-  return { suggestions, confirmed, monthlyEstimate };
+  return {
+    suggestions,
+    confirmed,
+    possiblyEnded: withState("possiblyEnded"),
+    // An archived rule has no next charge to show.
+    ended: withState("ended").map((r) => ({ ...r, nextDate: undefined })),
+    monthlyEstimate,
+  };
 }
 
 export type BudgetProgress = {

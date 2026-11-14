@@ -1,0 +1,1 @@
+ALTER TABLE `recurring_rules` ADD `reviewed_on` text;

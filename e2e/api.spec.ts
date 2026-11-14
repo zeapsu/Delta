@@ -68,6 +68,29 @@ test("writes need a write token and are validated", async ({ request }) => {
   }
 });
 
+test("a tracked charge can be marked ended and active again", async ({ request }) => {
+  const w = bearer(tokens().write);
+  const r = bearer(tokens().read);
+  const rule = { status: "confirmed", name: "Probe Ended", amount: 7_00, gapDays: 30, anchorDate: "2026-01-05" };
+  expect((await request.post("/api/v1/recurring", { headers: w, data: rule })).status()).toBe(200);
+  const find = async (list: string) =>
+    ((await (await request.get("/api/v1/recurring", { headers: r })).json())[list] as { id: number; name: string }[]).find(
+      (x) => x.name === rule.name,
+    );
+  const { id } = (await find("confirmed"))!;
+
+  expect((await request.patch("/api/v1/recurring", { headers: r, data: { id, status: "ended" } })).status()).toBe(403);
+  expect((await request.patch("/api/v1/recurring", { headers: w, data: { id, status: "dismissed" } })).status()).toBe(400);
+  expect((await request.patch("/api/v1/recurring", { headers: w, data: { id: 999_999, status: "ended" } })).status()).toBe(404);
+
+  expect((await request.patch("/api/v1/recurring", { headers: w, data: { id, status: "ended" } })).status()).toBe(200);
+  expect(await find("ended")).toBeTruthy();
+  expect(await find("confirmed")).toBeUndefined();
+  expect((await request.patch("/api/v1/recurring", { headers: w, data: { id, status: "confirmed" } })).status()).toBe(200);
+  expect(await find("confirmed")).toBeTruthy();
+  expect((await request.delete("/api/v1/recurring", { headers: w, data: { id } })).status()).toBe(200);
+});
+
 test("cross-site browser writes are refused", async ({ request }) => {
   const res = await request.post("/api/budgets", {
     headers: { origin: "https://evil.example", "sec-fetch-site": "cross-site" },

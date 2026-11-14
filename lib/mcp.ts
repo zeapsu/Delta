@@ -19,7 +19,7 @@ export const SERVER_INFO = { name: "delta", version: pkg.version };
 export const PROTOCOL_VERSIONS = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"];
 export const STALE_DAYS = 3;
 
-export type ApiMethod = "GET" | "POST" | "PUT" | "DELETE";
+export type ApiMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 export type Api = (
   method: ApiMethod,
   path: string,
@@ -35,7 +35,7 @@ Conventions:
 - Credit card and loan balances are positive amounts owed; net worth subtracts them.
 - Pending transactions (pending: true in search_transactions) are charges the bank has authorized but not posted. Spend totals (spending_by_category, cash_flow, get_budgets) include them, and pendingTotal / pendingSpending say how much of a total is still pending. Pending amounts can still change or disappear (e.g. a refundable hold), so say which charges are pending when they matter, and leave them out when reconciling against a statement.
 - Categories are Plaid's labels (e.g. FOOD_AND_DRINK) unless the user relabeled a transaction or merchant in Delta; relabels already apply to every total, and plaidCategory in search_transactions keeps the bank's label. Plaid's labels can be wrong; list the transactions behind a surprising number before drawing conclusions.
-- Recurring: "confirmed" rules are user-reviewed truth; "suggestions" are unreviewed guesses, never count them in totals.
+- Recurring: "confirmed" rules are user-reviewed truth; "suggestions" are unreviewed guesses, never count them in totals. "possiblyEnded" rules missed about two expected charges and are out of totals until the user says whether they are still active (ask them, then call set_recurring_status); "ended" rules are ones the user said stopped, and one comes back to confirmed by itself if its charge posts again.
 
 Every answer has an as_of block. If it carries warnings (data older than ${STALE_DAYS} days, a bank connection whose last sync failed, or a sync still running), tell the user and caveat your conclusions with the last sync date.
 
@@ -331,7 +331,7 @@ export const TOOLS: Tool[] = [
     name: "get_recurring",
     title: "Recurring charges and subscriptions",
     description:
-      "Recurring charges in dollars. confirmed = rules the user reviewed (the truth: cadence, last and next expected date; monthlyEstimate sums only these). suggestions = series Delta detected that the user has not reviewed yet; never count them in totals, but you can ask the user to confirm or dismiss them.",
+      "Recurring charges in dollars. confirmed = rules the user reviewed that are still charging (the truth: cadence, last and next expected date; monthlyEstimate sums only these). possiblyEnded = confirmed rules with no charge for about two cycles, left out of totals; ask the user whether each is still active. ended = rules the user said stopped. suggestions = series Delta detected that the user has not reviewed yet; never count them in totals, but you can ask the user to confirm or dismiss them.",
     scope: "read",
     props: {},
     annotations: READ_HINTS,
@@ -433,6 +433,23 @@ export const TOOLS: Tool[] = [
     run: async (a, api) =>
       call(api, "PUT", "/api/v1/recurring", {
         body: { id: a.id, name: a.name, amount: cents(a.amount as number), gapDays: a.gap_days, anchorDate: a.anchor_date },
+      }),
+  },
+  {
+    name: "set_recurring_status",
+    title: "Mark a recurring charge still active or ended",
+    description:
+      "Answer whether a tracked recurring charge (id from get_recurring confirmed, possiblyEnded or ended) is still charging. active = keep it in totals (the possibly-ended check starts over today); ended = archive it, out of totals, and it comes back by itself if the charge posts again. Use this rather than delete_recurring_rule when a subscription stops. Only after the user explicitly agrees.",
+    scope: "write",
+    props: {
+      id: { ...ID, description: "Rule id from get_recurring" },
+      status: { type: "string", enum: ["active", "ended"], description: "active or ended" },
+    },
+    required: ["id", "status"],
+    annotations: { idempotentHint: true },
+    run: async (a, api) =>
+      call(api, "PATCH", "/api/v1/recurring", {
+        body: { id: a.id, status: a.status === "active" ? "confirmed" : "ended" },
       }),
   },
   {
