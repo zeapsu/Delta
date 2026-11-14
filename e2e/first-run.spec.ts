@@ -26,7 +26,7 @@ test("welcome cards: name, Plaid keys, then Link", async ({ page, request }) => 
   await page.route((url) => !local(url.href), (route) => route.abort());
 
   await page.goto("/");
-  await expect(page.getByText("Welcome to Delta")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Welcome to Delta" })).toBeVisible();
   await expect(page.getByText("Step 1 of 3")).toBeAttached();
   expect(await axe(page)).toEqual([]);
   await page.getByLabel("Your name").fill("Sam");
@@ -151,5 +151,5 @@ test("a connection is removed from its card, behind a confirm", async ({ page, r
   await fail(null);
 
   await sheet.getByRole("button", { name: "Remove", exact: true }).click();
-  await expect(page.getByText("Welcome to Delta")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Welcome to Delta" })).toBeVisible();
 });
