@@ -69,6 +69,8 @@ An **Update** pill appears in Delta's header when there's a new version. Pull th
 - **Dockge:** **Update**.
 - **Others:** the app's update or "pull and recreate" action.
 
+**Update from the app:** the stack includes an `updater` service that is off by default. Turn it on by setting the environment variable `COMPOSE_PROFILES=updater` for the stack (in Portainer, **Environment variables**), or delete the `profiles:` line of that service, and redeploy. The Update pill's dialog then has **Update now**: it backs up, pulls the image, restarts Delta and goes back to the previous containers if the new ones don't start. Without it, the dialog links here and you use your panel's update action. The updater holds the Docker socket, which is root on this machine, so it has no network and no port, and Delta can only ask it to update. See [Update from the app](updating.md#update-from-the-app) for what it does and doesn't do.
+
 Data lives in the `delta-data` volume and survives updates. Delta keeps 7 daily backups in `/data/backups`.
 
 ## Connect an agent
