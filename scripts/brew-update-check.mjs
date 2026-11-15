@@ -43,8 +43,8 @@ async function scenario(mode) {
   // The "service": records SIGTERM and exits.
   const service = spawn(
     process.execPath,
-    ["-e", `process.on("SIGTERM",()=>{require("fs").writeFileSync(${JSON.stringify(marker)},"x");process.exit(0)});setInterval(()=>{},1000)`],
-    { stdio: "ignore" },
+    ["-e", 'process.on("SIGTERM",()=>{require("fs").writeFileSync(process.env.MARKER,"x");process.exit(0)});setInterval(()=>{},1000)'],
+    { stdio: "ignore", env: { PATH: process.env.PATH, MARKER: marker } },
   );
   await wait(300);
   const helper = spawn(process.execPath, [script], {

@@ -226,7 +226,7 @@ async function serve() {
       if (!fs.existsSync(REQUEST) && !isLink(REQUEST)) continue;
       fs.rmSync(REQUEST, { force: true, recursive: true });
       const s = readStatus();
-      if (busy || (s?.state === "restarting" && Date.now() - s.at < STALE_MS)) {
+      if (s?.state === "restarting" && Date.now() - s.at < STALE_MS) {
         log("request ignored: an update is running");
         continue;
       }
