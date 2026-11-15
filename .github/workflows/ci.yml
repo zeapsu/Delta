@@ -118,4 +118,10 @@ jobs:
       - name: Logs
         if: ${{ !cancelled() }}
         run: docker logs delta
+      # The updater behind the Update pill, against this image and a local
+      # registry: update to a v2, then roll back from a v3 that crashes.
+      - name: Update from the app
+        run: |
+          docker rm -f delta
+          e2e/updater-docker.sh delta:ci
 

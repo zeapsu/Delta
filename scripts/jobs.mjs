@@ -79,6 +79,10 @@ async function every(ms, job) {
   }
 }
 
+// As a container's first process node ignores SIGTERM by default, so a stop
+// (and an update) would wait out Docker's 30 s before killing it.
+for (const sig of ["SIGTERM", "SIGINT"]) process.on(sig, () => process.exit(0));
+
 await waitForApp();
 log(`jobs: sync every ${SYNC_EVERY / 3600_000}h, backup every ${BACKUP_EVERY / 3600_000}h, app at ${URL_BASE}`);
 every(BACKUP_EVERY, backup);

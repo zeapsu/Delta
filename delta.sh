@@ -4,6 +4,7 @@
 #   ./delta.sh phone       move Delta onto your Tailscale address, to use it from your phone
 #   ./delta.sh update      back up, pull the new version, restart
 #   ./delta.sh uninstall   disconnect banks at Plaid, back up, remove everything
+#   ./delta.sh updater on|off   let the header's Update button update Delta, or stop that
 #   ./delta.sh backup      back up and copy the backups out to ./delta-backups
 #   ./delta.sh reset-password   turn off the web UI password (forgot it); set a new one in Settings
 # Fresh machine, from anywhere:
@@ -58,6 +59,39 @@ set_env() {
   else
     printf '%s=%s\n' "$key" "$val" >>.env
   fi
+}
+
+# Drop KEY from .env (commented out, so set_env can bring it back).
+unset_env() {
+  local key=$1 tmp; tmp=$(mktemp)
+  awk -v k="$key" '$0 ~ "^"k"=" { print "# " $0; next } { print }' .env >"$tmp"
+  cat "$tmp" >.env && rm -f "$tmp"
+}
+
+# Turn the updater service (the Update button's "Update now") on or off.
+cmd_updater() {
+  need_docker; in_repo || die "run this from your Delta folder"
+  case "${1:-}" in
+    on)
+      [ -f .env ] || { cp .env.example .env; chmod 600 .env; }
+      local now; now=$(grep -E '^COMPOSE_PROFILES=' .env | tail -1 | cut -d= -f2- || true)
+      case ",$now," in
+        *,updater,*) ;;
+        ,,) set_env COMPOSE_PROFILES updater ;;
+        *) set_env COMPOSE_PROFILES "$now,updater" ;;
+      esac
+      docker compose up -d
+      say "Delta can now update itself from its Update button. Turn it off: ./delta.sh updater off" ;;
+    off)
+      docker compose --profile updater rm -sf updater
+      if [ -f .env ]; then
+        local now; now=$(grep -E '^COMPOSE_PROFILES=' .env | tail -1 | cut -d= -f2- || true)
+        if [ "$now" = updater ]; then unset_env COMPOSE_PROFILES
+        elif [ -n "$now" ]; then set_env COMPOSE_PROFILES "$(tr ',' '\n' <<<"$now" | grep -vx updater | paste -sd, -)"; fi
+      fi
+      say "Updates from the app are off. Update with ./delta.sh update" ;;
+    *) die "usage: ./delta.sh updater on|off" ;;
+  esac
 }
 
 # This machine's Tailscale IPv4, or nothing. The Mac app's CLI isn't on PATH.
@@ -186,6 +220,10 @@ cmd_install() {
       echo "Found your Tailscale IP: $ip. Delta will only be reachable there."
     fi
     use_address "$ip"
+    # The default: the Update button updates Delta itself. One line to make it
+    # opt-in instead (delete this block): then it is ./delta.sh updater on.
+    set_env COMPOSE_PROFILES updater
+    echo "Delta can update itself from its Update button. Turn that off: ./delta.sh updater off"
   fi
 
   start
@@ -284,8 +322,9 @@ case "${1:-}" in
   install) cmd_install ;;
   phone) cmd_phone ;;
   update) cmd_update ;;
+  updater) shift; cmd_updater "$@" ;;
   uninstall) cmd_uninstall ;;
   backup) need_docker; in_repo || die "run this from your Delta folder"; backup ;;
   reset-password) need_docker; in_repo || die "run this from your Delta folder"; docker compose exec delta npm run --silent password -- reset ;;
-  *) sed -n '2,10p' "$0" 2>/dev/null | sed 's/^# \{0,1\}//'; exit 1 ;;
+  *) sed -n '2,11p' "$0" 2>/dev/null | sed 's/^# \{0,1\}//'; exit 1 ;;
 esac
