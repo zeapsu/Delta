@@ -8,7 +8,7 @@ services:
       PROXY_AUTH_WHITELIST: "/api/v1/*"
 
   web:
-    image: ghcr.io/zeapsu/delta:1.4.0@sha256:2d558a0d055b8f52bbde467b06891fac7df00a8f0c7fd9c7b530faeb96b514b0
+    image: ghcr.io/zeapsu/delta:1.5.0@sha256:e376939ff707758f9451beb40fb33ddcd71048d99caa89c0fefe9a38d31013bd
     user: "1000:1000"
     restart: on-failure
     environment:
@@ -24,7 +24,7 @@ services:
 
   # Plaid refresh + sync every 6 hours and a daily database backup.
   jobs:
-    image: ghcr.io/zeapsu/delta:1.4.0@sha256:2d558a0d055b8f52bbde467b06891fac7df00a8f0c7fd9c7b530faeb96b514b0
+    image: ghcr.io/zeapsu/delta:1.5.0@sha256:e376939ff707758f9451beb40fb33ddcd71048d99caa89c0fefe9a38d31013bd
     user: "1000:1000"
     restart: on-failure
     command: ["node", "scripts/jobs.mjs"]
