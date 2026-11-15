@@ -145,7 +145,7 @@ async function runUpdate({ self, project, ref }, requestedAt) {
   // The swap is done by a container that is not one of those being replaced.
   const name = `${project}-update-worker`;
   await docker("DELETE", `/containers/${enc(name)}?${q({ force: "1" })}`);
-  const host = { NetworkMode: "none", AutoRemove: true };
+  const host = { NetworkMode: "none", AutoRemove: true, ReadonlyRootfs: true, SecurityOpt: ["no-new-privileges:true"] };
   if (self.HostConfig?.Binds?.length) host.Binds = self.HostConfig.Binds;
   if (self.HostConfig?.Mounts?.length) host.Mounts = self.HostConfig.Mounts;
   const created = await ok(
@@ -182,11 +182,12 @@ async function serve() {
   const status = readStatus();
   const age = Date.now() - (status?.requestedAt ?? status?.at ?? 0);
   if (!status) writeStatus("idle");
-  else if ((status.state === "pulling" || status.state === "restarting") && age > STALE_MS) {
+  else if (status.state === "restarting" && age > STALE_MS) {
     writeStatus("failed", { message: "The update was interrupted." });
   }
   // Otherwise keep what's there: a recent `restarting` belongs to the worker,
-  // and done/failed/current stay for the app to read.
+  // done/failed/current stay for the app to read, and the first heartbeat
+  // ends a `pulling` that a restart cut short.
 
   let me = await findSelf();
   let busy = false;
@@ -194,11 +195,19 @@ async function serve() {
     const s = readStatus();
     if (!me) return writeStatus("failed", { message: "Updater can't find its own container." });
     if (!s) return writeStatus("idle");
-    // Worker-owned: if it died without a final word, don't sit in `restarting` forever.
-    if (s.state === "restarting" && Date.now() - (s.requestedAt ?? s.at) > STALE_MS) {
-      return writeStatus("failed", { message: "The update was interrupted." });
+    // `restarting` is the worker's to change, and it may write its final word
+    // at any moment: leave it alone (the app counts a running update as an
+    // updater being there). If the worker died, don't sit in it forever.
+    if (s.state === "restarting") {
+      if (Date.now() - (s.requestedAt ?? s.at) > STALE_MS) writeStatus("failed", { message: "The update was interrupted." });
+      return;
     }
-    // Same state, fresh timestamp: never overwrite what the worker wrote.
+    // `pulling` is this process's own: one it isn't doing was cut short by a restart.
+    if (s.state === "pulling") {
+      if (!busy) writeStatus("failed", { message: "The update was interrupted." });
+      return;
+    }
+    // Same state, fresh timestamp.
     writeStatus(s.state, { message: s.message, from: s.from, to: s.to });
   };
   setInterval(() => {
@@ -217,7 +226,7 @@ async function serve() {
       if (!fs.existsSync(REQUEST) && !isLink(REQUEST)) continue;
       fs.rmSync(REQUEST, { force: true, recursive: true });
       const s = readStatus();
-      if (busy || s?.state === "pulling" || (s?.state === "restarting" && Date.now() - s.at < STALE_MS)) {
+      if (busy || (s?.state === "restarting" && Date.now() - s.at < STALE_MS)) {
         log("request ignored: an update is running");
         continue;
       }
@@ -326,8 +335,8 @@ async function apply() {
   const stoppedOld = [];
   try {
     for (const c of swap) {
+      stoppedOld.push(c); // before, not after: one that stopped but wasn't renamed is started again too
       await stopAside(c);
-      stoppedOld.push(c);
     }
     const idMap = {};
     for (const p of rootPlans) {

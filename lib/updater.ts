@@ -24,6 +24,7 @@ export type UpdaterStatus = {
 };
 
 const FRESH_MS = 90_000;
+const RUNNING_MS = 10 * 60_000;
 const brewInstall = () => process.env.DELTA_INSTALL === "brew";
 
 function executable(file: string): boolean {
@@ -64,7 +65,9 @@ export function readUpdaterStatus(): UpdaterStatus {
   if (brewInstall()) {
     return { ...pick(deriveBrewStatus(s ?? { state: "idle", at: 0 }, process.env.DELTA_COMMIT) as Raw), available: brewReady() };
   }
-  return { ...pick(s ?? { state: "idle", at: 0 }), available: !!s && Date.now() - s.at < FRESH_MS };
+  // The heartbeat pauses while an update runs (the worker owns the file then).
+  const running = !!s && (s.state === "pulling" || s.state === "restarting") && Date.now() - (s.requestedAt ?? s.at) < RUNNING_MS;
+  return { ...pick(s ?? { state: "idle", at: 0 }), available: running || (!!s && Date.now() - s.at < FRESH_MS) };
 }
 
 type Raw = { state: string; at: number; requestedAt?: number; message?: string };
@@ -89,7 +92,7 @@ export function requestUpdate(): number {
   if (!brew) throw new Error("no brew");
   ensureDir(dir, 0o700);
   // Visible at once, before the helper has started.
-  writeStatus(dir, "pulling", { requestedAt, message: undefined, from: undefined, to: undefined }, 0o700);
+  writeStatus(dir, "pulling", { requestedAt, message: undefined, from: process.env.DELTA_COMMIT, to: undefined }, 0o700);
   const log = fs.openSync(path.join(dir, "brew.log"), "a", 0o600);
   try {
     const env: Record<string, string | undefined> = {

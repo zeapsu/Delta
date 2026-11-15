@@ -39,7 +39,9 @@ function run(args, capture = false) {
 
 async function main() {
   if (!brew || !dir || !Number.isInteger(pid) || pid <= 1) throw new Error("DELTA_BREW, DELTA_UPDATE_DIR and DELTA_SERVICE_PID are required");
-  set("pulling", { message: undefined, from: undefined, to: undefined });
+  // `from` from the start: if Homebrew restarts the service itself during the
+  // upgrade, the new build still reads this as finished.
+  set("pulling", { message: undefined, from, to: undefined });
   const before = await run(["list", "--versions", "delta"], true);
   const upgrade = await run(["upgrade", "delta"]);
   if (upgrade.code !== 0) {
@@ -53,7 +55,12 @@ async function main() {
   }
   set("restarting", { message: undefined, from });
   log(`restarting: SIGTERM to ${pid}`);
-  process.kill(pid, "SIGTERM");
+  try {
+    process.kill(pid, "SIGTERM");
+  } catch (err) {
+    // Already gone: something else restarted it, which is all this wanted.
+    if (err.code !== "ESRCH") throw err;
+  }
 }
 
 main().catch((err) => {

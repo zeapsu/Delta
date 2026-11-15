@@ -100,6 +100,8 @@ services:
     restart: unless-stopped
     user: "0:0"
     network_mode: none
+    read_only: true
+    security_opt: ["no-new-privileges:true"]
     command: ["node", "scripts/updater.mjs"]
     volumes:
       - delta-data:/data

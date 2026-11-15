@@ -10,10 +10,14 @@ import { cleanStatus } from "./updater-lib.mjs";
 // updater (root, in Docker) creates it and hands it to the data folder's owner
 // so the app can drop `request` in it.
 export function ensureDir(dir, mode = 0o755) {
+  // The data folder belongs to the app's user, and the updater is root: a link
+  // or file planted where the directory should be is removed, never followed.
+  const st = fs.lstatSync(dir, { throwIfNoEntry: false });
+  if (st && !st.isDirectory()) fs.rmSync(dir, { force: true });
   fs.mkdirSync(dir, { recursive: true, mode });
   try {
     const parent = fs.statSync(path.dirname(dir));
-    fs.chownSync(dir, parent.uid, parent.gid);
+    fs.lchownSync(dir, parent.uid, parent.gid);
   } catch {}
   try {
     fs.chmodSync(dir, mode);

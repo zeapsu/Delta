@@ -65,6 +65,8 @@ services:
     restart: unless-stopped
     user: "0:0" # the Docker socket is root's
     network_mode: none # the Docker daemon does the pulling; this needs no network
+    read_only: true
+    security_opt: ["no-new-privileges:true"]
     command: ["node", "scripts/updater.mjs"]
     volumes:
       - delta-data:/data

@@ -143,12 +143,12 @@ export function cleanStatus(raw) {
 export const shortId = (id) => String(id ?? "").replace(/^sha256:/, "").slice(0, 12);
 
 // Homebrew installs have no worker to write `done`: the new build answering is
-// the proof. `restarting` from a build other than the running one means the
-// restart happened. A state nobody has finished for 30 minutes was interrupted.
+// the proof. An update started by a build other than the running one means
+// the restart happened. A state nobody has finished for 30 minutes was interrupted.
 export const BREW_STALE_MS = 30 * 60_000;
 export function deriveBrewStatus(status, commit, now = Date.now()) {
   const s = { ...status };
-  if (s.state === "restarting" && s.from && commit && s.from !== commit) {
+  if ((s.state === "pulling" || s.state === "restarting") && s.from && commit && s.from !== commit) {
     return { ...s, state: "done", message: "Updated to the newest version." };
   }
   if ((s.state === "pulling" || s.state === "restarting") && now - (s.requestedAt ?? s.at) > BREW_STALE_MS) {

@@ -112,6 +112,7 @@ assert.equal(deriveBrewStatus({ state: "restarting", at: T, from: "v1" }, "v1", 
 assert.equal(deriveBrewStatus({ state: "restarting", at: T, from: "v1" }, "v2", T).state, "done");
 assert.equal(deriveBrewStatus({ state: "pulling", at: T, requestedAt: T }, "v1", T + 29 * 60_000).state, "pulling");
 assert.equal(deriveBrewStatus({ state: "pulling", at: T, requestedAt: T }, "v1", T + 31 * 60_000).state, "failed");
+assert.equal(deriveBrewStatus({ state: "pulling", at: T, from: "v1" }, "v2", T).state, "done");
 assert.equal(deriveBrewStatus({ state: "failed", at: T }, "v2", T + 99 * 60_000).state, "failed");
 
 console.log("updater-check: ok");
