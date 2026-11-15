@@ -129,7 +129,13 @@ switch (command) {
     mkdirSync(HOME, { recursive: true });
     const { env, url } = settings();
     console.log(`Delta at ${url} (data in ${HOME})`);
-    const child = spawn(process.execPath, ["scripts/start.mjs"], { cwd: APP, env, stdio: "inherit" });
+    // The Update pill's helper (scripts/brew-update.mjs) stops this process;
+    // the supervisor (brew services) then starts the new version.
+    const child = spawn(process.execPath, ["scripts/start.mjs"], {
+      cwd: APP,
+      env: { ...env, DELTA_LAUNCHER_PID: String(process.pid) },
+      stdio: "inherit",
+    });
     for (const sig of ["SIGTERM", "SIGINT"]) process.on(sig, () => child.kill(sig));
     child.on("exit", (code, signal) => process.exit(code ?? (signal ? 1 : 0)));
     break;
