@@ -8,7 +8,24 @@ An update is three steps: back up, get the new version, restart. Delta applies d
 
 Run every command below from the folder you cloned Delta into. Installed Delta from an app panel such as Portainer or CasaOS? Follow [Update](home-server.md#update) in the home server guide instead. With Homebrew, see [Update](homebrew.md#update) there.
 
-You don't have to watch for releases: when a newer version is out, a small **Update** pill appears in Delta's header. Clicking it copies `./delta.sh update` for you to run on the host. (Delta can't update itself: that would need control of Docker, which is root on the host, from a web app.) To find out, Delta asks GitHub's API twice a day whether a release newer than its build is out; it sends nothing but that question. Turn it off with `DELTA_UPDATE_CHECK=off` in `.env`. Images you build yourself only know their version when built through `delta.sh`, or with `DELTA_COMMIT=$(git rev-parse HEAD)` set for `docker compose build`.
+You don't have to watch for releases: when a newer version is out, a small **Update** pill appears in Delta's header. Clicking it opens a dialog: with [Update from the app](#update-from-the-app) on, an **Update now** button does the update; otherwise it copies `./delta.sh update` for you to run on the host. To find out, Delta asks GitHub's API twice a day whether a release newer than its build is out; it sends nothing but that question. Turn it off with `DELTA_UPDATE_CHECK=off` in `.env`. Images you build yourself only know their version when built through `delta.sh`, or with `DELTA_COMMIT=$(git rev-parse HEAD)` set for `docker compose build`.
+
+## Update from the app
+
+With the updater on, **Update now** in the header's Update dialog does steps 1 to 3 for you. It's off unless you turn it on (`./delta.sh install` turns it on for a new install):
+
+```bash
+./delta.sh updater on     # starts the updater container
+./delta.sh updater off    # stops and removes it
+```
+
+What it does, in order: backs up the database (the same `delta-YYYY-MM-DD-pre-update-HHMMSS.db` copy as the script, in `/data/backups`, keeping the newest 3), pulls the new image, and replaces the containers on it, keeping your settings. It then watches the new containers for 20 seconds; if they don't stay up it puts the previous containers back and says so. Moving back to the old *version* is safe, but a failed start may already have migrated the database, so [roll back](#roll-back) with the backup if Delta misbehaves.
+
+What it doesn't do: `git pull`. New compose files and `.env.example` still come from `./delta.sh update`, so run that now and then. A pinned `DELTA_TAG` (for example `1.2.0`) stays pinned: the dialog says to change the tag instead. An image pinned by digest is never updated.
+
+The trade-off: the updater container holds the Docker socket, which is root on the host. It has no network and no port, only reads a request file from the data volume, and only pulls the image its own container already uses and recreates this project's containers on it. The web app never gets the socket and can only ask it to update; anything that carries an agent token is refused. Rootless Docker keeps its socket elsewhere: set `DELTA_DOCKER_SOCK` in `.env`.
+
+Delta installed with Homebrew updates the same way when it's run by `brew services` (see [Update](homebrew.md#update)); that needs no updater container.
 
 ## The short way
 

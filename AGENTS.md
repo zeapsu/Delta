@@ -8,6 +8,7 @@ Before changing code, read `CONTRIBUTING.md` (setup, checks, core conventions) a
 
 - Never log, return or rethrow a raw Plaid/Axios error: `err.config.data` is the request body with `client_id`, `secret` and `access_token`. Catch it in the route (Next.js logs what escapes) and log only `safePlaidError(err)` fields.
 - Never select or return `items.access_token` or `items.sync_cursor` in an `/api/v1` route, and never return a saved Plaid secret from any route.
+- The web app must never get the Docker socket. Updates go through a request file to the opt-in `updater` compose service, which takes no parameters (`docs/architecture.md`). `POST /api/update` is dashboard only: it refuses bearer tokens (`sentByAgent()`).
 - Never switch an instance to `PLAID_ENV=production` without the user's explicit sign-off. Production needs a fresh database: sandbox and production data must not mix.
 - Managing tokens, the password and connections is dashboard only by design: no v1 route, no MCP tool, and those routes refuse any request that carries a bearer token (`sentByAgent()` in `lib/agent-config.ts`). Do the same in a new management route.
 - The network check covers `/api/*` only and trusts `X-Forwarded-For`, which a client can set. Pages rely on the bind address (and the optional password), so do not widen a default bind.

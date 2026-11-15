@@ -208,6 +208,10 @@ http
     req.on("end", () => {
       const body = raw ? JSON.parse(raw) : {};
       if (req.url === "/health") return send(res, 200, { ok: true });
+      // GitHub's release API, for the Update pill (lib/update-check.ts reads
+      // DELTA_UPDATE_API): a newer release that is two commits ahead of any build.
+      if (req.method === "GET" && /^\/repos\/[^/]+\/[^/]+\/releases\/latest$/.test(req.url)) return send(res, 200, { tag_name: "v9.9.9" });
+      if (req.method === "GET" && /^\/repos\/[^/]+\/[^/]+\/compare\//.test(req.url)) return send(res, 200, { ahead_by: 2 });
       const control = controls.get(req.url);
       if (typeof control === "function") return send(res, 200, control(body));
       // Any keys work except this secret, so the setup page's rejection shows.

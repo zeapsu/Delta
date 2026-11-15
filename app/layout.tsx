@@ -4,6 +4,7 @@ import { Nav } from "./nav";
 import { RefractionFilter } from "./refraction";
 import { UpdatePill } from "./update-pill";
 import { updateStatus } from "@/lib/update-check";
+import { readUpdaterStatus } from "@/lib/updater";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -43,7 +44,18 @@ export default function RootLayout({
     >
       <body className="flex min-h-full flex-col">
         <RefractionFilter />
-        <Nav extra={update && <UpdatePill behindBy={update.behindBy} install={process.env.DELTA_INSTALL} />} />
+        <Nav
+          extra={
+            update && (
+              <UpdatePill
+                behindBy={update.behindBy}
+                version={update.version}
+                install={process.env.DELTA_INSTALL}
+                canUpdate={readUpdaterStatus().available}
+              />
+            )
+          }
+        />
         {children}
       </body>
     </html>

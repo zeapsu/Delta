@@ -5,17 +5,31 @@ import "server-only";
 // the latest release has commits that build lacks. Never blocks a page: callers get the last known
 // answer (null until the first check lands), and a stale one refreshes in the
 // background. Off with DELTA_UPDATE_CHECK=off; no commit known = no check.
+// Test-only: DELTA_UPDATE_API points the check at the e2e mock (e2e/plaid-mock.mjs),
+// like PLAID_MOCK_URL does for Plaid; only a loopback address is honored.
 
 const TTL = 12 * 3600e3;
 const REPO = process.env.DELTA_UPDATE_REPO ?? "zeapsu/Delta";
 
-export type UpdateStatus = { behindBy: number };
+// version: the release's tag (e.g. v1.5.0).
+export type UpdateStatus = { behindBy: number; version: string };
+
+function apiBase(): string {
+  const url = process.env.DELTA_UPDATE_API;
+  if (url) {
+    try {
+      const u = new URL(url);
+      if (["127.0.0.1", "localhost", "[::1]"].includes(u.hostname)) return url.replace(/\/+$/, "");
+    } catch {}
+  }
+  return "https://api.github.com";
+}
 
 let cached: { at: number; status: UpdateStatus | null } | undefined;
 let inFlight = false;
 
 const github = (path: string) =>
-  fetch(`https://api.github.com/repos/${REPO}/${path}`, {
+  fetch(`${apiBase()}/repos/${REPO}/${path}`, {
     headers: { Accept: "application/vnd.github+json", "User-Agent": "delta-update-check" },
     signal: AbortSignal.timeout(5000),
     cache: "no-store",
@@ -39,7 +53,7 @@ async function check(commit: string): Promise<UpdateStatus | null> {
   if (!res.ok) return null; // unknown commit (local build, fork), rate limit, ...
   // compare/<build>...<target>: ahead_by = commits there the build doesn't have.
   const body = (await res.json()) as { ahead_by?: unknown };
-  return typeof body.ahead_by === "number" && body.ahead_by > 0 ? { behindBy: body.ahead_by } : null;
+  return typeof body.ahead_by === "number" && body.ahead_by > 0 ? { behindBy: body.ahead_by, version: to } : null;
 }
 
 export function updateStatus(): UpdateStatus | null {

@@ -51,6 +51,9 @@ assert.strictEqual(gate("/api/v1", "GET"), "token");
 assert.strictEqual(gate("/api/v1x", "GET"), "api");
 assert.strictEqual(gate("/api/settings/password", "PUT"), "api");
 assert.strictEqual(gate("/api/tokens", "POST"), "api");
+// The update route sits behind the login, not in the sync timer's open list.
+assert.strictEqual(gate("/api/update", "POST"), "api");
+assert.strictEqual(gate("/api/update", "GET"), "api");
 assert.strictEqual(gate("/", "GET"), "page");
 assert.strictEqual(gate("/loginx", "GET"), "page");
 

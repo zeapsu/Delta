@@ -158,10 +158,11 @@ docker compose up -d --build     # build from this checkout
 docker compose pull && docker compose up -d
 ```
 
-This starts two containers from the same image:
+This starts two containers from the same image (three with [Update from the app](updating.md#update-from-the-app) on):
 
 - `delta`, the web app. The database and backups live in the `delta-data` volume (`/data` in the container). Migrations apply automatically each time it starts.
 - `jobs`, which replaces the cron/systemd timers: every 6 hours it asks Plaid to refresh, waits 3 minutes, then syncs; once a day it backs up the database. It shares `delta`'s network so its requests arrive on loopback.
+- `updater` (only with `COMPOSE_PROFILES=updater`, which `./delta.sh install` sets), behind the Update pill's **Update now**. It holds the Docker socket, so it has no network and no port.
 
 Check it started:
 
