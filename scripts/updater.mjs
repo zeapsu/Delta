@@ -5,6 +5,9 @@
 // named `request` appears in <data dir>/update/, and the only things it does
 // are pulling the image its own container already uses and recreating the
 // containers of its own compose project that use that same image reference.
+// An official image is installed only if its signature checks out
+// (verifySignature below); one that doesn't is never run, and the tag goes
+// back to the image Delta is on.
 //
 //   node scripts/updater.mjs         long-running: poll for a request, pull, start the worker
 //   node scripts/updater.mjs apply   the worker: swap the containers, roll back if the new ones fail
@@ -17,7 +20,20 @@ import fs from "node:fs";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
-import { composeImageLabel, createBody, orderTargets, parseImageRef, IMAGE_LABEL, PROJECT_LABEL, shortId, updateDir } from "./updater-lib.mjs";
+import {
+  composeImageLabel,
+  COSIGN_IMAGE,
+  createBody,
+  isOfficial,
+  orderTargets,
+  parseImageRef,
+  repoDigestRefs,
+  verifyArgs,
+  IMAGE_LABEL,
+  PROJECT_LABEL,
+  shortId,
+  updateDir,
+} from "./updater-lib.mjs";
 import { ensureDir as ensureDirOf, readStatus as readStatusFile, writeStatus as writeStatusFile } from "./updater-status.mjs";
 
 const SOCKET = "/var/run/docker.sock";
@@ -27,6 +43,8 @@ const POLL_MS = 2000;
 const HEARTBEAT_MS = 20_000;
 const STALE_MS = 10 * 60_000;
 const WORKER_LABEL = "delta.update-worker";
+const VERIFY_TIMEOUT_MS = 3 * 60_000;
+const UNVERIFIED = "The new version's signature didn't check out, so it wasn't installed.";
 
 const log = (...a) => console.log(new Date().toISOString(), "updater:", ...a);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -103,7 +121,7 @@ async function findSelf() {
 
 async function pull(ref) {
   const { repo, tag, digest } = parseImageRef(ref);
-  const res = await docker("POST", `/images/create?${q({ fromImage: repo, tag: tag ?? "" })}`);
+  const res = await docker("POST", `/images/create?${q({ fromImage: repo, tag: digest ?? tag ?? "" })}`);
   if (res.status !== 200) throw new Error(`pull ${ref}: ${res.status} ${res.text.slice(0, 300)}`);
   // A stream of JSON lines that ends 200 even when the pull failed midway.
   for (const line of res.text.split("\n")) {
@@ -117,6 +135,64 @@ async function pull(ref) {
     if (msg.error) throw new Error(`pull ${ref}: ${String(msg.error).slice(0, 300)}`);
   }
   return digest;
+}
+
+// Runs `cosign verify` on the pulled image's digest in a throwaway container
+// from COSIGN_IMAGE (pulled by digest). That container gets the network (the
+// registry and Sigstore) and nothing else: no mounts, no socket, read-only.
+// This one stays without a network. Throws unless cosign accepts a digest.
+async function verifySignature(project, image, repo) {
+  const refs = repoDigestRefs(image, repo);
+  if (!refs.length) throw new Error(`the pulled image has no digest from ${repo}`);
+  const { repo: cosignRepo, digest: cosignDigest } = parseImageRef(COSIGN_IMAGE);
+  const cosignRef = `${cosignRepo}@${cosignDigest}`;
+  if ((await docker("GET", `/images/${enc(cosignRef)}/json`)).status !== 200) await pull(cosignRef);
+  const name = `${project}-update-verify`;
+  const failures = [];
+  for (const ref of refs) {
+    await removeContainer(name);
+    const created = await ok(
+      docker("POST", `/containers/create?${q({ name })}`, {
+        Image: cosignRef,
+        Cmd: verifyArgs(ref),
+        Env: ["HOME=/tmp", "TUF_ROOT=/tmp/.sigstore"],
+        Tty: true, // one plain output stream for the log
+        Labels: { [WORKER_LABEL]: "verify" },
+        HostConfig: { ReadonlyRootfs: true, Tmpfs: { "/tmp": "size=64m" }, CapDrop: ["ALL"], SecurityOpt: ["no-new-privileges:true"] },
+      }),
+      "create verifier",
+    );
+    const id = created.json.Id;
+    try {
+      await ok(docker("POST", `/containers/${id}/start`), "start verifier", [204, 304]);
+      const waited = await Promise.race([docker("POST", `/containers/${id}/wait`), sleep(VERIFY_TIMEOUT_MS).then(() => null)]);
+      const out = (await docker("GET", `/containers/${id}/logs?${q({ stdout: "1", stderr: "1" })}`)).text.trim();
+      if (!waited) {
+        failures.push(`${ref}: cosign timed out`);
+        continue;
+      }
+      const code = waited.json?.StatusCode;
+      if (waited.status === 200 && code === 0) {
+        log(`signature ok: ${ref}`);
+        return ref;
+      }
+      failures.push(`${ref}: cosign exited ${code ?? waited.status}: ${out.slice(-600)}`);
+    } finally {
+      await removeContainer(id);
+    }
+  }
+  throw new Error(`signature check failed: ${failures.join(" | ")}`);
+}
+
+// After a refused image: the tag back on the image Delta runs, the refused one gone.
+async function restoreTag(ref, previousId, refusedId) {
+  const { repo, tag } = parseImageRef(ref);
+  if (previousId && previousId !== refusedId) {
+    const res = await docker("POST", `/images/${enc(previousId)}/tag?${q({ repo, tag })}`);
+    if (res.status !== 201) log(`couldn't put ${ref} back on ${shortId(previousId)}: ${res.status} ${res.text.slice(0, 200)}`);
+  }
+  const res = await docker("DELETE", `/images/${enc(refusedId)}?${q({ force: "1" })}`).catch(() => null);
+  if (res && res.status !== 200) log(`couldn't remove the refused image ${shortId(refusedId)}: ${res.status} ${res.text.slice(0, 200)}`);
 }
 
 async function runUpdate({ self, project, ref }, requestedAt) {
@@ -142,6 +218,21 @@ async function runUpdate({ self, project, ref }, requestedAt) {
     return;
   }
 
+  const { repo } = parseImageRef(ref);
+  if (isOfficial(repo)) {
+    try {
+      await verifySignature(project, image, repo);
+    } catch (err) {
+      log(err.message);
+      const { roots } = orderTargets(targets);
+      await restoreTag(ref, (roots[0] ?? targets[0] ?? self).Image, image.Id);
+      writeStatus("failed", { message: UNVERIFIED });
+      return;
+    }
+  } else {
+    log(`${repo} isn't the official image: its signature isn't checked`);
+  }
+
   // The swap is done by a container that is not one of those being replaced.
   const name = `${project}-update-worker`;
   await docker("DELETE", `/containers/${enc(name)}?${q({ force: "1" })}`);
@@ -150,12 +241,16 @@ async function runUpdate({ self, project, ref }, requestedAt) {
   if (self.HostConfig?.Mounts?.length) host.Mounts = self.HostConfig.Mounts;
   const created = await ok(
     docker("POST", `/containers/create?${q({ name })}`, {
-      Image: ref,
+      // By id: the image that was checked, even if the tag moves meanwhile.
+      Image: image.Id,
       Cmd: ["node", "scripts/updater.mjs", "apply"],
       User: "0:0",
-      Env: [`DELTA_UPDATE_PROJECT=${project}`, `DELTA_UPDATE_IMAGE=${ref}`, `DATABASE_PATH=${envOf(self, "DATABASE_PATH") ?? ""}`].filter(
-        (e) => !e.endsWith("="),
-      ),
+      Env: [
+        `DELTA_UPDATE_PROJECT=${project}`,
+        `DELTA_UPDATE_IMAGE=${ref}`,
+        `DELTA_UPDATE_IMAGE_ID=${image.Id}`,
+        `DATABASE_PATH=${envOf(self, "DATABASE_PATH") ?? ""}`,
+      ].filter((e) => !e.endsWith("=")),
       Labels: { [WORKER_LABEL]: "1" },
       HostConfig: host,
     }),
@@ -305,6 +400,15 @@ async function apply() {
   const ref = process.env.DELTA_UPDATE_IMAGE;
   if (!project || !ref) throw new Error("DELTA_UPDATE_PROJECT and DELTA_UPDATE_IMAGE are required");
   const image = (await ok(docker("GET", `/images/${enc(ref)}/json?manifests=1`), `inspect image ${ref}`)).json;
+  // The tag must still name the image the updater checked and started this worker from.
+  const expected = process.env.DELTA_UPDATE_IMAGE_ID;
+  if (expected && image.Id !== expected) {
+    log(`${ref} is now ${shortId(image.Id)}, not the checked ${shortId(expected)}: nothing changed`);
+    writeStatus("failed", {
+      message: "The image changed during the update. Nothing was changed.",
+    });
+    return;
+  }
   const me = os.hostname();
   const all = (await projectContainers(project, ref)).filter((c) => !c.Id.startsWith(me));
   const stale = all.filter((c) => c.Image !== image.Id);
