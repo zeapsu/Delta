@@ -29,6 +29,8 @@ The trade-off: the updater container holds the Docker socket, which is root on t
 
 Every image CI publishes to `ghcr.io/zeapsu/delta` is signed with [cosign](https://docs.sigstore.dev/cosign/signing/overview/) keyless: a short-lived certificate for Delta's `docker` workflow, recorded in Sigstore's public transparency log. Before the updater installs a new image, it runs `cosign verify` on it in a throwaway container (the pinned `ghcr.io/sigstore/cosign/cosign` image, with network but no mounts and no Docker socket) and accepts only a signature from that workflow on `main` or a release tag. If the check fails, nothing changes: the tag goes back to the image you're on, the unchecked image is removed, and the dialog says so. Right after a release the signature can lag the image by a minute; try again.
 
+`./delta.sh install` and `./delta.sh update` run the same check after they pull, and stop before starting an image that fails it, with the tag back on the image you had. Run `./delta.sh verify` to check the images Delta runs now, or `./delta.sh verify <image>` for another. An old version from before images were signed fails the check: to install one on purpose, run the script with `DELTA_VERIFY=off`.
+
 Images from anywhere else (a fork, your own registry) aren't checked. To check an image by hand:
 
 ```bash
@@ -46,7 +48,7 @@ Delta installed with Homebrew updates the same way when it's run by `brew servic
 ./delta.sh update
 ```
 
-This does steps 1 to 3 below for a Docker install: backs up, copies the backups to `./delta-backups` readable only by you, and keeps a copy named `delta-YYYY-MM-DD-pre-update-HHMMSS.db`. It then runs `git pull`, pulls the new image (or shows why it couldn't and rebuilds from source), restarts both containers, waits for the startup check, and removes the image it replaced unless another tag still points to it. To roll back from a script update, restore the `pre-update` file: Delta overwrites that day's `delta-YYYY-MM-DD.db` when it restarts. The rest of this page is what it does by hand, plus how to [roll back](#roll-back).
+This does steps 1 to 3 below for a Docker install: backs up, copies the backups to `./delta-backups` readable only by you, and keeps a copy named `delta-YYYY-MM-DD-pre-update-HHMMSS.db`. It then runs `git pull`, pulls the new image (or shows why it couldn't and rebuilds from source), [checks its signature](#signed-images), restarts both containers, waits for the startup check, and removes the image it replaced unless another tag still points to it. To roll back from a script update, restore the `pre-update` file: Delta overwrites that day's `delta-YYYY-MM-DD.db` when it restarts. The rest of this page is what it does by hand, plus how to [roll back](#roll-back).
 
 ## 1. Back up
 

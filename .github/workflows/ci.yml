@@ -124,4 +124,20 @@ jobs:
         run: |
           docker rm -f delta
           e2e/updater-docker.sh delta:ci
+      # ./delta.sh's signature check (docs/updating.md#signed-images), against
+      # GHCR and Sigstore: sha-c694710 is from before images were signed.
+      - name: Signature check in delta.sh
+        run: |
+          set -euo pipefail
+          OLD=ghcr.io/zeapsu/delta:sha-c694710
+          ./delta.sh verify # the images docker-compose.yml runs: latest, signed on main
+          if ./delta.sh verify "$OLD"; then echo "::error::an unsigned image passed"; exit 1; fi
+          # A pull that brings an unsigned image: the tag goes back to the old image.
+          eval "$(sed -n '/^say()/p; /^die()/p; /^# --- signatures/,/^wait_ready()/p' delta.sh | sed '$d')"
+          docker tag delta:ci "$OLD"
+          before=$(image_id "$OLD")
+          docker pull -q "$OLD" >/dev/null
+          [ "$(image_id "$OLD")" != "$before" ]
+          if (check_pulled "$OLD=$before"); then echo "::error::check_pulled accepted an unsigned image"; exit 1; fi
+          [ "$(image_id "$OLD")" = "$before" ] || { echo "::error::the tag wasn't put back"; exit 1; }
 
