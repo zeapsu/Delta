@@ -19,11 +19,24 @@ With the updater on, **Update now** in the header's Update dialog does steps 1 t
 ./delta.sh updater off    # stops and removes it
 ```
 
-What it does, in order: backs up the database (the same `delta-YYYY-MM-DD-pre-update-HHMMSS.db` copy as the script, in `/data/backups`, keeping the newest 3), pulls the new image, and replaces the containers on it, keeping your settings. It then watches the new containers for 20 seconds; if they don't stay up it puts the previous containers back and says so. Moving back to the old *version* is safe, but a failed start may already have migrated the database, so [roll back](#roll-back) with the backup if Delta misbehaves.
+What it does, in order: backs up the database (the same `delta-YYYY-MM-DD-pre-update-HHMMSS.db` copy as the script, in `/data/backups`, keeping the newest 3), pulls the new image, [checks its signature](#signed-images), and replaces the containers on it, keeping your settings. It then watches the new containers for 20 seconds; if they don't stay up it puts the previous containers back and says so. Moving back to the old *version* is safe, but a failed start may already have migrated the database, so [roll back](#roll-back) with the backup if Delta misbehaves.
 
 What it doesn't do: `git pull`. New compose files and `.env.example` still come from `./delta.sh update`, so run that now and then. A pinned `DELTA_TAG` (for example `1.2.0`) stays pinned: the dialog says to change the tag instead. An image pinned by digest is never updated.
 
-The trade-off: the updater container holds the Docker socket, which is root on the host. It has no network and no port, only reads a request file from the data volume, and only pulls the image its own container already uses and recreates this project's containers on it. The web app never gets the socket and can only ask it to update; anything that carries an agent token is refused. Rootless Docker keeps its socket elsewhere: set `DELTA_DOCKER_SOCK` in `.env`.
+The trade-off: the updater container holds the Docker socket, which is root on the host. It has no network and no port (the signature check runs in a separate container), only reads a request file from the data volume, and only pulls the image its own container already uses and recreates this project's containers on it. The web app never gets the socket and can only ask it to update; anything that carries an agent token is refused. Rootless Docker keeps its socket elsewhere: set `DELTA_DOCKER_SOCK` in `.env`.
+
+### Signed images
+
+Every image CI publishes to `ghcr.io/zeapsu/delta` is signed with [cosign](https://docs.sigstore.dev/cosign/signing/overview/) keyless: a short-lived certificate for Delta's `docker` workflow, recorded in Sigstore's public transparency log. Before the updater installs a new image, it runs `cosign verify` on it in a throwaway container (the pinned `ghcr.io/sigstore/cosign/cosign` image, with network but no mounts and no Docker socket) and accepts only a signature from that workflow on `main` or a release tag. If the check fails, nothing changes: the tag goes back to the image you're on, the unchecked image is removed, and the dialog says so. Right after a release the signature can lag the image by a minute; try again.
+
+Images from anywhere else (a fork, your own registry) aren't checked. To check an image by hand:
+
+```bash
+docker run --rm ghcr.io/sigstore/cosign/cosign:v3.1.4 verify \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  --certificate-identity-regexp '^https://github\.com/(?i:zeapsu/delta)/\.github/workflows/docker\.yml@refs/(heads/main|tags/v[0-9]+\.[0-9]+\.[0-9]+)$' \
+  ghcr.io/zeapsu/delta:latest
+```
 
 Delta installed with Homebrew updates the same way when it's run by `brew services` (see [Update](homebrew.md#update)); that needs no updater container.
 

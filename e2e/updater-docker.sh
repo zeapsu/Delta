@@ -4,6 +4,8 @@
 # Starts a local registry, runs the three compose services from it, publishes a
 # "v2" image over `latest`, updates through POST /api/update and checks the
 # result; then publishes a "v3" that crashes and checks that Delta is back on v2.
+# Last, runs as the official image on a tag from before images were signed and
+# checks that the update is refused (needs ghcr.io and Sigstore).
 # Uses ports 5000 (registry) and $DELTA_TEST_PORT (3200). Cleans up after itself.
 set -euo pipefail
 
@@ -11,6 +13,8 @@ IMAGE=${1:?usage: e2e/updater-docker.sh <image>}
 PORT=${DELTA_TEST_PORT:-3200}
 REG=127.0.0.1:5000
 REF=$REG/delta:latest
+# Published before images were signed, so it never will be.
+UNSIGNED=ghcr.io/zeapsu/delta:sha-c694710
 export COMPOSE_PROJECT_NAME=deltaupd
 export COMPOSE_PROFILES=updater
 WORK=$(mktemp -d)
@@ -29,7 +33,7 @@ cleanup() {
   docker compose -f "$COMPOSE" down -v --remove-orphans >/dev/null 2>&1 || true
   docker ps -aq --filter "name=$COMPOSE_PROJECT_NAME-" | xargs -r docker rm -f >/dev/null 2>&1 || true
   docker rm -f delta-updater-test-registry >/dev/null 2>&1 || true
-  docker rmi "$REF" delta-updater-test:v2 delta-updater-test:v3 >/dev/null 2>&1 || true
+  docker rmi "$REF" "$UNSIGNED" delta-updater-test:v2 delta-updater-test:v3 >/dev/null 2>&1 || true
   rm -rf "$WORK"
 }
 trap cleanup EXIT
@@ -70,11 +74,12 @@ for _ in $(seq 1 30); do curl -fsS -o /dev/null http://$REG/v2/ && break; sleep 
 docker tag "$IMAGE" "$REF"
 docker push -q "$REF" >/dev/null
 
-cat >"$COMPOSE" <<YAML
+write_compose() { # write_compose <image ref>
+  cat >"$COMPOSE" <<YAML
 name: $COMPOSE_PROJECT_NAME
 services:
   delta:
-    image: $REF
+    image: $1
     restart: unless-stopped
     environment:
       DELTA_ALLOWED_NETWORKS: 0.0.0.0/0
@@ -87,7 +92,7 @@ services:
     volumes:
       - delta-data:/data
   jobs:
-    image: $REF
+    image: $1
     restart: unless-stopped
     network_mode: "service:delta"
     depends_on: [delta]
@@ -95,7 +100,7 @@ services:
     volumes:
       - delta-data:/data
   updater:
-    image: $REF
+    image: $1
     profiles: [updater]
     restart: unless-stopped
     user: "0:0"
@@ -109,6 +114,8 @@ services:
 volumes:
   delta-data:
 YAML
+}
+write_compose "$REF"
 
 say "Starting the three services on v1"
 docker compose -f "$COMPOSE" up -d
@@ -173,4 +180,27 @@ wait_app
 names=$(docker ps -a --format '{{.Names}}' | grep "^$COMPOSE_PROJECT_NAME-" | sort | tr '\n' ' ')
 [ "$names" = "deltaupd-delta-1 deltaupd-jobs-1 deltaupd-updater-1 " ] || fail "unexpected containers after the rollback: $names"
 echo "rollback ok"
+
+say "An official image without the release workflow's signature: refused"
+docker compose -f "$COMPOSE" down --remove-orphans >/dev/null 2>&1
+docker tag "$IMAGE" "$UNSIGNED" # what's running is this build; GHCR's is the unsigned one
+BEFORE=$(docker image inspect "$UNSIGNED" -f '{{.Id}}')
+write_compose "$UNSIGNED"
+docker compose -f "$COMPOSE" up -d
+wait_app
+for _ in $(seq 1 30); do [ "$(curl -fsS "$BASE/api/update" | json available)" = true ] && break; sleep 2; done
+resp=$(curl -sS -m 120 -X POST -w '\n%{http_code}' "$BASE/api/update")
+[ "$(tail -1 <<<"$resp")" = 202 ] || fail "POST /api/update answered: $resp"
+since=$(head -1 <<<"$resp" | json requestedAt)
+[ "$(wait_update "$since")" = failed ] || fail "the unsigned image wasn't refused"
+grep -q signature <<<"$(curl -fsS "$BASE/api/update" | json message)" || fail "the dialog's message doesn't mention the signature"
+docker compose -f "$COMPOSE" logs updater 2>&1 | grep -q 'signature check failed' || fail "the updater didn't log a failed signature check"
+for s in delta jobs updater; do
+  [ "$(inspect "$COMPOSE_PROJECT_NAME-$s-1" '{{.Image}}')" = "$BEFORE" ] || fail "$s was moved off the running image"
+  [ "$(inspect "$COMPOSE_PROJECT_NAME-$s-1" '{{.State.Running}}')" = true ] || fail "$s isn't running"
+done
+[ "$(docker image inspect "$UNSIGNED" -f '{{.Id}}')" = "$BEFORE" ] || fail "the tag still points at the refused image"
+names=$(docker ps -a --format '{{.Names}}' | grep "^$COMPOSE_PROJECT_NAME-" | sort | tr '\n' ' ')
+[ "$names" = "deltaupd-delta-1 deltaupd-jobs-1 deltaupd-updater-1 " ] || fail "unexpected containers after the refusal: $names"
+echo "signature ok"
 say "Updater test passed"

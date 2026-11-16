@@ -4,6 +4,10 @@
 # digests into one multi-arch tag. GitHub's arm64 runners are free only on
 # public repos, so a private repo falls back to QEMU on ubuntu-latest.
 # Pull requests build amd64 only, without pushing.
+# The merge job signs the multi-arch digest with cosign keyless (GitHub OIDC,
+# no keys to keep), which covers every tag on it. The updater container checks
+# that signature before it installs an image (scripts/updater-lib.mjs has the
+# cosign image and the identity it accepts; docs/updating.md, "Signed images").
 name: docker
 
 on:
@@ -76,7 +80,12 @@ jobs:
     if: github.event_name != 'pull_request'
     needs: image
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write # cosign keyless: the OIDC token Sigstore issues the signing certificate for
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           path: ${{ runner.temp }}/digests
@@ -104,3 +113,33 @@ jobs:
             $(printf "$IMAGE@sha256:%s " *)
       - name: Inspect
         run: docker buildx imagetools inspect "$(jq -r '.tags[0]' <<< "$DOCKER_METADATA_OUTPUT_JSON")"
+      # Signs with the same pinned cosign image the updater verifies with. The
+      # tags above are already live, so an update in the next minute or so is
+      # refused for want of a signature; trying again later works.
+      - name: Sign
+        run: |
+          COSIGN=$(node --input-type=module -e 'import { COSIGN_IMAGE } from "./scripts/updater-lib.mjs"; console.log(COSIGN_IMAGE)')
+          DIGEST=$(docker buildx imagetools inspect "$(jq -r '.tags[0]' <<< "$DOCKER_METADATA_OUTPUT_JSON")" --format '{{json .Manifest}}' | jq -r .digest)
+          echo "REF=$IMAGE@$DIGEST" >> "$GITHUB_ENV"
+          echo "COSIGN=$COSIGN" >> "$GITHUB_ENV"
+          docker run --rm --user "$(id -u)" \
+            -e ACTIONS_ID_TOKEN_REQUEST_URL -e ACTIONS_ID_TOKEN_REQUEST_TOKEN \
+            -e DOCKER_CONFIG=/docker -v "$HOME/.docker:/docker:ro" \
+            -e HOME=/tmp \
+            "$COSIGN" sign --yes "$IMAGE@$DIGEST"
+          echo "Signed $IMAGE@$DIGEST" >> "$GITHUB_STEP_SUMMARY"
+      # Exactly this workflow run's identity: proves the signature is there.
+      - name: Verify (this run)
+        run: |
+          docker run --rm -e HOME=/tmp "$COSIGN" verify \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            --certificate-identity "https://github.com/$WORKFLOW_REF" \
+            "$REF" > /dev/null
+        env:
+          WORKFLOW_REF: ${{ github.workflow_ref }}
+      # The updater's own check, which accepts main and v* tags only.
+      - name: Verify (as the updater does)
+        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+        run: |
+          mapfile -t ARGS < <(node --input-type=module -e 'import { verifyArgs } from "./scripts/updater-lib.mjs"; for (const a of verifyArgs(process.argv[1])) console.log(a)' "$REF")
+          docker run --rm -e HOME=/tmp "$COSIGN" "${ARGS[@]}" > /dev/null

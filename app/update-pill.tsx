@@ -87,7 +87,7 @@ export function UpdatePill({
   const brew = install === "brew";
   const what = `${behindBy} update${behindBy === 1 ? "" : "s"} available`;
   const limit = (brew ? 30 : 10) * 60_000;
-  const steps = ["Back up", brew ? "Download and build" : "Download", "Restart"];
+  const steps = ["Back up", brew ? "Download and build" : "Download and verify", "Restart"];
 
   // Opening mid-update (another tab, a reload) picks the progress back up.
   useEffect(() => {
