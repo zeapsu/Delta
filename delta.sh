@@ -7,6 +7,7 @@
 #   ./delta.sh updater on|off   let the header's Update button update Delta, or stop that
 #   ./delta.sh backup      back up and copy the backups out to ./delta-backups
 #   ./delta.sh reset-password   turn off the web UI password (forgot it); set a new one in Settings
+#   ./delta.sh verify [image]   check an image's signature (default: the images Delta runs)
 # Fresh machine, from anywhere:
 #   curl -fsSL https://raw.githubusercontent.com/zeapsu/Delta/main/delta.sh | bash -s install
 # What each step does, by hand: docs/self-hosting.md, docs/updating.md,
@@ -133,12 +134,36 @@ open_browser() {
   esac
 }
 
+# --- signatures (docs/updating.md#signed-images) ---
+# CI signs every image of ghcr.io/zeapsu/delta; the updater container and this
+# script check that signature before running a new one. The cosign image and
+# the signer are read from scripts/updater-lib.mjs, which both share.
+lib_const() { sed -n "s/^export const $1 = \"\(.*\)\";\$/\1/p" scripts/updater-lib.mjs | sed 's/\\\\/\\/g'; }
+official_images() { docker compose config --images 2>/dev/null | sort -u | grep -i '^ghcr\.io/zeapsu/delta[:@]' || true; }
+image_id() { docker image inspect -f '{{.Id}}' "$1" 2>/dev/null || true; }
+
+# verify_image <ref>: succeeds if cosign accepts one of the image's digests from ghcr.io/zeapsu/delta.
+verify_image() {
+  local cosign issuer identity d
+  cosign=$(lib_const COSIGN_IMAGE); issuer=$(lib_const SIGNER_ISSUER); identity=$(lib_const SIGNER_IDENTITY)
+  [ -n "$cosign" ] && [ -n "$issuer" ] && [ -n "$identity" ] || { echo "can't read the signer from scripts/updater-lib.mjs" >&2; return 1; }
+  for d in $(docker image inspect -f '{{range .RepoDigests}}{{println .}}{{end}}' "$1" 2>/dev/null | grep -i '^ghcr\.io/zeapsu/delta@sha256:' || true); do
+    docker run --rm -e HOME=/tmp "$cosign" verify --certificate-oidc-issuer "$issuer" --certificate-identity-regexp "$identity" "$d" >/dev/null && return 0
+  done
+  return 1
+}
+
 # Prefer the published image; build from this checkout if it can't be pulled.
+# A pulled official image runs only if its signature checks out
+# (DELTA_VERIFY=off in the environment skips that, for an old unsigned tag).
 start() {
   # Baked into a local build so the in-app update notice knows its version.
   DELTA_COMMIT=$(git rev-parse HEAD 2>/dev/null || true); export DELTA_COMMIT
-  local err
-  if err=$(docker compose pull -q 2>&1); then docker compose up -d
+  local err ref before=""
+  for ref in $(official_images); do before="$before $ref=$(image_id "$ref")"; done
+  if err=$(docker compose pull -q 2>&1); then
+    [ "${DELTA_VERIFY:-on}" = off ] || check_pulled "$before"
+    docker compose up -d
   else
     printf '%s\n' "$err" >&2
     # A build needs the same credential helper for its base image, so don't try one.
@@ -149,6 +174,33 @@ start() {
     say "Couldn't pull the image (see above), building from source (a few minutes)"
     docker compose up -d --build
   fi
+}
+
+# check_pulled "<ref=old id> ...": each image the pull changed must be signed;
+# otherwise put the tag back on the old image, drop the new one and stop.
+check_pulled() {
+  local pair ref old new
+  for pair in $1; do
+    ref=${pair%%=*}; old=${pair#*=}; new=$(image_id "$ref")
+    [ -z "$new" ] || [ "$new" = "$old" ] && continue
+    say "Checking the signature of $ref"
+    verify_image "$ref" && { echo "Signed by Delta's release workflow"; continue; }
+    if [ -n "$old" ]; then docker tag "$old" "$ref"; docker image rm "$new" >/dev/null 2>&1 || true
+    else docker image rm "$ref" >/dev/null 2>&1 || true; fi
+    die "$ref isn't signed by Delta's release workflow, so it wasn't started; nothing changed. Right after a release, wait a minute and try again. See docs/updating.md#signed-images"
+  done
+}
+
+cmd_verify() {
+  need_docker; in_repo || die "run this from your Delta folder"
+  local refs ref bad=0
+  refs=${1:-$(official_images)}
+  [ -n "$refs" ] || die "no ghcr.io/zeapsu/delta image in this compose project (other images aren't signed)"
+  for ref in $refs; do
+    [ -n "$(image_id "$ref")" ] || docker pull -q "$ref" >/dev/null || die "couldn't pull $ref"
+    if verify_image "$ref"; then echo "$ref: signed by Delta's release workflow"; else echo "$ref: NOT signed by Delta's release workflow" >&2; bad=1; fi
+  done
+  return "$bad"
 }
 
 wait_ready() {
@@ -323,8 +375,9 @@ case "${1:-}" in
   phone) cmd_phone ;;
   update) cmd_update ;;
   updater) shift; cmd_updater "$@" ;;
+  verify) shift; cmd_verify "$@" ;;
   uninstall) cmd_uninstall ;;
   backup) need_docker; in_repo || die "run this from your Delta folder"; backup ;;
   reset-password) need_docker; in_repo || die "run this from your Delta folder"; docker compose exec delta npm run --silent password -- reset ;;
-  *) sed -n '2,11p' "$0" 2>/dev/null | sed 's/^# \{0,1\}//'; exit 1 ;;
+  *) sed -n '2,12p' "$0" 2>/dev/null | sed 's/^# \{0,1\}//'; exit 1 ;;
 esac
