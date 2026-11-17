@@ -33,8 +33,8 @@ const fresh = createFreshSync({
 // syncs only when the data is older than 15 minutes (the MCP read tools send
 // it); without it, asks Plaid to re-check the banks and syncs now, at most
 // once every 5 minutes. Never waits on Plaid for long: a sync still running
-// comes back as status "running". Plaid errors are caught (never a raw
-// AxiosError, whose config holds the secret and access token).
+// comes back as status "running". Plaid errors are caught and reduced to
+// safePlaidError fields.
 export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
   const ifStale = body?.if_stale;

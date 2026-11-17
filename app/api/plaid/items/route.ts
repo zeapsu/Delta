@@ -14,8 +14,7 @@ export async function DELETE(req: Request) {
   if (!(Number.isInteger(itemId) && itemId > 0)) {
     return NextResponse.json({ error: "item_id must be a positive integer" }, { status: 400 });
   }
-  // Caught so Next.js never logs a raw AxiosError (its config.data holds the
-  // Plaid secret and access_token).
+  // Caught so Next.js never logs a raw Plaid error; only safePlaidError fields.
   try {
     const result = await removeItem(itemId);
     if (result === "unknown") return NextResponse.json({ error: "unknown item" }, { status: 404 });

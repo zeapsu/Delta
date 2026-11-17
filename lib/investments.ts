@@ -1,5 +1,5 @@
 import "server-only";
-import { Products } from "plaid/legacy";
+import { Plaid } from "plaid";
 import { getPlaid } from "@/lib/plaid";
 import { safePlaidError } from "@/lib/sync";
 
@@ -16,8 +16,8 @@ export type InvestmentsAccess =
 // ADDITIONAL_CONSENT_REQUIRED and the sync log-skips it every run.
 export async function investmentsAccess(accessToken: string): Promise<InvestmentsAccess> {
   try {
-    const { item } = (await getPlaid().itemGet({ access_token: accessToken })).data;
-    const has = (list?: Products[] | null) => list?.includes(Products.Investments) ?? false;
+    const { item } = await getPlaid().item.get({ access_token: accessToken });
+    const has = (list?: Plaid.Products[] | null) => list?.includes(Plaid.Products.Investments) ?? false;
     if (has(item.products) || has(item.billed_products)) return "active";
     if (has(item.consented_products)) return "consented";
     if (has(item.available_products)) return "needs_consent";

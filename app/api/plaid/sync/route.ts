@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { safePlaidError, syncAll, syncOne } from "@/lib/sync";
 
-// Errors are caught here so Next.js never logs a raw AxiosError (its
-// config.data holds the Plaid secret and access_token). Non-2xx on any
+// Errors are caught here so Next.js never logs a raw Plaid error (only
+// safePlaidError fields). Non-2xx on any
 // failure keeps `curl -f` in delta-sync.service failing visibly.
 // Optional JSON body {"item_id": n} syncs one connection; no body (the
 // timer's curl) syncs everything.

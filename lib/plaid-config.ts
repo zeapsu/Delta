@@ -3,7 +3,7 @@ import { plaidClient } from "@/lib/plaid";
 import type { PlaidKeys } from "@/lib/plaid-keys";
 import { currentPlaidKeys } from "@/lib/settings";
 import { safePlaidError } from "@/lib/sync";
-import { CountryCode } from "plaid/legacy";
+import { Plaid } from "plaid";
 
 // First-run check (#74): which Plaid environment is active, and whether its
 // keys are present and accepted. Logged once at server start
@@ -55,7 +55,7 @@ export async function testPlaidKeys(keys: PlaidKeys): Promise<PlaidCheck> {
   const config = plaidConfigProblems(keys);
   if (!config.ok) return config;
   try {
-    await plaidClient(keys).institutionsGet({ count: 1, offset: 0, country_codes: [CountryCode.Us] });
+    await plaidClient(keys).institutions.get({ count: 1, offset: 0, country_codes: [Plaid.CountryCode.Us] });
     return config;
   } catch (err) {
     const e = safePlaidError(err);

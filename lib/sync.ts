@@ -1,6 +1,5 @@
 import "server-only";
 import { eq, inArray, sql } from "drizzle-orm";
-import { isAxiosError } from "axios";
 import { db } from "@/db";
 import {
   accounts,
@@ -12,12 +11,10 @@ import {
 } from "@/db/schema";
 import { merchantKey } from "@/lib/categories";
 import { getPlaid, toCents } from "@/lib/plaid";
-import type {
-  AccountBase,
-  InvestmentTransaction,
-  Security,
-  Transaction as PlaidTransaction,
-} from "plaid/legacy";
+import type { Plaid } from "plaid";
+
+type AccountBase = Plaid.AccountBase;
+type PlaidTransaction = Plaid.Transaction;
 
 type Item = typeof items.$inferSelect;
 
@@ -38,7 +35,7 @@ export type SyncResult = SyncCounts & { errors: SyncError[] };
 
 // A non-Plaid body (e.g. a gateway 502) can put anything in these fields.
 // Lives in lib/plaid-errors.ts so scripts can use it without the Plaid client.
-import { GONE_ERROR_CODES, safePlaidError } from "@/lib/plaid-errors";
+import { GONE_ERROR_CODES, plaidErrorCode, safePlaidError } from "@/lib/plaid-errors";
 export { safePlaidError };
 
 // Insert or refresh an item's accounts. Also run when a bank is linked (the
@@ -208,11 +205,10 @@ async function fetchAll(item: Item) {
   let nextCursor = cursor ?? "";
 
   while (hasMore) {
-    const res = await getPlaid().transactionsSync({
+    const data = await getPlaid().transactions.sync({
       access_token: item.accessToken,
       cursor,
     });
-    const data = res.data;
     added.push(...data.added);
     modified.push(...data.modified);
     removed.push(...data.removed.map((r) => r.transaction_id));
@@ -223,10 +219,10 @@ async function fetchAll(item: Item) {
 
   // transactionsSync returns accounts: [] when nothing changed, so fetch
   // balances explicitly — issue #4 wants a snapshot per account per sync.
-  const balRes = await getPlaid().accountsBalanceGet({
+  const balRes = await getPlaid().accounts.getBalance({
     access_token: item.accessToken,
   });
-  accountsPayload = balRes.data.accounts;
+  accountsPayload = balRes.accounts;
 
   return { accountsPayload, added, modified, removed, nextCursor };
 }
@@ -279,26 +275,26 @@ async function syncInvestments(item: Item): Promise<number> {
   const startDate = isoDate(start);
   const endDate = isoDate(new Date());
 
-  const collected: InvestmentTransaction[] = [];
-  const securities = new Map<string, Security>();
+  const collected: Plaid.InvestmentTransaction[] = [];
+  const securities = new Map<string, Plaid.Security>();
   let total = Infinity;
   try {
     while (collected.length < total) {
-      const res = await getPlaid().investmentsTransactionsGet({
+      // One page per call (count/offset): securities come per page, so the
+      // SDK's item iterator isn't used.
+      const { response } = await getPlaid().investments.getTransactions({
         access_token: item.accessToken,
         start_date: startDate,
         end_date: endDate,
         options: { count: 500, offset: collected.length },
       });
-      total = res.data.total_investment_transactions;
-      for (const s of res.data.securities) securities.set(s.security_id, s);
-      if (res.data.investment_transactions.length === 0) break;
-      collected.push(...res.data.investment_transactions);
+      total = response.total_investment_transactions;
+      for (const s of response.securities) securities.set(s.security_id, s);
+      if (response.investment_transactions.length === 0) break;
+      collected.push(...response.investment_transactions);
     }
   } catch (err) {
-    const errorCode = isAxiosError(err)
-      ? err.response?.data?.error_code
-      : undefined;
+    const errorCode = plaidErrorCode(err);
     if (errorCode && TOLERATED_INVESTMENT_ERRORS.has(errorCode)) {
       console.warn(
         `investments sync skipped for item ${item.id}: ${errorCode}`,
@@ -351,9 +347,7 @@ async function syncItem(item: Item): Promise<SyncCounts> {
     applySync(item, accountsPayload, [...added, ...modified], removed, nextCursor);
     base = { added: added.length, modified: modified.length, removed: removed.length };
   } catch (err) {
-    const errorCode = isAxiosError(err)
-      ? err.response?.data?.error_code
-      : undefined;
+    const errorCode = plaidErrorCode(err);
     if (errorCode !== "TRANSACTIONS_SYNC_MUTATION_DURING_PAGINATION") throw err;
 
     // ponytail: single retry from freshest saved cursor, per Plaid's documented recovery
@@ -435,7 +429,7 @@ export function removeItem(itemId: number): Promise<RemoveResult> {
     const item = db.select().from(items).where(eq(items.id, itemId)).get();
     if (!item) return "unknown";
     try {
-      await getPlaid().itemRemove({ access_token: item.accessToken });
+      await getPlaid().item.remove({ access_token: item.accessToken });
     } catch (err) {
       const e = safePlaidError(err);
       if (!GONE_ERROR_CODES.has(e.error_code)) {
@@ -519,7 +513,7 @@ export async function refreshAll(): Promise<RefreshResult> {
   lastRefreshAt = Date.now();
   for (const item of db.select().from(items).all()) {
     try {
-      await getPlaid().transactionsRefresh({ access_token: item.accessToken });
+      await getPlaid().transactions.refresh({ access_token: item.accessToken });
       result.refreshed++;
     } catch (err) {
       const e = safePlaidError(err);

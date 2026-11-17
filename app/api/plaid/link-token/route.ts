@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
-import { CountryCode, Products, type LinkTokenCreateRequest } from "plaid/legacy";
+import { Plaid } from "plaid";
 import { db } from "@/db";
 import { items } from "@/db/schema";
 import { getPlaid } from "@/lib/plaid";
@@ -22,10 +22,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "investments requires item_id" }, { status: 400 });
   }
 
-  const request: LinkTokenCreateRequest = {
+  const request: Plaid.LinkTokenCreateRequest = {
     user: { client_user_id: "delta" },
     client_name: "Delta",
-    country_codes: [CountryCode.Us],
+    country_codes: [Plaid.CountryCode.Us],
     language: "en",
   };
   if (itemId !== undefined) {
@@ -33,18 +33,18 @@ export async function POST(req: Request) {
     if (!item) return NextResponse.json({ error: "unknown item" }, { status: 404 });
     // Update mode: the access token selects the item; `products` must be omitted.
     request.access_token = item.accessToken;
-    if (addInvestments) request.additional_consented_products = [Products.Investments];
+    if (addInvestments) request.additional_consented_products = [Plaid.Products.Investments];
   } else {
-    request.products = [Products.Transactions];
+    request.products = [Plaid.Products.Transactions];
     // Carries investments consent on new items without forcing billing for
     // institutions that don't support it.
-    request.optional_products = [Products.Investments];
+    request.optional_products = [Plaid.Products.Investments];
   }
 
-  // Caught so Next.js never logs the raw AxiosError (config.data holds the secret).
+  // Caught so Next.js never logs the raw error; log only safePlaidError fields.
   try {
-    const res = await getPlaid().linkTokenCreate(request);
-    return NextResponse.json({ link_token: res.data.link_token });
+    const res = await getPlaid().link.createToken(request);
+    return NextResponse.json({ link_token: res.link_token });
   } catch (err) {
     const { error_code, request_id } = safePlaidError(err);
     console.error(

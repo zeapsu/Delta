@@ -12,11 +12,11 @@ try {
   process.loadEnvFile();
 } catch {}
 
-import { Configuration, PlaidApi, PlaidEnvironments } from "plaid/legacy";
+import { PlaidClient, PlaidEnvironment } from "plaid";
 
 // Same selection as lib/plaid.ts (server-only, can't load here): the
 // environment's keys, else the ones saved on the setup page.
-async function plaid(): Promise<PlaidApi> {
+async function plaid(): Promise<PlaidClient> {
   const { eq } = await import("drizzle-orm");
   const { db } = await import("../db");
   const { settings } = await import("../db/schema");
@@ -28,12 +28,12 @@ async function plaid(): Promise<PlaidApi> {
   if (!keys.clientId) throw new Error("No Plaid keys (not in .env, not saved on the setup page)");
   if (!keys.secret) throw new Error(`Missing Plaid secret for PLAID_ENV=${env}`);
   const mockUrl = env === "sandbox" ? process.env.PLAID_MOCK_URL : undefined;
-  return new PlaidApi(
-    new Configuration({
-      basePath: mockUrl || PlaidEnvironments[env],
-      baseOptions: { headers: { "PLAID-CLIENT-ID": keys.clientId, "PLAID-SECRET": keys.secret } },
-    }),
-  );
+  return new PlaidClient({
+    environment: env === "production" ? PlaidEnvironment.Production : PlaidEnvironment.Sandbox,
+    baseUrl: mockUrl || undefined,
+    clientId: keys.clientId,
+    secret: keys.secret,
+  });
 }
 
 async function main() {
@@ -51,11 +51,11 @@ async function main() {
   let failed = 0;
   for (const r of rows) {
     try {
-      await client.itemRemove({ access_token: r.accessToken });
+      await client.item.remove({ access_token: r.accessToken });
       console.log(`removed ${r.id} ${r.name ?? ""}`);
     } catch (err) {
       failed++;
-      // Never print the raw error: its config carries the secret and token.
+      // Print only safePlaidError fields, never the raw error.
       const e = safePlaidError(err);
       console.error(`failed ${r.id} ${r.name ?? ""}: ${e.error_code ?? "error"} ${e.error_code_reason ?? ""}`.trimEnd());
     }

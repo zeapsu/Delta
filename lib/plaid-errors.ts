@@ -1,4 +1,4 @@
-import { isAxiosError } from "axios";
+import { PlaidError, PlaidTimeoutError } from "plaid";
 
 // Kept apart from lib/sync.ts so pages can import it without the Plaid client.
 
@@ -26,16 +26,29 @@ function shortString(v: unknown): string | null {
   return typeof v === "string" ? v.slice(0, 100) : null;
 }
 
-// Never log or return a raw Axios/Plaid error: err.config.data is the request
-// body, which carries client_id, secret and the item's access_token. Pick
-// these fields instead.
+// Plaid's error_code (ITEM_LOGIN_REQUIRED, ...) when Plaid answered with one.
+export function plaidErrorCode(err: unknown): string | undefined {
+  if (!(err instanceof PlaidError)) return undefined;
+  const body = err.body as { error_code?: unknown } | null | undefined;
+  return typeof body?.error_code === "string" ? body.error_code : undefined;
+}
+
+// Log or return these fields, not the error. The SDK's errors no longer carry
+// the request (keys, access_token), but the body and message are whatever the
+// server sent, and a non-Plaid error can echo query params.
 export function safePlaidError(err: unknown) {
-  if (isAxiosError(err)) {
-    const data = err.response?.data;
+  if (err instanceof PlaidError) {
+    const body = (err.body ?? null) as Record<string, unknown> | null;
+    const cause = err.cause as { code?: unknown } | undefined;
     return {
-      error_code: shortString(data?.error_code) ?? err.code ?? "AXIOS_ERROR",
-      error_code_reason: shortString(data?.error_code_reason),
-      request_id: shortString(data?.request_id),
+      error_code:
+        shortString(body?.error_code) ??
+        (err instanceof PlaidTimeoutError ? "TIMEOUT" : null) ??
+        (err.statusCode ? `HTTP_${err.statusCode}` : null) ??
+        shortString(cause?.code) ??
+        "NETWORK_ERROR",
+      error_code_reason: shortString(body?.error_code_reason),
+      request_id: shortString(body?.request_id) ?? shortString(err.requestId),
     };
   }
   // Non-Plaid errors (e.g. Drizzle) can echo query params in the message —
