@@ -42,7 +42,7 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1, // one shared DB; specs build on the seeded state
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 1 : 0,
+  retries: 0, // a retry hides a flaky test: fix it or delete it (AGENTS.md)
   reporter: process.env.CI
     ? [["github"], ["html", { outputFolder: "e2e/.tmp/report", open: "never" }]]
     : [["list"], ["html", { outputFolder: "e2e/.tmp/report", open: "never" }]],
