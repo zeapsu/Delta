@@ -83,7 +83,7 @@ test("Update now backs up, asks the updater and follows the status to done", asy
     await expect(steps).toHaveText([/Back up/, /Download/, /Restart/]);
     await expect(steps.nth(0)).toContainText("(done)");
     status("pulling", { requestedAt });
-    await expect(live).toHaveText("Download…");
+    await expect(live).toHaveText("Download and verify…");
     await seen(page, `updating, ${width}px`);
     status("restarting", { requestedAt });
     await expect(live).toHaveText("Restart…");
@@ -102,8 +102,10 @@ test("a failed update says so and falls back to the command", async ({ page }) =
   await dialog.getByRole("button", { name: "Update now" }).click();
   const { requestedAt } = await (await posted).json();
   status("pulling", { requestedAt });
-  status("failed", { requestedAt, message: "Couldn't download the new version." });
-  await expect(dialog.getByRole("status")).toHaveText("Couldn't download the new version.");
+  // The updater's message when a new image's signature doesn't check out (scripts/updater.mjs).
+  const refused = "The new version's signature didn't check out, so it wasn't installed.";
+  status("failed", { requestedAt, message: refused });
+  await expect(dialog.getByRole("status")).toHaveText(refused);
   await expect(dialog.getByText("./delta.sh update")).toBeVisible();
   await expect(dialog.getByRole("listitem").nth(1)).toContainText("(needs attention)");
   await seen(page, "failed");

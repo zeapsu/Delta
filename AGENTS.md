@@ -46,6 +46,7 @@ Before changing code, read `CONTRIBUTING.md` (setup, checks, core conventions) a
 
 - `typescript` is aliased to `@typescript/typescript6` on purpose: typescript-eslint and Next's build type check need a compiler API, which TS 7 does not ship. TS 7 is `@typescript/native`, and `npx tsc` runs it.
 - Undo that split (plain `typescript@^7`) once typescript-eslint supports TS 7.1+ (typescript-eslint#10940).
+- Image signing: `COSIGN_IMAGE` in `scripts/updater-lib.mjs` pins cosign by digest for the updater's check, `delta.sh`'s check and CI's signing (`docker.yml`), so bump it there only. `delta.sh` reads it and `SIGNER_*` with sed: keep each a one-line `export const NAME = "...";`. `e2e/updater-docker.sh` relies on `ghcr.io/zeapsu/delta:sha-c694710` staying unsigned: don't delete or sign that tag.
 - Cut a release by running the `release` workflow, not by pushing a tag. Its "Set version" PR lands after the tag, so the tagged commit still carries the previous version. No image assets on releases.
 - Name install options by where you install: "Home server app", "Terminal". Never "one-click" or "one-command".
 - Keep `one-click/compose.yaml` (a symlink) and the `/docs/one-click-install` redirect: installs made before the rename still use those paths.

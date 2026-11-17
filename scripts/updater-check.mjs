@@ -1,6 +1,19 @@
 // Self-check for scripts/updater-lib.mjs: node scripts/updater-check.mjs
 import assert from "node:assert/strict";
-import { cleanStatus, composeImageLabel, createBody, deriveBrewStatus, orderTargets, parseImageRef, updateDir } from "./updater-lib.mjs";
+import {
+  cleanStatus,
+  composeImageLabel,
+  COSIGN_IMAGE,
+  createBody,
+  deriveBrewStatus,
+  isOfficial,
+  orderTargets,
+  parseImageRef,
+  repoDigestRefs,
+  SIGNER_IDENTITY,
+  updateDir,
+  verifyArgs,
+} from "./updater-lib.mjs";
 
 // --- image references
 assert.deepEqual(parseImageRef("ghcr.io/zeapsu/delta:latest"), { repo: "ghcr.io/zeapsu/delta", tag: "latest", digest: null });
@@ -114,5 +127,47 @@ assert.equal(deriveBrewStatus({ state: "pulling", at: T, requestedAt: T }, "v1",
 assert.equal(deriveBrewStatus({ state: "pulling", at: T, requestedAt: T }, "v1", T + 31 * 60_000).state, "failed");
 assert.equal(deriveBrewStatus({ state: "pulling", at: T, from: "v1" }, "v2", T).state, "done");
 assert.equal(deriveBrewStatus({ state: "failed", at: T }, "v2", T + 99 * 60_000).state, "failed");
+
+// --- signatures
+assert.ok(isOfficial("ghcr.io/zeapsu/delta") && isOfficial("GHCR.io/Zeapsu/Delta"));
+for (const r of ["ghcr.io/someone/delta", "127.0.0.1:5000/delta", "delta", "ghcr.io/zeapsu/delta-fork"]) assert.ok(!isOfficial(r), r);
+const D1 = `sha256:${"1".repeat(64)}`;
+const D2 = `sha256:${"2".repeat(64)}`;
+assert.deepEqual(
+  repoDigestRefs(
+    {
+      RepoDigests: [`ghcr.io/zeapsu/delta@${D1}`, `ghcr.io/other/delta@${D2}`, "ghcr.io/zeapsu/delta@sha256:short", `GHCR.IO/zeapsu/delta@${D2}`],
+    },
+    "ghcr.io/zeapsu/delta",
+  ),
+  [`ghcr.io/zeapsu/delta@${D1}`, `GHCR.IO/zeapsu/delta@${D2}`],
+);
+assert.deepEqual(repoDigestRefs({}, "ghcr.io/zeapsu/delta"), []);
+// Pinned by digest, so the verifier is the exact image CI signs with.
+assert.match(parseImageRef(COSIGN_IMAGE).digest ?? "", /^sha256:[0-9a-f]{64}$/);
+const args = verifyArgs(`ghcr.io/zeapsu/delta@${D1}`);
+assert.equal(args[0], "verify");
+assert.equal(args.at(-1), `ghcr.io/zeapsu/delta@${D1}`);
+assert.equal(args[args.indexOf("--certificate-oidc-issuer") + 1], "https://token.actions.githubusercontent.com");
+// The identity: the docker workflow of this repo, on main or a release tag. JS has no
+// inline (?i:...) group (cosign is Go), so lowercase the subject for that part.
+const id = new RegExp(SIGNER_IDENTITY.replace("(?i:zeapsu/delta)", "zeapsu/delta"));
+const signer = (s) => id.test(s.replace(/^(https:\/\/github\.com\/)([^/]+\/[^/]+)/, (_, a, b) => a + b.toLowerCase()));
+for (const ok of ["refs/heads/main", "refs/tags/v1.5.0", "refs/tags/v10.0.12"]) {
+  assert.ok(signer(`https://github.com/zeapsu/Delta/.github/workflows/docker.yml@${ok}`), ok);
+}
+for (const bad of [
+  "https://github.com/zeapsu/Delta/.github/workflows/docker.yml@refs/heads/feature",
+  "https://github.com/zeapsu/Delta/.github/workflows/docker.yml@refs/heads/main-x",
+  "https://github.com/zeapsu/Delta/.github/workflows/docker.yml@refs/pull/1/merge",
+  "https://github.com/zeapsu/Delta/.github/workflows/release.yml@refs/heads/main",
+  "https://github.com/someone/Delta/.github/workflows/docker.yml@refs/heads/main",
+  "https://github.com/zeapsu/Delta-fork/.github/workflows/docker.yml@refs/heads/main",
+  "https://github.com/zeapsu/Delta/.github/workflows/docker.yml@refs/tags/v1.5.0-evil",
+  "https://github.com/zeapsu/Delta/.github/workflows/docker.yml@refs/tags/v1.5.0/x",
+  "https://githubXcom/zeapsu/Delta/.github/workflows/docker.yml@refs/heads/main",
+]) {
+  assert.ok(!signer(bad), bad);
+}
 
 console.log("updater-check: ok");

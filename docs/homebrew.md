@@ -57,7 +57,7 @@ The log is `$(brew --prefix)/var/log/delta.log`. Delta syncs your banks every 6 
 
 ## Update
 
-When a new release is out, an **Update** pill appears in Delta's header. When Delta is run by `brew services`, its dialog has **Update now**: it backs up, runs `brew upgrade delta` (building the new version takes a few minutes), then stops Delta so `brew services` starts the new version. The helper's output is in `update/brew.log` in Delta's data folder (`$(brew --prefix)/var/delta`). If Homebrew doesn't have the new version yet, it says so.
+When a new release is out, an **Update** pill appears in Delta's header. When Delta is run by `brew services`, its dialog has **Update now**: it backs up, runs `brew upgrade delta` (building the new version takes a few minutes), then stops Delta so `brew services` starts the new version. The helper's output is in `update/brew.log` in Delta's data folder (`$(brew --prefix)/var/delta`). If Homebrew doesn't have the new version yet, it says so. Homebrew checks the release download against the `sha256` in the tap's formula before it builds.
 
 Started any other way, such as `delta start` in a terminal, the dialog offers the command instead:
 

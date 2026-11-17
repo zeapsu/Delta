@@ -33,6 +33,35 @@ export function parseImageRef(ref) {
   return { repo: rest, tag: tag ?? (digest ? null : "latest"), digest };
 }
 
+// --- signatures (docs/updating.md, "Signed images") ---
+// Images from OFFICIAL_REPO are signed in CI (.github/workflows/docker.yml)
+// with cosign keyless: a short-lived certificate for the docker workflow's
+// GitHub identity, logged in Sigstore's public transparency log. The updater
+// installs one only if cosign, run from COSIGN_IMAGE (pinned by digest; CI
+// signs with the same one), finds a signature from that workflow on main or a
+// v* tag. Images from anywhere else (a fork, a local registry) are not checked.
+export const OFFICIAL_REPO = "ghcr.io/zeapsu/delta";
+export const COSIGN_IMAGE = "ghcr.io/sigstore/cosign/cosign:v3.1.4@sha256:0f06154836d2de34f887a5c273506d52ca43edaa1d9e53e6510fa78a48f69c2d";
+export const SIGNER_ISSUER = "https://token.actions.githubusercontent.com";
+// GitHub repo names are case-insensitive (the repo is zeapsu/Delta, the image zeapsu/delta).
+export const SIGNER_IDENTITY = "^https://github\\.com/(?i:zeapsu/delta)/\\.github/workflows/docker\\.yml@refs/(heads/main|tags/v[0-9]+\\.[0-9]+\\.[0-9]+)$";
+
+export const isOfficial = (repo) => String(repo).toLowerCase() === OFFICIAL_REPO;
+
+// `cosign verify` arguments for one image digest reference.
+export const verifyArgs = (digestRef) => ["verify", "--certificate-oidc-issuer", SIGNER_ISSUER, "--certificate-identity-regexp", SIGNER_IDENTITY, digestRef];
+
+// The `repo@sha256:...` references a pulled image is known by in `repo`
+// (RepoDigests of GET /images/<ref>/json): the digest the registry served,
+// which is what CI signed.
+export function repoDigestRefs(image, repo) {
+  const want = String(repo).toLowerCase();
+  return (image?.RepoDigests ?? []).filter((d) => {
+    const at = d.indexOf("@");
+    return at > 0 && d.slice(0, at).toLowerCase() === want && /^sha256:[0-9a-f]{64}$/.test(d.slice(at + 1));
+  });
+}
+
 // Split what an update replaces, in the order it has to be stopped and
 // started: roots (the web app), then dependents (share a root's network
 // namespace via container:<id>), with the updater itself last and apart.
