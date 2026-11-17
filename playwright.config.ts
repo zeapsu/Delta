@@ -46,7 +46,13 @@ export default defineConfig({
   reporter: process.env.CI
     ? [["github"], ["html", { outputFolder: "e2e/.tmp/report", open: "never" }]]
     : [["list"], ["html", { outputFolder: "e2e/.tmp/report", open: "never" }]],
-  use: { baseURL: `http://127.0.0.1:${PORT}`, trace: "retain-on-failure" },
+  use: {
+    baseURL: `http://127.0.0.1:${PORT}`,
+    trace: "retain-on-failure",
+    // A Chromium already on the machine when Playwright's own build isn't
+    // installed (some sandboxes). Chromium projects only.
+    launchOptions: process.env.PW_CHROMIUM_PATH ? { executablePath: process.env.PW_CHROMIUM_PATH } : {},
+  },
   projects: [
     { name: "setup", testMatch: /setup\.spec\.ts/ },
     { name: "api", testMatch: /(api|mcp|reauth)\.spec\.ts/, dependencies: ["setup"] },

@@ -27,7 +27,7 @@ To try the agent API locally: `npm run token -- create dev --scope write`, then 
 
 ## Checks
 
-Run these before you push. CI runs these plus the end-to-end tests, the Docker build and the docs build.
+Run these before you push: `scripts/checks.sh` runs them all (about 30 seconds), as CI's Checks job does. CI also runs the end-to-end tests, the Docker build and the docs build.
 
 ```bash
 npm test              # pure-logic self-checks (lib/*-check.ts)
@@ -35,6 +35,8 @@ npm run lint
 npx tsc --noEmit
 npx tsx db/check.ts   # DB smoke test on a throwaway database
 ```
+
+To try a change by hand on seeded mock data, `npm run build && node scripts/verify-serve.mjs` starts Delta at http://127.0.0.1:3300 with a linked mock bank and prints a write token.
 
 CI also runs the end-to-end suite, which drives the built app against a mock Plaid server (no keys needed): `npm run build && npx playwright install chromium webkit && npm run e2e`. Run it when you change pages, API routes or MCP tools. It also checks layout (nothing overflowing the screen or its card, down to 320px) in Chromium and in WebKit, the engine behind iOS browsers. If you change `db/schema.ts`, CI fails unless the matching `drizzle/` migration is committed.
 
@@ -46,7 +48,7 @@ The [architecture page](docs/architecture.md) has the directory map and how sync
 
 ## Conventions
 
-These are the ones that bite. [`AGENTS.md`](AGENTS.md) adds the gotchas that aren't written down here, in the docs or in the code. It's written for coding agents but useful for anyone.
+These are the ones that bite. [`REVIEW.md`](REVIEW.md) lists what a review flags and a checklist of checks keyed to what a change touches; [`AGENTS.md`](AGENTS.md) adds how coding agents work here. Both are useful for anyone.
 
 **Data**
 - Money is **integer cents**, with Plaid's sign: positive = money out.
@@ -76,6 +78,6 @@ These are the ones that bite. [`AGENTS.md`](AGENTS.md) adds the gotchas that are
 
 - Branch from `main`, keep the PR focused, and describe what changed and how you tested it. Screenshots help for UI changes (sandbox data only, never real accounts).
 - Commit messages say what the change does in the imperative ("Add budget alerts", not "added stuff").
-- Update the docs in `docs/` when you change behavior a self-hoster or agent would notice, and add a line to `AGENTS.md` when you introduce a convention or gotcha that nothing else records.
+- Update the docs in `docs/` when you change behavior a self-hoster or agent would notice, and add a row to the `REVIEW.md` checklist (trigger, check, origin) when you introduce a convention or gotcha that nothing else records. Prefer a lint rule or test when a machine can catch it. Change `REVIEW.md` in its own PR.
 
 By contributing, you agree that your contributions are licensed under the project's [license](LICENSE.md).

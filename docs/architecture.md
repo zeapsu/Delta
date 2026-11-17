@@ -60,4 +60,4 @@ The security boundary: the web app never gets the Docker socket. The updater is 
 
 Neutral black/white "liquid glass" chrome. Color carries meaning only: category identity, money in vs out, and status. Tokens live in `app/globals.css`; page scaffolding (`Page`, `Card`, `Stat` and friends) in `app/ui.tsx`. Charts use recharts as client islands in `app/charts.tsx`.
 
-The core conventions are in [`CONTRIBUTING.md`](https://github.com/zeapsu/Delta/blob/main/CONTRIBUTING.md). For the gotchas that aren't written down anywhere else, see [`AGENTS.md`](https://github.com/zeapsu/Delta/blob/main/AGENTS.md) in the repo.
+The core conventions are in [`CONTRIBUTING.md`](https://github.com/zeapsu/Delta/blob/main/CONTRIBUTING.md). For what a review checks, see [`REVIEW.md`](https://github.com/zeapsu/Delta/blob/main/REVIEW.md) in the repo.
