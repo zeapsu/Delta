@@ -12,7 +12,7 @@ try {
   process.loadEnvFile();
 } catch {}
 
-import { Configuration, PlaidApi, PlaidEnvironments } from "plaid";
+import { Configuration, PlaidApi, PlaidEnvironments } from "plaid/legacy";
 
 // Same selection as lib/plaid.ts (server-only, can't load here): the
 // environment's keys, else the ones saved on the setup page.

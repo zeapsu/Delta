@@ -17,7 +17,7 @@ import type {
   InvestmentTransaction,
   Security,
   Transaction as PlaidTransaction,
-} from "plaid";
+} from "plaid/legacy";
 
 type Item = typeof items.$inferSelect;
 

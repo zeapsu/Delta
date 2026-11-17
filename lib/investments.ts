@@ -1,5 +1,5 @@
 import "server-only";
-import { Products } from "plaid";
+import { Products } from "plaid/legacy";
 import { getPlaid } from "@/lib/plaid";
 import { safePlaidError } from "@/lib/sync";
 

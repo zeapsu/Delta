@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
-import { CountryCode, Products, type LinkTokenCreateRequest } from "plaid";
+import { CountryCode, Products, type LinkTokenCreateRequest } from "plaid/legacy";
 import { db } from "@/db";
 import { items } from "@/db/schema";
 import { getPlaid } from "@/lib/plaid";

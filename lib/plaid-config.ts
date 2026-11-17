@@ -3,7 +3,7 @@ import { plaidClient } from "@/lib/plaid";
 import type { PlaidKeys } from "@/lib/plaid-keys";
 import { currentPlaidKeys } from "@/lib/settings";
 import { safePlaidError } from "@/lib/sync";
-import { CountryCode } from "plaid";
+import { CountryCode } from "plaid/legacy";
 
 // First-run check (#74): which Plaid environment is active, and whether its
 // keys are present and accepted. Logged once at server start
