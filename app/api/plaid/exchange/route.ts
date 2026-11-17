@@ -5,7 +5,7 @@ import { accounts, items } from "@/db/schema";
 import { duplicateOf } from "@/lib/duplicate-link";
 import { getPlaid } from "@/lib/plaid";
 import { safePlaidError, saveAccounts, syncOne } from "@/lib/sync";
-import type { AccountBase } from "plaid";
+import type { AccountBase } from "plaid/legacy";
 
 // Every connection with its accounts, for the duplicate check.
 function linkedBanks() {
