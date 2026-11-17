@@ -6,7 +6,7 @@ Before changing code, read `CONTRIBUTING.md` (setup, checks, core conventions) a
 
 ## Secrets and trust boundaries
 
-- Never log, return or rethrow a raw Plaid/Axios error: `err.config.data` is the request body with `client_id`, `secret` and `access_token`. Catch it in the route (Next.js logs what escapes) and log only `safePlaidError(err)` fields.
+- Never log, return or rethrow a raw Plaid error: catch it in the route (Next.js logs what escapes) and log only `safePlaidError(err)` fields. Use the `plaid` SDK, never `plaid/legacy`: legacy errors are Axios errors whose `err.config` carries `client_id`, `secret` and `access_token`.
 - Never select or return `items.access_token` or `items.sync_cursor` in an `/api/v1` route, and never return a saved Plaid secret from any route.
 - The web app must never get the Docker socket. Updates go through a request file to the opt-in `updater` compose service, which takes no parameters (`docs/architecture.md`). `POST /api/update` is dashboard only: it refuses bearer tokens (`sentByAgent()`).
 - Never switch an instance to `PLAID_ENV=production` without the user's explicit sign-off. Production needs a fresh database: sandbox and production data must not mix.

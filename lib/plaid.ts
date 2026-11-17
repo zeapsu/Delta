@@ -1,5 +1,5 @@
 import "server-only";
-import { Configuration, PlaidApi, PlaidEnvironments } from "plaid/legacy";
+import { PlaidClient, PlaidEnvironment } from "plaid";
 import type { PlaidKeys } from "@/lib/plaid-keys";
 import { currentPlaidKeys } from "@/lib/settings";
 
@@ -7,9 +7,9 @@ import { currentPlaidKeys } from "@/lib/settings";
 // config validation must not throw at module scope (fresh clone has no .env).
 // Keys come from the environment or the setup page (lib/plaid-keys.ts); the
 // client is rebuilt when they change, so saving keys on /setup needs no restart.
-let client: { id: string; api: PlaidApi } | undefined;
+let client: { id: string; api: PlaidClient } | undefined;
 
-export function plaidClient(keys: PlaidKeys): PlaidApi {
+export function plaidClient(keys: PlaidKeys): PlaidClient {
   const env = keys.env;
   if (env !== "sandbox" && env !== "production") {
     throw new Error(`PLAID_ENV must be "sandbox" or "production", got "${env}"`);
@@ -20,20 +20,17 @@ export function plaidClient(keys: PlaidKeys): PlaidApi {
   const mockUrl = process.env.PLAID_MOCK_URL;
   if (mockUrl && env !== "sandbox") throw new Error("PLAID_MOCK_URL is only allowed with PLAID_ENV=sandbox");
 
-  return new PlaidApi(
-    new Configuration({
-      basePath: mockUrl || PlaidEnvironments[env],
-      baseOptions: {
-        headers: {
-          "PLAID-CLIENT-ID": keys.clientId,
-          "PLAID-SECRET": keys.secret,
-        },
-      },
-    })
-  );
+  // Always pass the environment: a client built without one targets Production,
+  // and without explicit keys it falls back to PLAID_CLIENT_ID / PLAID_SECRET.
+  return new PlaidClient({
+    environment: env === "production" ? PlaidEnvironment.Production : PlaidEnvironment.Sandbox,
+    baseUrl: mockUrl || undefined,
+    clientId: keys.clientId,
+    secret: keys.secret,
+  });
 }
 
-export function getPlaid(): PlaidApi {
+export function getPlaid(): PlaidClient {
   const keys = currentPlaidKeys();
   const id = `${keys.env}\n${keys.clientId}\n${keys.secret}`;
   if (client?.id !== id) client = { id, api: plaidClient(keys) };

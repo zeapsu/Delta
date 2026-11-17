@@ -54,7 +54,7 @@ These are the ones that bite. [`AGENTS.md`](AGENTS.md) adds the gotchas that are
 - `transactions.date` (posted) drives every total. Spend rules live in `isSpend` in `lib/insights.ts`; reuse it rather than writing a new filter.
 
 **Security**
-- **Never log a raw Plaid/Axios error.** Its `config.data` holds the client secret and access token. Log only `safePlaidError(err)`.
+- **Never log a raw Plaid error.** Log only `safePlaidError(err)`.
 - Never select `items.access_token` or `sync_cursor` in an `/api/v1` route, and never return them anywhere.
 - Writes from agents go only through the validated budget, recurring and category routes. A new write path needs a strong reason and its own validation.
 - New `/api/*` routes are covered by `proxy.ts` automatically. Don't bypass it.

@@ -5,7 +5,7 @@ import { accounts, items } from "@/db/schema";
 import { duplicateOf } from "@/lib/duplicate-link";
 import { getPlaid } from "@/lib/plaid";
 import { safePlaidError, saveAccounts, syncOne } from "@/lib/sync";
-import type { AccountBase } from "plaid/legacy";
+import type { Plaid } from "plaid";
 
 // Every connection with its accounts, for the duplicate check.
 function linkedBanks() {
@@ -35,22 +35,22 @@ export async function POST(req: Request) {
   let item: typeof items.$inferSelect | undefined;
   try {
     const plaid = getPlaid();
-    const exchangeRes = await plaid.itemPublicTokenExchange({
+    const exchangeRes = await plaid.item.exchangePublicToken({
       public_token: publicToken,
     });
-    const { item_id: plaidItemId, access_token: accessToken } = exchangeRes.data;
+    const { item_id: plaidItemId, access_token: accessToken } = exchangeRes;
 
     item = db.select().from(items).where(eq(items.plaidItemId, plaidItemId)).get();
     if (!item) {
       // Linking a bank again makes a new item with new account ids, so only
       // its accounts can say Delta already has it. A failed lookup must not
       // fail the link: the item exists at Plaid by now.
-      let linked: AccountBase[] = [];
+      let linked: Plaid.AccountBase[] = [];
       let plaidName: string | null = null;
       try {
-        const got = await plaid.accountsGet({ access_token: accessToken });
-        linked = got.data.accounts;
-        plaidName = got.data.item.institution_name ?? null;
+        const got = await plaid.accounts.get({ access_token: accessToken });
+        linked = got.accounts;
+        plaidName = got.item.institution_name ?? null;
       } catch (err) {
         const { error_code, request_id } = safePlaidError(err);
         console.error(`plaid accounts lookup failed: error_code=${error_code} request_id=${request_id}`);
@@ -67,7 +67,7 @@ export async function POST(req: Request) {
         // Keep the connection that has the history; the new item goes, or
         // Plaid keeps billing for it.
         try {
-          await plaid.itemRemove({ access_token: accessToken });
+          await plaid.item.remove({ access_token: accessToken });
         } catch (err) {
           const { error_code, request_id } = safePlaidError(err);
           console.error(
