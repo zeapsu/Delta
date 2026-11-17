@@ -37,7 +37,8 @@ async function openDialog(page: Page) {
   await pill.click();
   const dialog = page.getByRole("dialog", { name: "Update Delta" });
   await expect(dialog).toBeVisible();
-  await page.waitForTimeout(450); // the sheet's slide-in
+  // The sheet slides in: wait for its transitions to end, not a fixed time.
+  await dialog.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)));
   return dialog;
 }
 
