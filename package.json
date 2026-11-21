@@ -17,21 +17,21 @@
     "test": "tsx lib/tailnet-check.ts && tsx lib/api-auth-check.ts && tsx lib/recurring-check.ts && tsx lib/months-check.ts && tsx lib/networth-check.ts && tsx lib/mcp-check.ts && tsx lib/fresh-sync-check.ts && tsx lib/analysis-check.ts && tsx lib/plaid-keys-check.ts && tsx lib/plaid-errors-check.ts && tsx lib/profile-check.ts && tsx lib/login-check.ts && tsx lib/duplicate-link-check.ts && node scripts/updater-check.mjs && node scripts/brew-update-check.mjs"
   },
   "dependencies": {
-    "better-sqlite3": "^13.0.3",
+    "better-sqlite3": "^13.2.0",
     "drizzle-orm": "^0.45.4",
     "next": "16.4.6",
     "plaid": "^51.0.0",
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "react-plaid-link": "^5.0.0",
-    "recharts": "^3.10.1",
+    "recharts": "^3.11.0",
     "server-only": "^0.0.1",
     "tsx": "^4.23.15"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.14.0",
     "@modelcontextprotocol/sdk": "^1.32.2",
-    "@playwright/test": "^1.65.0",
+    "@playwright/test": "^1.65.1",
     "@tailwindcss/postcss": "^4",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^26",
