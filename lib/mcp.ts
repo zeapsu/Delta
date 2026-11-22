@@ -98,11 +98,15 @@ export function validateArgs(
   for (const key of required) {
     if (!Object.hasOwn(args, key)) throw new ArgError(`missing required argument: ${key}`);
   }
-  const out: Args = {};
-  for (const [key, value] of Object.entries(args)) {
+  for (const key of Object.keys(args)) {
     // Own keys only: "constructor" or "__proto__" must not pass as known.
-    const p = Object.hasOwn(props, key) ? props[key] : undefined;
-    if (!p) throw new ArgError(`unknown argument: ${key}`);
+    if (!Object.hasOwn(props, key)) throw new ArgError(`unknown argument: ${key}`);
+  }
+  const out: Args = {};
+  const record = args as Record<string, unknown>;
+  for (const [key, p] of Object.entries(props)) {
+    if (!Object.hasOwn(record, key)) continue;
+    const value = record[key];
     if (value === null || value === undefined) continue;
     const ok =
       p.type === "string" ? typeof value === "string"

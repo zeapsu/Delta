@@ -182,6 +182,15 @@ for (const key of ["constructor", "toString", "__proto__", "hasOwnProperty"]) {
   assert.throws(() => validateArgs({ id: { type: "integer" as const, description: "" } }, [], JSON.parse(`{"${key}": 1}`)), /unknown argument/, key);
 }
 assert.throws(() => validateArgs({ toString: { type: "string" as const, description: "" } }, ["toString"], {}), /missing required/);
+assert.deepStrictEqual(validateArgs({ toString: { type: "string" as const, description: "" } }, [], {}), {});
+assert.deepStrictEqual(
+  validateArgs(
+    { a: { type: "string" as const, description: "" }, b: { type: "integer" as const, description: "" } },
+    ["a"],
+    { a: "ok", b: null },
+  ),
+  { a: "ok" },
+);
 
 console.log("lib/mcp-check.ts: all assertions passed");
 }
