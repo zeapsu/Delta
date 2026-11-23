@@ -5,8 +5,8 @@
 class Delta < Formula
   desc "Self-hosted personal finance dashboard with an MCP server for your agent"
   homepage "https://zeapsu.github.io/Delta/"
-  url "https://github.com/zeapsu/Delta/archive/refs/tags/v1.6.0.tar.gz"
-  sha256 "2f4e734d7d551c74a66405841aacc91611ee81c96fbe337cca51b5aa93518b20"
+  url "https://github.com/zeapsu/Delta/archive/refs/tags/v1.6.1.tar.gz"
+  sha256 "bb4da318d7c1ac5a724e21272e35c168ac34922ce1780dac4d6f1e634d854319"
   license "AGPL-3.0-only"
 
   # Delta's Docker image runs Node 24 too. A versioned Node keeps the SQLite
