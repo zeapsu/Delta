@@ -31,5 +31,6 @@ Turn it off from the machine Delta runs on, then set a new one in Settings:
 | Install | Run |
 |---|---|
 | Terminal (`delta.sh`) | `./delta.sh reset-password` |
+| Homebrew | `delta reset-password` |
 | Home server app | open a console on the `delta` container in your panel, then `npm run password -- reset` |
 | From source | `npm run password -- reset` |

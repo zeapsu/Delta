@@ -42,6 +42,7 @@ Delta then listens only on this computer's Tailscale address, and prints it. Use
 | `delta phone` / `delta local` | Listen on your Tailscale address / this computer only |
 | `delta token create <name>` | New agent token. Also `list`, `revoke <id>` |
 | `delta backup` | Back up the database now |
+| `delta reset-password` | Turn off the web UI password if you forgot it |
 | `delta unlink` | Remove every bank from Plaid |
 | `brew services restart delta` | Restart Delta |
 

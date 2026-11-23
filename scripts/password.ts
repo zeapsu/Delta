@@ -1,6 +1,6 @@
 // Web UI password, from the host that holds the DB (for when it's forgotten):
 //   npm run password -- reset   turns the login off; set a new one in Settings
-// In Docker: ./delta.sh reset-password
+// In Docker: ./delta.sh reset-password   In Homebrew: delta reset-password
 
 try {
   process.loadEnvFile();

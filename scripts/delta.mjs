@@ -20,13 +20,14 @@ const brew = process.env.DELTA_INSTALL === "brew";
 
 const HELP = `Usage: delta <command>
 
-  start      Run Delta and its sync and backup jobs${brew ? " (brew services runs this)" : ""}
-  open       Open Delta in the browser
-  phone      Serve Delta on this computer's Tailscale address, for your phone
-  local      Back to this computer only (the default)
-  token      Agent tokens: delta token create <name> [--scope read|write] | list | revoke <id>
-  backup     Back up the database now (keeps 7)
-  unlink     Remove every bank from Plaid (run before uninstalling)
+  start           Run Delta and its sync and backup jobs${brew ? " (brew services runs this)" : ""}
+  open            Open Delta in the browser
+  phone           Serve Delta on this computer's Tailscale address, for your phone
+  local           Back to this computer only (the default)
+  token           Agent tokens: delta token create <name> [--scope read|write] | list | revoke <id>
+  backup          Back up the database now (keeps 7)
+  reset-password  Turn off the web UI password (forgot it); set a new one in Settings
+  unlink          Remove every bank from Plaid (run before uninstalling)
 
 Data and settings: ${HOME}`;
 
@@ -170,6 +171,13 @@ switch (command) {
     break;
   case "backup":
     runScript(["scripts/backup-db.mjs"]);
+    break;
+  case "reset-password":
+    if (rest.length > 0) {
+      console.error("Usage: delta reset-password\n\nTurns off the web UI password (forgot it); set a new one in Settings.");
+      process.exit(1);
+    }
+    runScript(["node_modules/tsx/dist/cli.mjs", "scripts/password.ts", "reset"]);
     break;
   case "unlink":
     runScript(["node_modules/tsx/dist/cli.mjs", "scripts/unlink-items.ts", ...rest]);
