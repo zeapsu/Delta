@@ -68,6 +68,7 @@ await call("POST", "/api/plaid/exchange", { public_token: "public-sandbox-mock",
 await call("PUT", "/api/settings", {
   analysis: { baselineMonths: 3, spikePct: 25, spikeMinDollars: 50, trendMonths: 3, budgetWarnPct: 80 },
 }); // hides the "choose how closely" prompt
+await call("PUT", "/api/settings/profile", { name: "", timeZone: "UTC" }); // hides the "Getting started" checklist
 for (const [category, dollars] of [
   ["FOOD_AND_DRINK", 900],
   ["GENERAL_MERCHANDISE", 250],
